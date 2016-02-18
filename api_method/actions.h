@@ -378,7 +378,7 @@ void do_throw(grasped_object_type object){
 	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
 	
 	triggers[0].actuator_number = 2;
-	triggers[0].actuator_position = 120;
+	triggers[0].actuator_position = 140;
 	triggers[0].finger_number = 0;
 	triggers[0].finger_position = 0;
 
