@@ -254,7 +254,7 @@ void straighten(){
 	
 	move_arm_to(angles);
 	
-	angles[0] = 90;
+	angles[0] = 0;
 	angles[1] = 180;
 	angles[2] = 180;
 	angles[3] = 90;
