@@ -51,6 +51,8 @@ void do_repl(){
 
 		}else if(!strcmp("load throw", cmd.c_str())){
 			load_throw(object);
+			// sometimes doesn't finish the first one
+			load_throw(object);
 
 		}else if(!strcmp("close fingers", cmd.c_str())){
 			close_fingers(object);

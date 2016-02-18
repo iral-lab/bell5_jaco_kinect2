@@ -324,7 +324,12 @@ void close_fingers(grasped_object_type object){
 	}else{
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 5000;
 	}
+
 	move_arm_to(angles);
+	if(ORANGE == object){
+		angles[NUM_ACTUATORS + 1] = 0;
+		move_arm_to(angles);
+	}
 }
 
 void prep_throw(grasped_object_type object){
@@ -349,7 +354,7 @@ void prep_throw(grasped_object_type object){
 	angles[2] = 90;
 	angles[3] = -90;
 	angles[4] = 0;
-	angles[5] = 0;
+	angles[5] = 90;
 	
 	move_arm_to(angles);
 }
@@ -367,16 +372,13 @@ void do_throw(grasped_object_type object){
 	angles[1] = 90;
 	angles[2] = 180;
 	angles[3] = -90;
-	angles[4] = 0;
-	angles[5] = 0;
-	
 	
 	int num_triggers = 3;
 	struct actuator_trigger triggers[num_triggers];
 	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
 	
 	triggers[0].actuator_number = 2;
-	triggers[0].actuator_position = 180;
+	triggers[0].actuator_position = 120;
 	triggers[0].finger_number = 0;
 	triggers[0].finger_position = 0;
 
@@ -400,7 +402,7 @@ void load_throw(grasped_object_type object){
 	angles[1] = 90;
 	angles[2] = 180;
 	angles[3] = 200;
-	angles[4] = -100;
+	angles[4] = -105;
 	angles[5] = 0;
 	
 	move_arm_to(angles);
