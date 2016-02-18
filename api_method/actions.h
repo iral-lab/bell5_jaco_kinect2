@@ -43,9 +43,10 @@ class invalid_exception: public exception{
 
 struct actuator_trigger{
 	int actuator_number;
-	float position;
+	float actuator_position;
 	int finger_number;
 	float finger_position;
+	bool triggered;
 };
 
 double angle_of_actuator(int actuator, AngularPosition *data_position){
@@ -181,12 +182,18 @@ void set_finger_movement(int finger, TrajectoryPoint *point_to_send, float movem
 
 void layered_move(int *angles, struct actuator_trigger *triggers, int num_triggers){
 	
+	if(num_triggers > 0){
+		for(int i = 0; i < num_triggers; i++){	
+			cout << "handling trigger: A = " << triggers[i].actuator_number << " @ " << triggers[i].actuator_position << ", move finger " << triggers[i].finger_number << " to " << triggers[i].finger_position << endl;
+		}
+	}
+
 	TrajectoryPoint point_to_send;
 	point_to_send.InitStruct();
 	reset_point_to_send(&point_to_send);
 	
 	int desired_angle = 0;
-	double diff, to_move;
+	double diff, to_move, current_angle;
 	bool arrived = false;
 	
 	int num_items = NUM_ACTUATORS + NUM_FINGERS;
@@ -194,7 +201,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	// higher allowance for fingers
 	int epsilon;
 	int speed;
-	int i, actuator_number, finger_number;
+	int i, j, actuator_number, finger_number;
 
 	bool finished[num_items];
 	for(i = 0; i < num_items; i++){
@@ -218,10 +225,27 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 
 			desired_angle = angles[i];
 			if(is_actuator){
-				diff = angle_of_actuator(actuator_number, &data_position) - desired_angle;
+				current_angle = angle_of_actuator(actuator_number, &data_position);
+				diff = current_angle - desired_angle;
 			}else if(is_finger){
-				diff = angle_of_finger(finger_number, &data_position) - desired_angle;
+				current_angle = angle_of_finger(finger_number, &data_position);
+				diff = current_angle - desired_angle;
 			}
+
+			for(j = 0; j < num_triggers; j++){
+				if(triggers[j].triggered || triggers[j].actuator_number != actuator_number){
+					continue;
+				}
+				
+				if(fabs(triggers[j].actuator_position - current_angle) < epsilon){
+					cout << "Found candidate actuator " << actuator_number << endl;
+					triggers[j].triggered = true;
+					int offset = triggers[j].finger_number + NUM_ACTUATORS;
+					angles[offset] = triggers[j].finger_position;
+					finished[offset] = false;
+				}
+			}
+
 			to_move = 0;
 			if(fabs(diff) > epsilon){
 				
@@ -253,8 +277,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 
 void move_arm_to(int *angles){
 	int num_triggers = 0;
-	struct actuator_trigger triggers[num_triggers];
-	layered_move(angles, triggers, num_triggers);
+	layered_move(angles, NULL, num_triggers);
 }
 
 
@@ -348,8 +371,20 @@ void do_throw(grasped_object_type object){
 	angles[5] = 0;
 	
 	
-	int num_triggers = 0;
+	int num_triggers = 3;
 	struct actuator_trigger triggers[num_triggers];
+	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
+	
+	triggers[0].actuator_number = 2;
+	triggers[0].actuator_position = 180;
+	triggers[0].finger_number = 0;
+	triggers[0].finger_position = 0;
+
+	memcpy(&(triggers[1]), triggers, sizeof(struct actuator_trigger));
+	memcpy(&(triggers[2]), triggers, sizeof(struct actuator_trigger));
+	
+	triggers[1].finger_number = 1;
+	triggers[2].finger_number = 2;
 	
 	layered_move(angles, triggers, num_triggers);
 }
@@ -361,20 +396,11 @@ void load_throw(grasped_object_type object){
 	// don't forget finger locations
 	load_current_angles(angles);
 	
-/*
-	angles[0] = 0;
-	angles[1] = 180;
-	angles[2] = 180;
-	angles[3] = 90;
-
-	move_arm_to(angles);
-*/	
-	
 	angles[0] = 0;
 	angles[1] = 90;
 	angles[2] = 180;
-	angles[3] = 180;
-	angles[4] = -90;
+	angles[3] = 200;
+	angles[4] = -100;
 	angles[5] = 0;
 	
 	move_arm_to(angles);
