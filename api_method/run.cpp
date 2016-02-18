@@ -13,10 +13,17 @@ using namespace std;
 // Borrowed heavily from the Kinova SDK examples
 
 void print_help(){
-	cout << "Usage: " << endl;
-	cout << "help : show this text. " << endl;
-	cout << "begin : straighten arm, prepare for action. " << endl;
-	cout << "quit : exit, put arm into shutdown position. " << endl;
+	cout << "General: " << endl;
+	cout << "\thelp          : show this text. " << endl;
+	cout << "\tbegin         : straighten arm, prepare for action. " << endl;
+	cout << "\tquit          : exit, put arm into shutdown position. " << endl;
+	cout << "\tprint state   : Print current arm/finger state. " << endl;
+	cout << "Throwing: " << endl;
+	cout << "\tload throw    : put arm into loading position. " << endl;
+	cout << "\tclose fingers : Close fingers for throw. " << endl;
+	cout << "\topen fingers  : Open fingers. " << endl;
+	cout << "\tprep throw    : Position arm for throw. " << endl;
+	cout << "\tthrow         : Throw. " << endl;
 	
 }
 
@@ -27,40 +34,44 @@ void do_repl(){
 	string prompt = ">>";
 	bool active = true;
 	
+	grasped_object_type object = ORANGE;
+	
 	print_help();
 	while(active){
 		cout << prompt << " ";
 		
 		getline(cin, cmd);
-		cout << "cmd: " << cmd << endl;
 		
 		if(!strcmp("begin", cmd.c_str())){
 			straighten();
+
 		}else if(!strcmp("quit", cmd.c_str())){
 			active = false;
 			break;
+
+		}else if(!strcmp("load throw", cmd.c_str())){
+			load_throw(object);
+
+		}else if(!strcmp("close fingers", cmd.c_str())){
+			close_fingers(object);
+
+		}else if(!strcmp("open fingers", cmd.c_str())){
+			open_fingers(object);
+
+		}else if(!strcmp("prep throw", cmd.c_str())){
+			prep_throw(object);
+
+		}else if(!strcmp("throw", cmd.c_str())){
+			do_throw(object);
+		
+		}else if(!strcmp("print state", cmd.c_str())){
+			print_state();
+		
 		}else{
 			print_help();
 		}
 	}
 	shutdown();
-	/*
-		grasped_object_type object = ORANGE;
-		
-		shutdown();
-
-		straighten();
-		load_throw(object);
-				
-		sleep(3);
-		close_fingers(object);
-		prep_throw();
-		sleep(1);
-		
-		do_throw(object);
-		
-		/*
-		*/
 }
 
 

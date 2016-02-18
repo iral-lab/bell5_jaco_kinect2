@@ -264,31 +264,6 @@ void straighten(){
 	move_arm_to(angles);
 }
 
-void prep_throw(){
-	cout << "Prepping throw" << endl;
-
-	int angles[NUM_COMPONENTS];
-	// don't forget finger locations
-	load_current_angles(angles);
-
-	angles[0] = 0;
-	angles[1] = 180;
-	angles[2] = 180;
-	angles[3] = 90;
-	angles[4] = 0;
-	angles[5] = 0;
-	
-	move_arm_to(angles);
-
-	angles[0] = 0;
-	angles[1] = 230;
-	angles[2] = 90;
-	angles[3] = -90;
-	angles[4] = 0;
-	angles[5] = 0;
-	
-	move_arm_to(angles);
-}
 
 void open_fingers(grasped_object_type object){
 	cout << "Opening fingers" << endl;
@@ -317,15 +292,49 @@ void close_fingers(grasped_object_type object){
 	move_arm_to(angles);
 }
 
-void do_throw(grasped_object_type object){
-	cout << "Throwing" << endl;
+void prep_throw(grasped_object_type object){
+	cout << "Prepping throw" << endl;
+	close_fingers(object);
 	
 	int angles[NUM_COMPONENTS];
 	// don't forget finger locations
 	load_current_angles(angles);
+
+	angles[0] = 0;
+	angles[1] = 180;
+	angles[2] = 180;
+	angles[3] = 90;
+	angles[4] = 0;
+	angles[5] = 0;
 	
+	move_arm_to(angles);
+
+	angles[0] = 0;
+	angles[1] = 230;
+	angles[2] = 90;
+	angles[3] = -90;
+	angles[4] = 0;
+	angles[5] = 0;
+	
+	move_arm_to(angles);
+}
+
+void do_throw(grasped_object_type object){
+	cout << "Throwing" << endl;
+
+	close_fingers(object);
+
+	int angles[NUM_COMPONENTS];
+	// don't forget finger locations
+	load_current_angles(angles);
+	
+	angles[0] = 0;
 	angles[1] = 90;
 	angles[2] = 180;
+	angles[3] = -90;
+	angles[4] = 0;
+	angles[5] = 0;
+	
 	move_arm_to(angles);
 }
 
@@ -336,12 +345,14 @@ void load_throw(grasped_object_type object){
 	// don't forget finger locations
 	load_current_angles(angles);
 	
+/*
 	angles[0] = 0;
 	angles[1] = 180;
 	angles[2] = 180;
 	angles[3] = 90;
 
 	move_arm_to(angles);
+*/	
 	
 	angles[0] = 0;
 	angles[1] = 90;
@@ -377,7 +388,18 @@ void shutdown(){
 	close_fingers(UNDEF);
 }
 
-
+void print_state(){
+	int angles[NUM_COMPONENTS];
+	load_current_angles(angles);
+	cout << "Actuators:" << endl;
+	for(int i = 0; i < NUM_ACTUATORS; i++){
+		cout << "\t" << i << " " << angles[i] << endl;
+	}
+	cout << "Fingers:" << endl;
+	for(int i = 0; i < NUM_FINGERS; i++){
+		cout << "\t" << i << " " << angles[NUM_ACTUATORS + i] << endl;
+	}
+}
 
 
 
