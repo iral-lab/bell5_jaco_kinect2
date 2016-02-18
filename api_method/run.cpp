@@ -82,6 +82,7 @@ void do_repl(){
 	
 	print_help();
 	while(active){
+		is_first_command = true;
 		cout << prompt << " ";
 		
 		getline(cin, cmd);
