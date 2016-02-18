@@ -229,7 +229,7 @@ void move_arm_to(int *angles){
 			}
 			
 			if(!finished[i] && 0 == to_move){
-				cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
+				//cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
 				finished[i] = true;
 			}else if(is_actuator){
 				set_actuator_movement(actuator_number, &point_to_send, to_move);

@@ -12,6 +12,58 @@ using namespace std;
 
 // Borrowed heavily from the Kinova SDK examples
 
+void print_help(){
+	cout << "Usage: " << endl;
+	cout << "help : show this text. " << endl;
+	cout << "begin : straighten arm, prepare for action. " << endl;
+	cout << "quit : exit, put arm into shutdown position. " << endl;
+	
+}
+
+void do_repl(){
+	string cmd;
+	int cmd_size = 1024;
+	char cmd_char[cmd_size];
+	string prompt = ">>";
+	bool active = true;
+	
+	print_help();
+	while(active){
+		cout << prompt << " ";
+		
+		getline(cin, cmd);
+		cout << "cmd: " << cmd << endl;
+		
+		if(!strcmp("begin", cmd.c_str())){
+			straighten();
+		}else if(!strcmp("quit", cmd.c_str())){
+			active = false;
+			break;
+		}else{
+			print_help();
+		}
+	}
+	shutdown();
+	/*
+		grasped_object_type object = ORANGE;
+		
+		shutdown();
+
+		straighten();
+		load_throw(object);
+				
+		sleep(3);
+		close_fingers(object);
+		prep_throw();
+		sleep(1);
+		
+		do_throw(object);
+		
+		/*
+		*/
+}
+
+
 int main(){
 	
 	int result;
@@ -55,25 +107,9 @@ int main(){
 			MySetActiveDevice(list[i]);
 		}
 		
-		grasped_object_type object = ORANGE;
 		
+		do_repl();
 		
-
-		shutdown();
-		
-		/*
-		straighten();
-		load_throw(object);
-				
-		sleep(3);
-		close_fingers(object);
-		prep_throw();
-		sleep(1);
-		
-		do_throw(object);
-		
-		/*
-		*/
 
 		//cout << endl << "WARNING: Your robot is now set to angular control. If you use the joystick, it will be a joint by joint movement." << endl;
 		cout << endl << "C L O S I N G   A P I" << endl;
