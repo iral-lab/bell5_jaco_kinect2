@@ -356,7 +356,26 @@ void load_throw(grasped_object_type object){
 }
 
 
-
+void shutdown(){
+	cout << "Going to shutdown position" << endl;
+	
+	straighten();
+	int angles[NUM_COMPONENTS];
+	load_current_angles(angles);
+	
+	angles[0] = -90;
+	angles[1] = 160;
+	angles[2] = 25;
+	angles[3] = 270;
+	angles[4] = 0;
+	angles[5] = 0;
+	angles[6] = 0;
+	angles[7] = 0;
+	angles[8] = 0;
+	
+	move_arm_to(angles);
+	close_fingers(UNDEF);
+}
 
 
 

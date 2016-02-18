@@ -58,6 +58,10 @@ int main(){
 		grasped_object_type object = ORANGE;
 		
 		
+
+		shutdown();
+		
+		/*
 		straighten();
 		load_throw(object);
 				
@@ -68,6 +72,8 @@ int main(){
 		
 		do_throw(object);
 		
+		/*
+		*/
 
 		//cout << endl << "WARNING: Your robot is now set to angular control. If you use the joystick, it will be a joint by joint movement." << endl;
 		cout << endl << "C L O S I N G   A P I" << endl;
