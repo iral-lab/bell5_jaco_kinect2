@@ -7,6 +7,8 @@
 #include <math.h>
 #include <exception>
 
+#include "util.h"
+
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
 
@@ -362,7 +364,7 @@ void prep_throw(grasped_object_type object){
 void do_throw(grasped_object_type object){
 	cout << "Throwing" << endl;
 
-	close_fingers(object);
+	//close_fingers(object);
 
 	int angles[NUM_COMPONENTS];
 	// don't forget finger locations

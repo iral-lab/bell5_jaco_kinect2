@@ -5,8 +5,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "util.h"
+
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
+
+#define COMMAND_DELAY 3
 
 using namespace std;
 
@@ -24,7 +28,43 @@ void print_help(){
 	cout << "\topen fingers  : Open fingers. " << endl;
 	cout << "\tprep throw    : Position arm for throw. " << endl;
 	cout << "\tthrow         : Throw. " << endl;
+	cout << "Use | to chain commands \"load_throw | prep throw | throw\"" << endl;
+	cout << "\t" << COMMAND_DELAY << " second delay between commands" << endl;
 	
+}
+
+bool handle_cmd(const char *cmd, grasped_object_type object){
+	
+	if(!strcmp("begin", cmd)){
+		straighten();
+
+	}else if(!strcmp("quit", cmd)){
+		return false;
+
+	}else if(!strcmp("load throw", cmd)){
+		load_throw(object);
+		// sometimes doesn't finish the first one
+		load_throw(object);
+
+	}else if(!strcmp("close fingers", cmd)){
+		close_fingers(object);
+
+	}else if(!strcmp("open fingers", cmd)){
+		open_fingers(object);
+
+	}else if(!strcmp("prep throw", cmd)){
+		prep_throw(object);
+
+	}else if(!strcmp("throw", cmd)){
+		do_throw(object);
+	
+	}else if(!strcmp("print state", cmd)){
+		print_state();
+	
+	}else{
+		print_help();
+	}
+	return true;
 }
 
 void do_repl(){
@@ -33,6 +73,10 @@ void do_repl(){
 	char cmd_char[cmd_size];
 	string prompt = ">>";
 	bool active = true;
+	char * token;
+	bool is_first_command = true;
+	
+	string delim = "|";
 	
 	grasped_object_type object = ORANGE;
 	
@@ -41,36 +85,19 @@ void do_repl(){
 		cout << prompt << " ";
 		
 		getline(cin, cmd);
+		memset(cmd_char, 0, cmd_size);
+		memcpy(cmd_char, cmd.c_str(), cmd.length());
 		
-		if(!strcmp("begin", cmd.c_str())){
-			straighten();
-
-		}else if(!strcmp("quit", cmd.c_str())){
-			active = false;
-			break;
-
-		}else if(!strcmp("load throw", cmd.c_str())){
-			load_throw(object);
-			// sometimes doesn't finish the first one
-			load_throw(object);
-
-		}else if(!strcmp("close fingers", cmd.c_str())){
-			close_fingers(object);
-
-		}else if(!strcmp("open fingers", cmd.c_str())){
-			open_fingers(object);
-
-		}else if(!strcmp("prep throw", cmd.c_str())){
-			prep_throw(object);
-
-		}else if(!strcmp("throw", cmd.c_str())){
-			do_throw(object);
-		
-		}else if(!strcmp("print state", cmd.c_str())){
-			print_state();
-		
-		}else{
-			print_help();
+		token = strtok(cmd_char, delim.c_str());
+		while(token && active){
+			if(!is_first_command){
+				sleep(COMMAND_DELAY);
+			}
+			token = trimwhitespace(token);
+			cout << "CMD: " << token << endl;
+			active = handle_cmd(token, object);
+			token = strtok(NULL, delim.c_str());
+			is_first_command = false;
 		}
 	}
 	shutdown();
