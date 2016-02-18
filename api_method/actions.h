@@ -41,6 +41,13 @@ class invalid_exception: public exception{
 	}
 } invalid_exception;
 
+struct actuator_trigger{
+	int actuator_number;
+	float position;
+	int finger_number;
+	float finger_position;
+};
+
 double angle_of_actuator(int actuator, AngularPosition *data_position){
 	if(actuator < 0 || actuator >= NUM_ACTUATORS){
 		cout << "requesting invalid actuator inside angle_of_actuator(" << actuator << ")" << endl;
@@ -172,7 +179,7 @@ void set_finger_movement(int finger, TrajectoryPoint *point_to_send, float movem
 	}
 }
 
-void move_arm_to(int *angles){
+void layered_move(int *angles, struct actuator_trigger *triggers, int num_triggers){
 	
 	TrajectoryPoint point_to_send;
 	point_to_send.InitStruct();
@@ -244,6 +251,11 @@ void move_arm_to(int *angles){
 }
 
 
+void move_arm_to(int *angles){
+	int num_triggers = 0;
+	struct actuator_trigger triggers[num_triggers];
+	layered_move(angles, triggers, num_triggers);
+}
 
 
 void straighten(){
@@ -335,7 +347,11 @@ void do_throw(grasped_object_type object){
 	angles[4] = 0;
 	angles[5] = 0;
 	
-	move_arm_to(angles);
+	
+	int num_triggers = 0;
+	struct actuator_trigger triggers[num_triggers];
+	
+	layered_move(angles, triggers, num_triggers);
 }
 
 void load_throw(grasped_object_type object){
