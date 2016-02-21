@@ -1,5 +1,7 @@
 #include "actions.h"
+#include <signal.h>
 #include <iostream>
+#include <stdlib.h> 
 #include <dlfcn.h>
 #include <vector>
 #include <stdio.h>
@@ -18,19 +20,48 @@ using namespace std;
 
 void print_help(){
 	cout << "General: " << endl;
-	cout << "\thelp          : show this text. " << endl;
-	cout << "\tbegin         : straighten arm, prepare for action. " << endl;
-	cout << "\tquit          : exit, put arm into shutdown position. " << endl;
-	cout << "\tprint state   : Print current arm/finger state. " << endl;
+	cout << "\thelp            : show this text. " << endl;
+	cout << "\tbegin           : straighten arm, prepare for action. " << endl;
+	cout << "\tstraighten      : straighten arm. " << endl;
+	cout << "\tquit            : exit, put arm into shutdown position. " << endl;
+	cout << "\tprint state     : Print current arm/finger state. " << endl;
 	cout << "Throwing: " << endl;
-	cout << "\tload throw    : put arm into loading position. " << endl;
-	cout << "\tclose fingers : Close fingers for throw. " << endl;
-	cout << "\topen fingers  : Open fingers. " << endl;
-	cout << "\tprep throw    : Position arm for throw. " << endl;
-	cout << "\tthrow         : Throw. " << endl;
+	cout << "\tload throw      : put arm into loading position. " << endl;
+	cout << "\tclose fingers   : Close fingers for throw. " << endl;
+	cout << "\topen fingers    : Open fingers. " << endl;
+	cout << "\tprep throw      : Position arm for throw. " << endl;
+	cout << "\tthrow           : Throw. " << endl;
+	cout << "Specific motion: " << endl;
+	cout << "\tmv <id> <angle> : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
 	cout << "Use | to chain commands \"load_throw | prep throw | throw\"" << endl;
 	cout << "\t" << COMMAND_DELAY << " second delay between commands" << endl;
 	
+}
+
+void handle_move_command(char *cmd){
+	string delim = " ";
+	char * save_ptr;
+	char * id;	
+	char * angle;
+
+	// strip mv	
+	strtok_r(cmd, delim.c_str(), &save_ptr);
+	
+	id = strtok_r(NULL, delim.c_str(), &save_ptr);
+	angle = id ? strtok_r(NULL, delim.c_str(), &save_ptr) : NULL;
+	
+	if(!id || !angle){
+		cout << "Problem handling command." << endl;
+		return;
+	}
+	int int_id = atoi(id);
+	double double_angle = atof(angle);
+	if(int_id < 0 || int_id >= NUM_COMPONENTS){
+		cout << "Invalid joint/finger id. (0," << NUM_COMPONENTS << ")" << endl;
+		return;
+	} 
+	cout << "Moving " << int_id << " to " << double_angle << endl;
+	move_joint_to(int_id, double_angle);
 }
 
 bool handle_cmd(const char *cmd, grasped_object_type object){
@@ -42,8 +73,6 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 		return false;
 
 	}else if(!strcmp("load throw", cmd)){
-		load_throw(object);
-		// sometimes doesn't finish the first one
 		load_throw(object);
 
 	}else if(!strcmp("close fingers", cmd)){
@@ -60,6 +89,12 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 	
 	}else if(!strcmp("print state", cmd)){
 		print_state();
+	
+	}else if(!strcmp("straighten", cmd)){
+		straighten();
+	
+	}else if(strlen(cmd) > 2 && cmd[0] == 'm' && cmd[1] == 'v'){
+		handle_move_command((char *) cmd);
 	
 	}else{
 		print_help();
@@ -79,9 +114,9 @@ void do_repl(){
 	string delim = "|";
 	
 	grasped_object_type object = ORANGE;
-	
+	char * save_ptr;
 	print_help();
-	while(active){
+	while(active && keepRunning){
 		is_first_command = true;
 		cout << prompt << " ";
 		
@@ -89,7 +124,7 @@ void do_repl(){
 		memset(cmd_char, 0, cmd_size);
 		memcpy(cmd_char, cmd.c_str(), cmd.length());
 		
-		token = strtok(cmd_char, delim.c_str());
+		token = strtok_r(cmd_char, delim.c_str(), &save_ptr);
 		while(token && active){
 			if(!is_first_command){
 				sleep(COMMAND_DELAY);
@@ -97,15 +132,22 @@ void do_repl(){
 			token = trimwhitespace(token);
 			cout << "CMD: " << token << endl;
 			active = handle_cmd(token, object);
-			token = strtok(NULL, delim.c_str());
+			token = strtok_r(NULL, delim.c_str(), &save_ptr);
 			is_first_command = false;
 		}
 	}
-	shutdown();
+
+	if(!keepRunning){
+		cout << "Caught signal, stopping" << endl;
+	}else{
+		shutdown();
+	}
+
 }
 
 
 int main(){
+	signal(SIGINT, intHandler);
 	
 	int result;
 

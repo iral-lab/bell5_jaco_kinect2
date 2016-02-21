@@ -6,11 +6,17 @@
 #include <unistd.h>
 #include <math.h>
 #include <exception>
+#include <signal.h>
 
 #include "util.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
+
+
+static volatile int keepRunning = 1;
+void intHandler(int dummy) {keepRunning = 0;}
+
 
 using namespace std;
 
@@ -210,11 +216,11 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 		finished[i] = false;
 	}
 
-	while(!arrived){
+	while(!arrived && keepRunning){
 		arrived = true;
 		(*MyGetAngularPosition)(data_position);
 		for(i = 0; i < num_items; i++){
-			if(finished[i]){
+			if(finished[i] || !keepRunning){
 				continue;
 			}
 
@@ -280,6 +286,13 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 void move_arm_to(int *angles){
 	int num_triggers = 0;
 	layered_move(angles, NULL, num_triggers);
+}
+
+void move_joint_to(int id, double angle){
+	int angles[NUM_COMPONENTS];
+	load_current_angles(angles);
+	angles[id] = angle;
+	move_arm_to(angles);
 }
 
 
@@ -407,6 +420,7 @@ void load_throw(grasped_object_type object){
 	angles[4] = -105;
 	angles[5] = 0;
 	
+	move_arm_to(angles);
 	move_arm_to(angles);
 	
 	open_fingers(object);
