@@ -335,10 +335,10 @@ void open_fingers(grasped_object_type object){
 	load_current_angles(angles);
 	
 	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 2] = 5000;
+		angles[NUM_ACTUATORS + 2] = 6000;
 		move_arm_to(angles);
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = 3500;
-		angles[NUM_ACTUATORS + 2] = 5000;
+		angles[NUM_ACTUATORS + 2] = 6000;
 	}else{
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 0;
 	}
@@ -351,7 +351,7 @@ void close_fingers(grasped_object_type object){
 	load_current_angles(angles);
 	
 	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 2] = 5000;
+		angles[NUM_ACTUATORS + 2] = 6000;
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = 4400;
 		move_arm_to(angles);
 	}else{
@@ -369,16 +369,16 @@ void prep_throw(grasped_object_type object){
 	// don't forget finger locations
 	load_current_angles(angles);
 
-	angles[0] = 0;
+	angles[0] = -20; //120;
+	
 	angles[1] = 180;
 	angles[2] = 180;
-	angles[3] = 90;
+	angles[3] = -90;
 	angles[4] = 0;
-	angles[5] = 0;
+	angles[5] = 90;
 	
 	move_arm_to(angles);
 
-	angles[0] = 0;
 	angles[1] = 230;
 	angles[2] = 90;
 	angles[3] = -90;
@@ -388,25 +388,25 @@ void prep_throw(grasped_object_type object){
 	move_arm_to(angles);
 }
 
-void do_throw(grasped_object_type object){
-	cout << "Throwing" << endl;
-
-	//close_fingers(object);
-
-	int angles[NUM_COMPONENTS];
-	// don't forget finger locations
-	load_current_angles(angles);
-	
-	angles[0] = 0;
-	angles[1] = 90;
+void elbow_first(grasped_object_type object, int *angles){
 	angles[2] = 180;
 	angles[3] = -90;
 	
-	int num_triggers = 2;
+	int num_triggers = 3;
 	struct actuator_trigger triggers[num_triggers];
 	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
 	int so_far = 0;
+
+	// move elbow before shoulder
+	triggers[so_far].move_actuator = true;
+	triggers[so_far].actuator_number = 2;
+	triggers[so_far].actuator_position = 120; // lower is earlier
+	triggers[so_far].new_actuator_number = 1;
+	triggers[so_far].new_actuator_position = 90;
+	so_far++;
 	
+
+	// release fingers
 	triggers[so_far].move_finger = true;
 	triggers[so_far].actuator_number = 2;
 	triggers[so_far].actuator_position = 130;
@@ -419,6 +419,19 @@ void do_throw(grasped_object_type object){
 	so_far += 2;
 	
 	layered_move(angles, triggers, num_triggers);
+}
+
+
+void do_throw(grasped_object_type object){
+	cout << "Throwing" << endl;
+
+	//close_fingers(object);
+
+	int angles[NUM_COMPONENTS];
+	// don't forget finger locations
+	load_current_angles(angles);
+	
+	elbow_first(object, angles);
 }
 
 void load_throw(grasped_object_type object){
