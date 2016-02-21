@@ -52,8 +52,15 @@ class invalid_exception: public exception{
 struct actuator_trigger{
 	int actuator_number;
 	float actuator_position;
-	int finger_number;
-	float finger_position;
+	
+	bool move_actuator;
+	int new_actuator_number;
+	float new_actuator_position;
+
+	bool move_finger;
+	int new_finger_number;
+	float new_finger_position;
+	
 	bool triggered;
 };
 
@@ -192,7 +199,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	
 	if(num_triggers > 0){
 		for(int i = 0; i < num_triggers; i++){	
-			cout << "handling trigger: A = " << triggers[i].actuator_number << " @ " << triggers[i].actuator_position << ", move finger " << triggers[i].finger_number << " to " << triggers[i].finger_position << endl;
+			cout << "handling trigger: A = " << triggers[i].actuator_number << " @ " << triggers[i].actuator_position << ", move finger " << triggers[i].new_finger_number << " to " << triggers[i].new_finger_position << endl;
 		}
 	}
 
@@ -215,7 +222,8 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	for(i = 0; i < num_items; i++){
 		finished[i] = false;
 	}
-
+	int offset;
+	
 	while(!arrived && keepRunning){
 		arrived = true;
 		(*MyGetAngularPosition)(data_position);
@@ -248,8 +256,13 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 				if(fabs(triggers[j].actuator_position - current_angle) < epsilon){
 					cout << "Found candidate actuator " << actuator_number << endl;
 					triggers[j].triggered = true;
-					int offset = triggers[j].finger_number + NUM_ACTUATORS;
-					angles[offset] = triggers[j].finger_position;
+					if(triggers[j].move_actuator){
+						offset = triggers[j].new_actuator_number;
+						angles[offset] = triggers[j].new_actuator_position;
+					}else if(triggers[j].move_finger){
+						offset = triggers[j].new_finger_number + NUM_ACTUATORS;
+						angles[offset] = triggers[j].new_finger_position;
+					}
 					finished[offset] = false;
 				}
 			}
@@ -322,7 +335,10 @@ void open_fingers(grasped_object_type object){
 	load_current_angles(angles);
 	
 	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 3500;
+		angles[NUM_ACTUATORS + 2] = 5000;
+		move_arm_to(angles);
+		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = 3500;
+		angles[NUM_ACTUATORS + 2] = 5000;
 	}else{
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 0;
 	}
@@ -336,15 +352,14 @@ void close_fingers(grasped_object_type object){
 	
 	if(ORANGE == object){
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 4400;
+		move_arm_to(angles);
+		angles[NUM_ACTUATORS + 2] = 3000;
+		move_arm_to(angles);
 	}else{
 		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 5000;
-	}
-
-	move_arm_to(angles);
-	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 1] = 0;
 		move_arm_to(angles);
 	}
+
 }
 
 void prep_throw(grasped_object_type object){
@@ -391,17 +406,20 @@ void do_throw(grasped_object_type object){
 	int num_triggers = 3;
 	struct actuator_trigger triggers[num_triggers];
 	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
+	int so_far = 0;
 	
-	triggers[0].actuator_number = 2;
-	triggers[0].actuator_position = 140;
-	triggers[0].finger_number = 0;
-	triggers[0].finger_position = 0;
+	triggers[so_far].move_finger = true;
+	triggers[so_far].actuator_number = 2;
+	triggers[so_far].actuator_position = 140;
+	triggers[so_far].new_finger_number = 0;
+	triggers[so_far].new_finger_position = 0;
 
-	memcpy(&(triggers[1]), triggers, sizeof(struct actuator_trigger));
-	memcpy(&(triggers[2]), triggers, sizeof(struct actuator_trigger));
+	memcpy(&(triggers[so_far+1]), triggers, sizeof(struct actuator_trigger));
+	memcpy(&(triggers[so_far+2]), triggers, sizeof(struct actuator_trigger));
 	
-	triggers[1].finger_number = 1;
-	triggers[2].finger_number = 2;
+	triggers[so_far+1].new_finger_number = 1;
+	triggers[so_far+2].new_finger_number = 2;
+	so_far += 3;
 	
 	layered_move(angles, triggers, num_triggers);
 }
@@ -416,8 +434,8 @@ void load_throw(grasped_object_type object){
 	angles[0] = 0;
 	angles[1] = 90;
 	angles[2] = 180;
-	angles[3] = 200;
-	angles[4] = -105;
+	angles[3] = 190;
+	angles[4] = -60;
 	angles[5] = 0;
 	
 	move_arm_to(angles);
@@ -456,8 +474,8 @@ void print_state(){
 		cout << "\t" << i << " " << angles[i] << endl;
 	}
 	cout << "Fingers:" << endl;
-	for(int i = 0; i < NUM_FINGERS; i++){
-		cout << "\t" << i << " " << angles[NUM_ACTUATORS + i] << endl;
+	for(int i = NUM_ACTUATORS; i < NUM_ACTUATORS + NUM_FINGERS; i++){
+		cout << "\t" << i << " " << angles[i] << endl;
 	}
 }
 

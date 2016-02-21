@@ -33,8 +33,8 @@ void print_help(){
 	cout << "\tthrow           : Throw. " << endl;
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle> : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
-	cout << "Use | to chain commands \"load_throw | prep throw | throw\"" << endl;
-	cout << "\t" << COMMAND_DELAY << " second delay between commands" << endl;
+	cout << "Use | to chain commands \"load_throw | wait | prep throw | throw\"" << endl;
+	cout << "\twait            : Wait " << COMMAND_DELAY << " seconds" << endl;
 	
 }
 
@@ -86,6 +86,10 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 
 	}else if(!strcmp("throw", cmd)){
 		do_throw(object);
+
+	}else if(!strcmp("wait", cmd)){
+		cout << "Waiting " << COMMAND_DELAY << " seconds" << endl;
+		sleep(COMMAND_DELAY);
 	
 	}else if(!strcmp("print state", cmd)){
 		print_state();
@@ -126,9 +130,6 @@ void do_repl(){
 		
 		token = strtok_r(cmd_char, delim.c_str(), &save_ptr);
 		while(token && active){
-			if(!is_first_command){
-				sleep(COMMAND_DELAY);
-			}
 			token = trimwhitespace(token);
 			cout << "CMD: " << token << endl;
 			active = handle_cmd(token, object);
