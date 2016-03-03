@@ -1,6 +1,8 @@
 NINETY=1.571
 ONE_EIGHTY=3.14159
 
+rosrun jaco_demo grip_workout.py jaco 4500 4500 4500
+
 ./straighten_arm.sh
 
 echo Rotating
