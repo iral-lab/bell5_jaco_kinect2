@@ -466,7 +466,7 @@ void shutdown(){
 	
 	angles[0] = -90;
 	angles[1] = 160;
-	angles[2] = 25;
+	angles[2] = 30;
 	angles[3] = 270;
 	angles[4] = 0;
 	angles[5] = 0;
@@ -476,6 +476,10 @@ void shutdown(){
 	
 	move_arm_to(angles);
 	close_fingers(UNDEF);
+	
+	load_current_angles(angles);
+	angles[2] = 25;
+	move_arm_to(angles);
 }
 
 void print_state(){

@@ -23,7 +23,8 @@ void print_help(){
 	cout << "\thelp            : show this text. " << endl;
 	cout << "\tbegin           : straighten arm, prepare for action. " << endl;
 	cout << "\tstraighten      : straighten arm. " << endl;
-	cout << "\tquit            : exit, put arm into shutdown position. " << endl;
+	cout << "\tshutdown        : put arm into shutdown position. " << endl;
+	cout << "\tquit            : put arm into shutdown position then exit. " << endl;
 	cout << "\tprint state     : Print current arm/finger state. " << endl;
 	cout << "Throwing: " << endl;
 	cout << "\tload throw      : put arm into loading position. " << endl;
@@ -93,6 +94,9 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 	
 	}else if(!strcmp("print state", cmd)){
 		print_state();
+	
+	}else if(!strcmp("shutdown", cmd)){
+		shutdown();
 	
 	}else if(!strcmp("straighten", cmd)){
 		straighten();
