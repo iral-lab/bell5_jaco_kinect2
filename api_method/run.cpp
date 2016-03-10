@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <pthread.h>
+
 #include "util.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
@@ -65,7 +67,7 @@ void handle_move_command(char *cmd){
 	move_joint_to(int_id, double_angle);
 }
 
-bool handle_cmd(const char *cmd, grasped_object_type object){
+bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
 		straighten();
@@ -74,13 +76,13 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 		return false;
 
 	}else if(!strcmp("load throw", cmd)){
-		load_throw(object);
+		load_throw(&args[0], object);
 
 	}else if(!strcmp("close fingers", cmd)){
 		close_fingers(object);
 
 	}else if(!strcmp("open fingers", cmd)){
-		open_fingers(object);
+		open_fingers(&args[0], object);
 
 	}else if(!strcmp("prep throw", cmd)){
 		prep_throw(object);
@@ -110,9 +112,9 @@ bool handle_cmd(const char *cmd, grasped_object_type object){
 	return true;
 }
 
-void do_repl(){
+void do_repl(int num_threads, struct thread_args *args){
 	string cmd;
-	int cmd_size = 1024;
+	int cmd_size = 1024, i;
 	char cmd_char[cmd_size];
 	string prompt = ">>";
 	bool active = true;
@@ -136,18 +138,41 @@ void do_repl(){
 		while(token && active){
 			token = trimwhitespace(token);
 			cout << "CMD: " << token << endl;
-			active = handle_cmd(token, object);
+			active = handle_cmd(num_threads, args, token, object);
 			token = strtok_r(NULL, delim.c_str(), &save_ptr);
 			is_first_command = false;
 		}
 	}
-
+	
+	for(i = 0; i < num_threads; i++){
+		args[i].shutdown = true;
+	}
+	
 	if(!keepRunning){
 		cout << "Caught signal, stopping" << endl;
 	}else{
 		shutdown();
 	}
 
+}
+
+void *run_thread(void *thread_args){
+	struct thread_args *args = (struct thread_args *) thread_args;
+	int result = (*MyInitAPI)();
+
+	cout << "Thread Initialization's result: " << result << endl;
+	MySetActiveDevice(*args->device);
+	cout << "Setting device to: " << args->device << endl;
+	while(!args->shutdown){
+		if(args->wake_up){
+			args->wake_up = false;
+			layered_move(args->angles, args->triggers, args->num_triggers);
+			args->completed_move = true;
+		}
+		
+		usleep(10000);
+	}
+	result = (*MyCloseAPI)();
 }
 
 
@@ -188,24 +213,30 @@ int main(){
 
 		int devicesCount = MyGetDevices(list, result);
 
+		pthread_t *threads = (pthread_t *) malloc (devicesCount * sizeof(pthread_t));
+		struct thread_args *args = (struct thread_args *) malloc (devicesCount * sizeof(struct thread_args));
+		memset(args, 0, devicesCount * sizeof(struct thread_args));
+		
 		for(int i = 0; i < devicesCount; i++){
 			cout << "Found a robot on the USB bus (" << list[i].SerialNumber << ")" << endl;
-
-			//Setting the current device as the active device.
-			MySetActiveDevice(list[i]);
+			
+			args[i].id = i;
+			args[i].device = &list[i];
+			
+			pthread_create(&threads[i], NULL, run_thread, (void *) &(args[i]));
 		}
 		
 		
-		do_repl();
+		do_repl(devicesCount, args);
 		
 
 		//cout << endl << "WARNING: Your robot is now set to angular control. If you use the joystick, it will be a joint by joint movement." << endl;
 		cout << endl << "C L O S I N G   A P I" << endl;
-		result = (*MyCloseAPI)();
+		// result = (*MyCloseAPI)();
 	}
 
 	dlclose(commandLayer_handle);
-
+	pthread_exit(NULL);
 	return 0;
 }
 

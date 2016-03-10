@@ -1,1 +1,1 @@
-clear && g++ -I /opt/kinova/API -o run run.cpp -ldl
+clear && g++ -pthread -I /opt/kinova/API -o run run.cpp -ldl

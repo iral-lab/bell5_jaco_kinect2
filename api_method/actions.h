@@ -64,6 +64,27 @@ struct actuator_trigger{
 	bool triggered;
 };
 
+struct thread_args{
+	int id;
+	KinovaDevice *device;
+	
+	// Track what the goal angles are for each actuator/finger of the arm
+	int angles[NUM_COMPONENTS];
+	
+	// Triggers that can be matched during move execution
+	int num_triggers;
+	struct actuator_trigger *triggers;
+	
+	// flag to wake the thread back up
+	bool wake_up;
+	
+	// thread will set this to true when current instructions are met
+	bool completed_move;
+	
+	// shutdown flag, terminate pthread
+	bool shutdown;
+};
+
 double angle_of_actuator(int actuator, AngularPosition *data_position){
 	if(actuator < 0 || actuator >= NUM_ACTUATORS){
 		cout << "requesting invalid actuator inside angle_of_actuator(" << actuator << ")" << endl;
@@ -327,22 +348,28 @@ void straighten(){
 	move_arm_to(angles);
 }
 
+void do_action(struct thread_args *args){	
+	args->wake_up = true;
+	while(!args->completed_move){
+		usleep(10000);
+	}
+}
 
-void open_fingers(grasped_object_type object){
+void open_fingers(struct thread_args *args, grasped_object_type object){
 	cout << "Opening fingers" << endl;
 	
-	int angles[NUM_COMPONENTS];
-	load_current_angles(angles);
+	//int angles[NUM_COMPONENTS];
+	load_current_angles(args->angles);
 	
 	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 2] = 6000;
-		move_arm_to(angles);
-		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = 3500;
-		angles[NUM_ACTUATORS + 2] = 6000;
+		args->angles[NUM_ACTUATORS + 2] = 6000;
+		do_action(args);
+		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = 3500;
+		args->angles[NUM_ACTUATORS + 2] = 6000;
 	}else{
-		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 0;
+		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 0;
 	}
-	move_arm_to(angles);
+	do_action(args);
 }
 
 void close_fingers(grasped_object_type object){
@@ -434,7 +461,7 @@ void do_throw(grasped_object_type object){
 	elbow_first(object, angles);
 }
 
-void load_throw(grasped_object_type object){
+void load_throw(struct thread_args *args, grasped_object_type object){
 	cout << "Loading throw" << endl;
 
 	int angles[NUM_COMPONENTS];
@@ -453,7 +480,7 @@ void load_throw(grasped_object_type object){
 	move_arm_to(angles);
 	move_arm_to(angles);
 	
-	open_fingers(object);
+	open_fingers(args, object);
 }
 
 
