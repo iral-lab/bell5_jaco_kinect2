@@ -309,6 +309,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 			}
 
 			to_move = 0;
+			//cout << "joint: " << i << " " << current_angle << " - " << desired_angle << " = " << diff << endl;
 			if(fabs(diff) > epsilon){
 				
 				if(fabs(diff) <= epsilon * 2){
@@ -322,7 +323,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 			}
 			
 			if(!finished[i] && 0 == to_move){
-				//cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
+				cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
 				finished[i] = true;
 			}else if(is_actuator){
 				set_actuator_movement(actuator_number, &point_to_send, to_move);

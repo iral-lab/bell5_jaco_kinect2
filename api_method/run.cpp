@@ -166,11 +166,17 @@ void *run_thread(void *thread_args){
 	struct thread_args *args = (struct thread_args *) thread_args;
 	int result = (*MyInitAPI)();
 
-	cout << "Thread Initialization's result: " << result << endl;
+	cout << "("<<args->id<<") "<< "Thread Initialization's result: " << result << endl;
 	MySetActiveDevice(*args->device);
-	cout << "Setting device to: " << args->device << endl;
+	cout << "("<<args->id<<") "<< "Setting device to: " << args->device << endl;
+	cout << "("<<args->id<<") "<< "args @ : " << args << endl;
 	while(!args->shutdown){
 		if(args->wake_up){
+			
+			for(int i = 0; i < NUM_COMPONENTS; i++){
+				cout << "Received: " << args << " " << i << " " << args->angles[i] << endl;
+			}
+			
 			args->wake_up = false;
 			layered_move(args->angles, args->triggers, args->num_triggers);
 			args->completed_move = true;
