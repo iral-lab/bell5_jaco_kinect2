@@ -172,12 +172,8 @@ void *run_thread(void *thread_args){
 	cout << "("<<args->id<<") "<< "args @ : " << args << endl;
 	while(!args->shutdown){
 		if(args->wake_up){
+			args->wake_up = false; // race condition here, woken up between activation and this being set.
 			
-			for(int i = 0; i < NUM_COMPONENTS; i++){
-				cout << "Received: " << args << " " << i << " " << args->angles[i] << endl;
-			}
-			
-			args->wake_up = false;
 			layered_move(args->angles, args->triggers, args->num_triggers);
 			args->completed_move = true;
 		}

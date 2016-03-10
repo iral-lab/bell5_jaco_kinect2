@@ -90,7 +90,8 @@ struct thread_args{
 	bool shutdown;
 };
 
-void do_action(struct thread_args *args, bool blocking){	
+void do_action(struct thread_args *args, bool blocking){
+	args->completed_move = false;
 	args->wake_up = true;
 	while(blocking && !args->completed_move){
 		usleep(100);
@@ -323,7 +324,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 			}
 			
 			if(!finished[i] && 0 == to_move){
-				cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
+				//cout << (is_actuator ? "\tFinished actuator " : "\tFinished finger ") << i << endl;
 				finished[i] = true;
 			}else if(is_actuator){
 				set_actuator_movement(actuator_number, &point_to_send, to_move);

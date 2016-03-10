@@ -123,7 +123,7 @@ void do_throw(struct thread_args *args, grasped_object_type object){
 }
 
 void load_throw(struct thread_args *args, grasped_object_type object){
-	cout << "Loading throw " << args << endl;
+	cout << "Loading throw " << endl;
 	clear_triggers(args);
 	
 	args->angles[0] = 0;
@@ -135,13 +135,10 @@ void load_throw(struct thread_args *args, grasped_object_type object){
 
 	args->angles[6] = args->angles[7] = args->angles[8] = 3500;
 	
-	for(int i = 0; i < NUM_COMPONENTS; i++){
-		cout << "Desired: " << i << " " << args->angles[i] << endl;
-	}
 	do_action(args, true);
-	do_action(args, true);
-	
+	do_action(args, true);	
 	open_fingers(args, object);
+	
 }
 
 
