@@ -85,6 +85,13 @@ struct thread_args{
 	bool shutdown;
 };
 
+void do_action(struct thread_args *args, bool blocking){	
+	args->wake_up = true;
+	while(blocking && !args->completed_move){
+		usleep(10000);
+	}
+}
+
 double angle_of_actuator(int actuator, AngularPosition *data_position){
 	if(actuator < 0 || actuator >= NUM_ACTUATORS){
 		cout << "requesting invalid actuator inside angle_of_actuator(" << actuator << ")" << endl;
@@ -348,13 +355,6 @@ void straighten(){
 	move_arm_to(angles);
 }
 
-void do_action(struct thread_args *args){	
-	args->wake_up = true;
-	while(!args->completed_move){
-		usleep(10000);
-	}
-}
-
 void open_fingers(struct thread_args *args, grasped_object_type object){
 	cout << "Opening fingers" << endl;
 	
@@ -363,13 +363,13 @@ void open_fingers(struct thread_args *args, grasped_object_type object){
 	
 	if(ORANGE == object){
 		args->angles[NUM_ACTUATORS + 2] = 6000;
-		do_action(args);
+		do_action(args, true);
 		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = 3500;
 		args->angles[NUM_ACTUATORS + 2] = 6000;
 	}else{
 		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 0;
 	}
-	do_action(args);
+	do_action(args, false);
 }
 
 void close_fingers(grasped_object_type object){
