@@ -18,6 +18,9 @@
 
 #define COMMAND_DELAY 3
 
+#define JOINT_DELTA_DEGREES 10
+#define FINGER_DELTA_DEGREES 500
+
 using namespace std;
 
 // Borrowed heavily from the Kinova SDK examples
@@ -27,9 +30,11 @@ void print_help(){
 	cout << "\thelp            : show this text. " << endl;
 	cout << "\tbegin           : straighten arm, prepare for action. " << endl;
 	cout << "\tstraighten      : straighten arm. " << endl;
+	cout << "\thome            : put arm into home position. " << endl;
 	cout << "\tshutdown        : put arm into shutdown position. " << endl;
 	cout << "\tquit            : put arm into shutdown position then exit. " << endl;
 	cout << "\tprint state     : Print current arm/finger state. " << endl;
+	cout << "\tr               : Repeat previous command " << endl;
 	cout << "Throwing: " << endl;
 	cout << "\tload throw      : put arm into loading position. " << endl;
 	cout << "\tclose fingers   : Close fingers for throw. " << endl;
@@ -38,6 +43,7 @@ void print_help(){
 	cout << "\tthrow           : Throw. " << endl;
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle> : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
+	cout << "\tmv <id> <+/->   : Increase/decrease a given actuator's angle (joints by " << JOINT_DELTA_DEGREES << " degrees, fingers by " << FINGER_DELTA_DEGREES << endl;
 	cout << "Use | to chain commands \"load_throw | wait | prep throw | throw\"" << endl;
 	cout << "\twait            : Wait " << COMMAND_DELAY << " seconds" << endl;
 	
@@ -76,6 +82,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, gras
 
 	}else if(!strcmp("quit", cmd)){
 		return false;
+
+	}else if(!strcmp("home", cmd)){
+		go_home(&args[0]);
 
 	}else if(!strcmp("load throw", cmd)){
 		load_throw(&args[0], object);
@@ -123,6 +132,10 @@ void do_repl(int num_threads, struct thread_args *args){
 	char * token;
 	bool is_first_command = true;
 	
+
+	int last_cmd_size = 1024;
+	char last_cmd_char[last_cmd_size];
+	
 	string delim = "|";
 	
 	grasped_object_type object = ORANGE;
@@ -135,6 +148,15 @@ void do_repl(int num_threads, struct thread_args *args){
 		getline(cin, cmd);
 		memset(cmd_char, 0, cmd_size);
 		memcpy(cmd_char, cmd.c_str(), cmd.length());
+		
+		if(strlen(last_cmd_char) > 0 && strlen(cmd_char) == 1 && 'r' == cmd_char[0]){
+			cout << "Repeat" << endl;
+			memcpy(cmd_char, last_cmd_char, strlen(last_cmd_char));
+			cmd_char[strlen(last_cmd_char)] = 0;
+		}else{
+			memcpy(last_cmd_char, cmd_char, strlen(cmd_char));
+			last_cmd_char[strlen(cmd_char)] = 0;
+		}
 		
 		token = strtok_r(cmd_char, delim.c_str(), &save_ptr);
 		while(token && active){
