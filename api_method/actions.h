@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <iostream>
 #include <dlfcn.h>
@@ -88,7 +89,15 @@ struct thread_args{
 void do_action(struct thread_args *args, bool blocking){	
 	args->wake_up = true;
 	while(blocking && !args->completed_move){
-		usleep(10000);
+		usleep(100);
+	}
+}
+
+void clear_triggers(struct thread_args *args){
+	args->num_triggers = 0;
+	if(args->triggers){
+		free(args->triggers);
+		args->triggers = NULL;
 	}
 }
 
@@ -323,36 +332,29 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	}
 }
 
-
-void move_arm_to(int *angles){
-	int num_triggers = 0;
-	layered_move(angles, NULL, num_triggers);
-}
-
-void move_joint_to(int id, double angle){
-	int angles[NUM_COMPONENTS];
-	load_current_angles(angles);
-	angles[id] = angle;
-	move_arm_to(angles);
+void move_joint_to(struct thread_args *args, int id, double angle){
+	load_current_angles(args->angles);
+	args->angles[id] = angle;
+	do_action(args, true);
 }
 
 
-void straighten(){
+void straighten(struct thread_args *args){
 	cout << "Straightening arm" << endl;
-	int angles[NUM_COMPONENTS];
-	load_current_angles(angles);
-	angles[1] = 180;
 	
-	move_arm_to(angles);
+	load_current_angles(args->angles);
+	args->angles[1] = 180;
 	
-	angles[0] = 0;
-	angles[1] = 180;
-	angles[2] = 180;
-	angles[3] = 90;
-	angles[4] = 0;
-	angles[5] = 0;
+	do_action(args, true);
+	
+	args->angles[0] = 0;
+	args->angles[1] = 180;
+	args->angles[2] = 180;
+	args->angles[3] = 90;
+	args->angles[4] = 0;
+	args->angles[5] = 0;
 
-	move_arm_to(angles);
+	do_action(args, true);
 }
 
 void open_fingers(struct thread_args *args, grasped_object_type object){
@@ -369,144 +371,138 @@ void open_fingers(struct thread_args *args, grasped_object_type object){
 	}else{
 		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 0;
 	}
-	do_action(args, false);
+	do_action(args, true);
 }
 
-void close_fingers(grasped_object_type object){
+void close_fingers(struct thread_args *args, grasped_object_type object){
 	cout << "Closing fingers" << endl;
-	int angles[NUM_COMPONENTS];
-	load_current_angles(angles);
+	
+	load_current_angles(args->angles);
 	
 	if(ORANGE == object){
-		angles[NUM_ACTUATORS + 2] = 6000;
-		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = 4400;
-		move_arm_to(angles);
+		args->angles[NUM_ACTUATORS + 2] = 6000;
+		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = 4400;
+		do_action(args, true);
 	}else{
-		angles[NUM_ACTUATORS + 0] = angles[NUM_ACTUATORS + 1] = angles[NUM_ACTUATORS + 2] = 5000;
-		move_arm_to(angles);
+		args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 5000;
+		do_action(args, true);
 	}
 
 }
 
-void prep_throw(grasped_object_type object){
+void prep_throw(struct thread_args *args, grasped_object_type object){
 	cout << "Prepping throw" << endl;
-	close_fingers(object);
+	close_fingers(args, object);
 	
-	int angles[NUM_COMPONENTS];
-	// don't forget finger locations
-	load_current_angles(angles);
+	load_current_angles(args->angles);
 
-	angles[0] = -20; //120;
+	args->angles[0] = -20; //120;
 	
-	angles[1] = 180;
-	angles[2] = 180;
-	angles[3] = -90;
-	angles[4] = 0;
-	angles[5] = 90;
+	args->angles[1] = 180;
+	args->angles[2] = 180;
+	args->angles[3] = -90;
+	args->angles[4] = 0;
+	args->angles[5] = 90;
 	
-	move_arm_to(angles);
+	do_action(args, true);
 
-	angles[1] = 230;
-	angles[2] = 90;
-	angles[3] = -90;
-	angles[4] = 0;
-	angles[5] = 90;
+	args->angles[1] = 230;
+	args->angles[2] = 90;
+	args->angles[3] = -90;
+	args->angles[4] = 0;
+	args->angles[5] = 90;
 	
-	move_arm_to(angles);
+	do_action(args, true);
 }
 
-void elbow_first(grasped_object_type object, int *angles){
-	angles[2] = 180;
-	angles[3] = -90;
+void elbow_first(struct thread_args *args, grasped_object_type object){
+	args->angles[2] = 180;
+	args->angles[3] = -90;
 	
-	int num_triggers = 3;
-	struct actuator_trigger triggers[num_triggers];
-	memset(triggers, 0, num_triggers * sizeof(struct actuator_trigger));
+	args->num_triggers = 3;
+	args->triggers = (struct actuator_trigger *) malloc (args->num_triggers * sizeof(struct actuator_trigger));
+	memset(args->triggers, 0, args->num_triggers * sizeof(struct actuator_trigger));
 	int so_far = 0;
 
 	// move elbow before shoulder
-	triggers[so_far].move_actuator = true;
-	triggers[so_far].actuator_number = 2;
-	triggers[so_far].actuator_position = 120; // lower is earlier
-	triggers[so_far].new_actuator_number = 1;
-	triggers[so_far].new_actuator_position = 90;
+	args->triggers[so_far].move_actuator = true;
+	args->triggers[so_far].actuator_number = 2;
+	args->triggers[so_far].actuator_position = 120; // lower is earlier
+	args->triggers[so_far].new_actuator_number = 1;
+	args->triggers[so_far].new_actuator_position = 90;
 	so_far++;
 	
 
 	// release fingers
-	triggers[so_far].move_finger = true;
-	triggers[so_far].actuator_number = 2;
-	triggers[so_far].actuator_position = 130;
-	triggers[so_far].new_finger_number = 0;
-	triggers[so_far].new_finger_position = 0;
+	args->triggers[so_far].move_finger = true;
+	args->triggers[so_far].actuator_number = 2;
+	args->triggers[so_far].actuator_position = 130;
+	args->triggers[so_far].new_finger_number = 0;
+	args->triggers[so_far].new_finger_position = 0;
 
-	memcpy(&(triggers[so_far+1]), triggers, sizeof(struct actuator_trigger));
+	memcpy(&(args->triggers[so_far+1]), args->triggers, sizeof(struct actuator_trigger));
 	
-	triggers[so_far+1].new_finger_number = 1;
+	args->triggers[so_far+1].new_finger_number = 1;
 	so_far += 2;
 	
-	layered_move(angles, triggers, num_triggers);
+	do_action(args, true);
 }
 
 
-void do_throw(grasped_object_type object){
+void do_throw(struct thread_args *args, grasped_object_type object){
 	cout << "Throwing" << endl;
-
-	//close_fingers(object);
-
-	int angles[NUM_COMPONENTS];
-	// don't forget finger locations
-	load_current_angles(angles);
 	
-	elbow_first(object, angles);
+	load_current_angles(args->angles);
+	
+	elbow_first(args, object);
 }
 
 void load_throw(struct thread_args *args, grasped_object_type object){
 	cout << "Loading throw" << endl;
-
-	int angles[NUM_COMPONENTS];
+	clear_triggers(args);
+	
 	// don't forget finger locations
-	load_current_angles(angles);
+	load_current_angles(args->angles);
 	
-	angles[0] = 0;
-	angles[1] = 90;
-	angles[2] = 180;
-	angles[3] = 190;
-	angles[4] = -60;
-	angles[5] = 0;
+	args->angles[0] = 0;
+	args->angles[1] = 90;
+	args->angles[2] = 180;
+	args->angles[3] = 190;
+	args->angles[4] = -60;
+	args->angles[5] = 0;
 
-	angles[6] = angles[7] = angles[8] = 3500;
+	args->angles[6] = args->angles[7] = args->angles[8] = 3500;
 	
-	move_arm_to(angles);
-	move_arm_to(angles);
+	do_action(args, true);
+	do_action(args, true);
 	
 	open_fingers(args, object);
 }
 
 
-void shutdown(){
+void shutdown(struct thread_args *args){
 	cout << "Going to shutdown position" << endl;
 	
-	straighten();
-	int angles[NUM_COMPONENTS];
-	load_current_angles(angles);
+	straighten(args);
 	
-	angles[0] = -90;
-	angles[1] = 160;
-	angles[2] = 30;
-	angles[3] = 270;
-	angles[4] = 0;
-	angles[5] = 0;
-	angles[6] = 0;
-	angles[7] = 0;
-	angles[8] = 0;
+	load_current_angles(args->angles);
 	
-	move_arm_to(angles);
-	close_fingers(UNDEF);
+	args->angles[0] = -90;
+	args->angles[1] = 160;
+	args->angles[2] = 30;
+	args->angles[3] = 270;
+	args->angles[4] = 0;
+	args->angles[5] = 0;
+	args->angles[6] = 0;
+	args->angles[7] = 0;
+	args->angles[8] = 0;
 	
-	load_current_angles(angles);
-	angles[2] = 25;
-	move_arm_to(angles);
+	do_action(args, true);
+	close_fingers(args, UNDEF);
+	
+	load_current_angles(args->angles);
+	args->angles[2] = 25;
+	do_action(args, true);
 }
 
 void print_state(){

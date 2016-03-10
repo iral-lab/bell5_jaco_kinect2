@@ -41,7 +41,7 @@ void print_help(){
 	
 }
 
-void handle_move_command(char *cmd){
+void handle_move_command(struct thread_args *args, char *cmd){
 	string delim = " ";
 	char * save_ptr;
 	char * id;	
@@ -64,13 +64,13 @@ void handle_move_command(char *cmd){
 		return;
 	} 
 	cout << "Moving " << int_id << " to " << double_angle << endl;
-	move_joint_to(int_id, double_angle);
+	move_joint_to(args, int_id, double_angle);
 }
 
 bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
-		straighten();
+		straighten(&args[0]);
 
 	}else if(!strcmp("quit", cmd)){
 		return false;
@@ -79,16 +79,16 @@ bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, gras
 		load_throw(&args[0], object);
 
 	}else if(!strcmp("close fingers", cmd)){
-		close_fingers(object);
+		close_fingers(&args[0], object);
 
 	}else if(!strcmp("open fingers", cmd)){
 		open_fingers(&args[0], object);
 
 	}else if(!strcmp("prep throw", cmd)){
-		prep_throw(object);
+		prep_throw(&args[0], object);
 
 	}else if(!strcmp("throw", cmd)){
-		do_throw(object);
+		do_throw(&args[0], object);
 
 	}else if(!strcmp("wait", cmd)){
 		cout << "Waiting " << COMMAND_DELAY << " seconds" << endl;
@@ -98,13 +98,13 @@ bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, gras
 		print_state();
 	
 	}else if(!strcmp("shutdown", cmd)){
-		shutdown();
+		shutdown(&args[0]);
 	
 	}else if(!strcmp("straighten", cmd)){
-		straighten();
+		straighten(&args[0]);
 	
 	}else if(strlen(cmd) > 2 && cmd[0] == 'm' && cmd[1] == 'v'){
-		handle_move_command((char *) cmd);
+		handle_move_command(&args[0], (char *) cmd);
 	
 	}else{
 		print_help();
@@ -144,16 +144,20 @@ void do_repl(int num_threads, struct thread_args *args){
 		}
 	}
 	
-	for(i = 0; i < num_threads; i++){
-		args[i].shutdown = true;
-	}
-	
 	if(!keepRunning){
 		cout << "Caught signal, stopping" << endl;
-	}else{
-		shutdown();
 	}
 
+	
+	for(i = 0; i < num_threads; i++){
+		shutdown(&args[i]);
+		args[i].shutdown = true;
+		args->num_triggers = 0;
+		if(args->triggers){
+			free(args->triggers);
+			args->triggers = NULL;
+		}
+	}
 }
 
 void *run_thread(void *thread_args){
