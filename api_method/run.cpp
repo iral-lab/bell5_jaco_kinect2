@@ -1,4 +1,4 @@
-#include "actions.h"
+
 #include <signal.h>
 #include <iostream>
 #include <stdlib.h> 
@@ -10,6 +10,8 @@
 #include <pthread.h>
 
 #include "util.h"
+#include "actions.h"
+#include "poses.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"

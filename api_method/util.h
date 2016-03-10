@@ -1,6 +1,8 @@
 #ifndef _UTILH_
 #define _UTILH_
 
+#include <string.h>
+
 // trim functions from http://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
 char *trimwhitespace(char *str){
   char *end;
