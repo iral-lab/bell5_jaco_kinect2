@@ -338,12 +338,6 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	}
 }
 
-void move_joint_to(struct thread_args *args, int id, double angle){
-	load_current_angles(args->angles);
-	args->angles[id] = angle;
-	do_action(args, true);
-}
-
 
 void print_state(){
 	int angles[NUM_COMPONENTS];

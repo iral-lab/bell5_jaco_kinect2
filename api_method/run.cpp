@@ -61,18 +61,33 @@ void handle_move_command(struct thread_args *args, char *cmd){
 	id = strtok_r(NULL, delim.c_str(), &save_ptr);
 	angle = id ? strtok_r(NULL, delim.c_str(), &save_ptr) : NULL;
 	
-	if(!id || !angle){
+	if(!id || !angle || 0 == strlen(angle)){
 		cout << "Problem handling command." << endl;
 		return;
 	}
+	
 	int int_id = atoi(id);
-	double double_angle = atof(angle);
-	if(int_id < 0 || int_id >= NUM_COMPONENTS){
-		cout << "Invalid joint/finger id. (0," << NUM_COMPONENTS << ")" << endl;
-		return;
-	} 
-	cout << "Moving " << int_id << " to " << double_angle << endl;
-	move_joint_to(args, int_id, double_angle);
+	double double_angle;
+	double delta;
+	bool rotate_forward = '+' == angle[0];
+	bool rotate_backward = '-' == angle[0];
+	
+	if(1 == strlen(id) && (rotate_forward || rotate_backward)){
+		load_current_angles(args->angles);
+		delta = (int_id < NUM_ACTUATORS) ? JOINT_DELTA_DEGREES : FINGER_DELTA_DEGREES;
+		delta *= rotate_backward ? -1 : 1;
+		args->angles[int_id] += delta;
+	}else{
+		double_angle = atof(angle);
+		if(int_id < 0 || int_id >= NUM_COMPONENTS){
+			cout << "Invalid joint/finger id. (0," << NUM_COMPONENTS << ")" << endl;
+			return;
+		}
+		load_current_angles(args->angles);
+		args->angles[int_id] = double_angle;
+	}
+	cout << "Moving " << int_id << " to " << args->angles[int_id] << endl;
+	do_action(args, true);
 }
 
 bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, grasped_object_type object){
