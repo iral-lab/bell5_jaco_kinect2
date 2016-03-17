@@ -1,4 +1,4 @@
-
+#include <time.h>
 #include <signal.h>
 #include <iostream>
 #include <stdlib.h> 
@@ -226,6 +226,7 @@ int main(int argc, char **argv){
 	signal(SIGINT, intHandler);
 	
 	int result;
+	srand(time(NULL));
 	
 	//handle_depth(argc,argv);
 	handle_viz(argc, argv);
