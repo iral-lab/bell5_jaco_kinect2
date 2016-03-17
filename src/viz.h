@@ -1,4 +1,5 @@
 #include <vector>
+#include <pthread.h>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/flann/miniflann.hpp"
@@ -63,116 +64,28 @@ int euclid_distance_2d(vector<int> a, vector<int> b){
 	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)));
 }
 
-void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids){
-	// get all distances between points
-	vector<int> distances;
-	int i, j, k;
-	int num_matches = matches->size();
-	for(i = 0; i < num_matches; i++){
-		for(j = i+1; j < num_matches; j++){
-			distances.push_back(euclid_distance_2d(matches->at(i), matches->at(j)));
-		}
-	}
-	
-	// do sort/unique on distance measures
-	sort (distances.begin(), distances.end());
-	std::vector<int>::iterator it;
-	it = std::unique (distances.begin(), distances.end());
-	distances.resize( std::distance(distances.begin(),it) );
-	
-	
-	
-	
-	// now distances are unique
-	cout << "\tFinal distances: " << distances.size() << endl;
-	
-	// find clusters based on histogram
-	int missing = 0, index = 0, current;
-	int missing_needed = 200;
-	int last = -1;
-	int delta, threshold;
-	while(index < distances.size() && missing < missing_needed){
-		if(-1 == last){
-			last = distances.at(index);
-			index++;
-			continue;
-		}
-		
-		current = distances.at(index);
-		missing = current - last; // positive
-		last = current;
-		index++;
-	}
-	threshold = current;
-	cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
 
-	int dist;
-	bool found_cluster, matched_all;
-	vector< vector< vector<int> > > clusters;
-	for(i = 0; i < num_matches; i++){
-		// find which cluster the point belongs in, or create new cluster
-		found_cluster = false;
-		
-		for(j = 0; !found_cluster && j < clusters.size(); j++){
-			matched_all = true;
-			for(k = 0; matched_all && k < clusters.at(j).size(); k++){
-				dist = euclid_distance_2d(matches->at(i), clusters.at(j).at(k));
-				if(dist > threshold){
-					matched_all = false;
-				}
-			}
-			
-			if(matched_all && clusters.size() > 0){
-				clusters.at(j).push_back(matches->at(i));
-				found_cluster = true;
-			}
-		}
-		if(!found_cluster){
-			// create new cluster
-			clusters.push_back( vector< vector<int> >(0) );
-			// add this point to the cluster we just made
-			clusters.at(clusters.size() - 1).push_back( matches->at(i));
-		}
-	}
-	
-	cout << "\tNum clusters: " << clusters.size() << endl;
-	int minimum_points_per_cluster = 100;
-	
-	int x_sum, y_sum, num_centroids, total;
-	for(i = 0; i < clusters.size(); i++){
-		//cout << "Cluster " << i << " has " << clusters.at(i).size() << endl;
-		total = clusters.at(i).size();
-		if(total < minimum_points_per_cluster){
-			continue;
-		}
-		
-		x_sum = y_sum = 0;
-		for(j = 0; j < total; j++){
-			x_sum += clusters.at(i).at(j).at(0);
-			y_sum += clusters.at(i).at(j).at(1);
-			//cout << j << " added " << clusters.at(i).at(j).at(0) << "," << clusters.at(i).at(j).at(1) << " => (" << x_sum << "," << y_sum << ")" << endl;
-		}
-		num_centroids = centroids->size();
-		centroids->push_back(vector<int>(2));
-		centroids->at(num_centroids).at(1) = (int)(x_sum / total);
-		centroids->at(num_centroids).at(0) = (int)(y_sum / total);
-		//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
-	}
-	cout << "\tNum centroids: " << centroids->size() << endl;	
-}
 
 
 class ImageConverter{
 	ros::NodeHandle nh_;
 	image_transport::ImageTransport it_;
 	image_transport::Subscriber image_sub_;
+	ros::Subscriber pcl_sub_;
+
+	vector< vector<int> > centroids;
+	pthread_mutex_t centroid_mutex;
 
 	public:
 	ImageConverter() : 
 	it_(nh_){
 		// Subscrive to input video feed and publish output video feed
 		image_sub_ = it_.subscribe("/kinect2/hd/image_color_rect", 1, &ImageConverter::imageCb, this);
+		
 
+		// Create a ROS subscriber for the input point cloud
+		pcl_sub_ = nh_.subscribe ("/kinect2/hd/points", 1, &ImageConverter::cloudCb, this);
+	
 		cv::namedWindow(OPENCV_WINDOW);
 	}
 
@@ -180,6 +93,124 @@ class ImageConverter{
 		cv::destroyWindow(OPENCV_WINDOW);
 	}
 
+	
+	void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
+		cout << "got packet, H: " << input->width << ", W: " << input->height << endl;
+		int i, x, y;
+		
+		//pthread_mutex_lock(&centroid_mutex);
+		for(i = 0; i < centroids.size(); i++){
+			x = centroids.at(i).at(0);
+			y = centroids.at(i).at(1);
+			
+			cout << "Depth: " << *input << endl;
+		}
+		//pthread_mutex_unlock(&centroid_mutex);
+	}
+
+	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids){
+		// get all distances between points
+		vector<int> distances;
+		int i, j, k;
+		int num_matches = matches->size();
+		for(i = 0; i < num_matches; i++){
+			for(j = i+1; j < num_matches; j++){
+				distances.push_back(euclid_distance_2d(matches->at(i), matches->at(j)));
+			}
+		}
+	
+		// do sort/unique on distance measures
+		sort (distances.begin(), distances.end());
+		std::vector<int>::iterator it;
+		it = std::unique (distances.begin(), distances.end());
+		distances.resize( std::distance(distances.begin(),it) );
+	
+	
+	
+	
+		// now distances are unique
+		cout << "\tFinal distances: " << distances.size() << endl;
+	
+		// find clusters based on histogram
+		int missing = 0, index = 0, current;
+		int missing_needed = 200;
+		int last = -1;
+		int delta, threshold;
+		while(index < distances.size() && missing < missing_needed){
+			if(-1 == last){
+				last = distances.at(index);
+				index++;
+				continue;
+			}
+		
+			current = distances.at(index);
+			missing = current - last; // positive
+			last = current;
+			index++;
+		}
+		threshold = current;
+		cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
+
+		int dist;
+		bool found_cluster, matched_all;
+		vector< vector< vector<int> > > clusters;
+		for(i = 0; i < num_matches; i++){
+			// find which cluster the point belongs in, or create new cluster
+			found_cluster = false;
+		
+			for(j = 0; !found_cluster && j < clusters.size(); j++){
+				matched_all = true;
+				for(k = 0; matched_all && k < clusters.at(j).size(); k++){
+					dist = euclid_distance_2d(matches->at(i), clusters.at(j).at(k));
+					if(dist > threshold){
+						matched_all = false;
+					}
+				}
+			
+				if(matched_all && clusters.size() > 0){
+					clusters.at(j).push_back(matches->at(i));
+					found_cluster = true;
+				}
+			}
+			if(!found_cluster){
+				// create new cluster
+				clusters.push_back( vector< vector<int> >(0) );
+				// add this point to the cluster we just made
+				clusters.at(clusters.size() - 1).push_back( matches->at(i));
+			}
+		}
+	
+		cout << "\tNum clusters: " << clusters.size() << endl;
+		int minimum_points_per_cluster = 100;
+	
+		//pthread_mutex_lock(&centroid_mutex);
+		centroids->clear();
+	
+		int x_sum, y_sum, num_centroids, total;
+		for(i = 0; i < clusters.size(); i++){
+			//cout << "Cluster " << i << " has " << clusters.at(i).size() << endl;
+			total = clusters.at(i).size();
+			if(total < minimum_points_per_cluster){
+				continue;
+			}
+		
+			x_sum = y_sum = 0;
+			for(j = 0; j < total; j++){
+				x_sum += clusters.at(i).at(j).at(0);
+				y_sum += clusters.at(i).at(j).at(1);
+				//cout << j << " added " << clusters.at(i).at(j).at(0) << "," << clusters.at(i).at(j).at(1) << " => (" << x_sum << "," << y_sum << ")" << endl;
+			}
+			num_centroids = centroids->size();
+			centroids->push_back(vector<int>(2));
+			// NOT SURE WHY X,Y ARE FLIPPED HERE.
+			centroids->at(num_centroids).at(1) = (int)(x_sum / total);
+			centroids->at(num_centroids).at(0) = (int)(y_sum / total);
+			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
+		}
+		//pthread_mutex_unlock(&centroid_mutex);
+		cout << "\tNum centroids: " << centroids->size() << endl;	
+	}
+	
 	void imageCb(const sensor_msgs::ImageConstPtr& msg){
 		// skip every-other frame for speed
 		if(rand() % 2 == 1){
@@ -221,7 +252,7 @@ class ImageConverter{
 			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[1] = 255;
 			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[2] = 255;
 		}
-		vector< vector<int> > centroids;
+		
 		compute_centroids(&matched_points, &centroids);
 
 		for(i = 0; i < centroids.size(); i++){
@@ -244,25 +275,7 @@ void handle_viz(int argc, char **argv){
 	
 }
 
-void 
-cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
-{
-	cout << "got packet, H: " << input->width << ", W: " << input->height << endl;
-}
 
-void handle_depth(int argc, char **argv){
-	// Initialize ROS
-	ros::init (argc, argv, "my_pcl_tutorial");
-	ros::NodeHandle nh;
-
-	// Create a ROS subscriber for the input point cloud
-	ros::Subscriber sub = nh.subscribe ("/kinect2/hd/points", 1, cloud_cb);
-
-
-	// Spin
-	ros::spin ();
-	
-}
 
 
 
