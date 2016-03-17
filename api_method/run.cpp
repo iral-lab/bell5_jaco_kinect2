@@ -12,6 +12,7 @@
 #include "util.h"
 #include "actions.h"
 #include "poses.h"
+#include "viz.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
@@ -221,11 +222,13 @@ void *run_thread(void *thread_args){
 }
 
 
-int main(){
+int main(int argc, char **argv){
 	signal(SIGINT, intHandler);
 	
 	int result;
-
+	
+	handle_viz(argc, argv);
+	return 0;
 	
 	//We load the handle for the library's command layer.
 	void * commandLayer_handle = dlopen("Kinova.API.USBCommandLayerUbuntu.so",RTLD_NOW|RTLD_GLOBAL);
