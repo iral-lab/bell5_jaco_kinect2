@@ -227,6 +227,7 @@ int main(int argc, char **argv){
 	
 	int result;
 	
+	//handle_depth(argc,argv);
 	handle_viz(argc, argv);
 	return 0;
 	
