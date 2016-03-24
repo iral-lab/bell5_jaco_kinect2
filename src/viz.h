@@ -94,21 +94,28 @@ class ImageConverter{
 	}
 
 	
-	void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
-		cout << "got packet, H: " << input->width << ", W: " << input->height << endl;
-		int i, x, y;
+	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
+	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
+		pcl::PointCloud<pcl::PointXYZRGB> cloud;
+  		pcl::fromROSMsg (*input, cloud);
+		pcl::PointXYZRGB *point;
 		
+		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
+		int i, x, y;
 		//pthread_mutex_lock(&centroid_mutex);
+		//for(x = 0; x < cloud.width; x++){
 		for(i = 0; i < centroids.size(); i++){
 			x = centroids.at(i).at(0);
 			y = centroids.at(i).at(1);
-			
-			cout << "Depth: " << *input << endl;
+			point = &cloud.at(x,y);
+			cout << *point << endl;
+			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << ")" << endl;
+			break;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
 	}
 
-	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids){
+	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids, bool verbose){
 		// get all distances between points
 		vector<int> distances;
 		int i, j, k;
@@ -126,9 +133,8 @@ class ImageConverter{
 		distances.resize( std::distance(distances.begin(),it) );
 	
 	
-	
-	
 		// now distances are unique
+		if(verbose)
 		cout << "\tFinal distances: " << distances.size() << endl;
 	
 		// find clusters based on histogram
@@ -149,6 +155,7 @@ class ImageConverter{
 			index++;
 		}
 		threshold = current;
+		if(verbose)
 		cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
 
 		int dist;
@@ -180,6 +187,7 @@ class ImageConverter{
 			}
 		}
 	
+		if(verbose)
 		cout << "\tNum clusters: " << clusters.size() << endl;
 		int minimum_points_per_cluster = 100;
 	
@@ -208,6 +216,7 @@ class ImageConverter{
 			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
+		if(verbose)
 		cout << "\tNum centroids: " << centroids->size() << endl;	
 	}
 	
@@ -244,7 +253,10 @@ class ImageConverter{
 				do_pixel_test(i, j, im_matrix, &bottle, &matched_points);
 			}
 		}
-	
+
+		bool verbose = false;
+
+		if(verbose)
 		cout << "post: " << matched_points.size() << endl;
 
 		for(i = 0; i < matched_points.size(); i++){
@@ -253,7 +265,7 @@ class ImageConverter{
 			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[2] = 255;
 		}
 		
-		compute_centroids(&matched_points, &centroids);
+		compute_centroids(&matched_points, &centroids, verbose);
 
 		for(i = 0; i < centroids.size(); i++){
 			// Draw an circle on the video stream around the centroids
