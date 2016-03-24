@@ -91,11 +91,7 @@ class ImageConverter{
 	public:
 	ImageConverter() : 
 	it_(nh_){
-		// Subscrive to input video feed and publish output video feed
-		//image_sub_ = it_.subscribe("/kinect2/hd/image_color_rect", 1, &ImageConverter::imageCb, this);
-		
-
-		// Create a ROS subscriber for the input point cloud
+		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pcl_sub_ = nh_.subscribe ("/kinect2/hd/points", 1, &ImageConverter::cloudCb, this);
 	
 		cv::namedWindow(OPENCV_WINDOW);
@@ -108,6 +104,8 @@ class ImageConverter{
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
+		bool verbose = false;
+		
 		// skip every-other frame for speed
 		if(rand() % 2 == 1){
 			return;
@@ -117,7 +115,7 @@ class ImageConverter{
   		pcl::fromROSMsg (*input, cloud);
 		pcl::PointXYZRGB *point;
 		
-		int i, x, y;
+		int i, j, x, y;
 
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		for (int h=0; h<im_matrix.rows; h++) {
@@ -131,9 +129,34 @@ class ImageConverter{
 				im_matrix.at<cv::Vec3b>(h,w)[2] = rgb[0];
 			}
 		}
+
 		
-		cv::imshow(OPENCV_WINDOW, im_matrix);
-		cv::waitKey(3);
+		vector< vector<int> > matched_points;
+		
+		for(i = 0; i < im_matrix.rows; i+=2){
+			for(j = 0; j < im_matrix.cols; j+=2){
+				do_pixel_test(i, j, &im_matrix, &orange, &matched_points);
+			}
+		}
+
+		
+		if(verbose)
+			cout << "post: " << matched_points.size() << endl;
+
+		for(i = 0; i < matched_points.size(); i++){
+			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[0] = 255;
+			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[1] = 255;
+			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[2] = 255;
+		}
+		
+		compute_centroids(&matched_points, &centroids, verbose);
+
+		for(i = 0; i < centroids.size(); i++){
+			// Draw an circle on the video stream around the centroids
+			cv::circle(im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
+		}
+
+		// Update GUI Window
 		
 		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
 		//pthread_mutex_lock(&centroid_mutex);
@@ -152,6 +175,9 @@ class ImageConverter{
 			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << "), dist from center (?): " << vector_length_3d((double) point->x, (double) point->y, (double) point->z) << "." << endl;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
+		
+		cv::imshow(OPENCV_WINDOW, im_matrix);
+		cv::waitKey(3);
 	}
 
 	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids, bool verbose){
@@ -174,7 +200,7 @@ class ImageConverter{
 	
 		// now distances are unique
 		if(verbose)
-		cout << "\tFinal distances: " << distances.size() << endl;
+			cout << "\tFinal distances: " << distances.size() << endl;
 	
 		// find clusters based on histogram
 		int missing = 0, index = 0, current;
@@ -194,8 +220,9 @@ class ImageConverter{
 			index++;
 		}
 		threshold = current;
+		
 		if(verbose)
-		cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
+			cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
 
 		int dist;
 		bool found_cluster, matched_all;
@@ -227,7 +254,8 @@ class ImageConverter{
 		}
 	
 		if(verbose)
-		cout << "\tNum clusters: " << clusters.size() << endl;
+			cout << "\tNum clusters: " << clusters.size() << endl;
+		
 		int minimum_points_per_cluster = 100;
 	
 		//pthread_mutex_lock(&centroid_mutex);
@@ -255,60 +283,12 @@ class ImageConverter{
 			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
+		
 		if(verbose)
-		cout << "\tNum centroids: " << centroids->size() << endl;	
+			cout << "\tNum centroids: " << centroids->size() << endl;	
+		
 	}
 	
-	void imageCb(const sensor_msgs::ImageConstPtr& msg){
-		// skip every-other frame for speed
-		if(rand() % 2 == 1){
-			return;
-		}
-		cv_bridge::CvImagePtr cv_ptr;
-		
-		
-		try{
-			cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-		}catch (cv_bridge::Exception& e){
-			ROS_ERROR("cv_bridge exception: %s", e.what());
-			return;
-		}
-		cv::Mat *im_matrix = &(cv_ptr->image);
-		
-		
-		vector< vector<int> > matched_points;
-
-		int i, j;
-		for(i = 0; i < im_matrix->rows; i+=2){
-			for(j = 0; j < im_matrix->cols; j+=2){
-				do_pixel_test(i, j, im_matrix, &orange, &matched_points);
-			}
-		}
-
-		bool verbose = false;
-
-
-
-		if(verbose)
-		cout << "post: " << matched_points.size() << endl;
-
-		for(i = 0; i < matched_points.size(); i++){
-			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[0] = 255;
-			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[1] = 255;
-			(*im_matrix).at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[2] = 255;
-		}
-		
-		compute_centroids(&matched_points, &centroids, verbose);
-
-		for(i = 0; i < centroids.size(); i++){
-			// Draw an circle on the video stream around the centroids
-			cv::circle(*im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
-		}
-
-		// Update GUI Window
-		cv::imshow(OPENCV_WINDOW, *im_matrix);
-		cv::waitKey(3);
-	}
 };
 
 
