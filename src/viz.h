@@ -35,6 +35,14 @@ struct rgb{
 	short b;
 };
 
+
+// orange color: #fabb5e
+struct rgb orange = {250, 187, 94};
+
+// bottle color: #45c5d2
+struct rgb bottle = {69, 197, 210};
+
+
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
 	// epsilon subject to change here, was trial and error early on.
@@ -237,12 +245,6 @@ class ImageConverter{
 		cv::Mat *im_matrix = &(cv_ptr->image);
 		
 		
-		// bottle color: #45c5d2
-		struct rgb bottle;
-		bottle.r = 69;
-		bottle.g = 197;
-		bottle.b = 210;
-		
 		struct rgb test;
 		
 		vector< vector<int> > matched_points;
@@ -250,11 +252,13 @@ class ImageConverter{
 		int i, j;
 		for(i = 0; i < im_matrix->rows; i+=2){
 			for(j = 0; j < im_matrix->cols; j+=2){
-				do_pixel_test(i, j, im_matrix, &bottle, &matched_points);
+				do_pixel_test(i, j, im_matrix, &orange, &matched_points);
 			}
 		}
 
 		bool verbose = false;
+
+
 
 		if(verbose)
 		cout << "post: " << matched_points.size() << endl;
