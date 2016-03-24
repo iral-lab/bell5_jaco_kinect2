@@ -88,10 +88,12 @@ void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *p
 	double dist;
 	
 	dist = vector_length_3d((double) point->x, (double) point->y, (double) point->z);
-	dist = color_normalize(dist, 2, 255);
-	im_matrix->at<cv::Vec3b>(h,w)[0] = dist;
-	im_matrix->at<cv::Vec3b>(h,w)[1] = dist;
-	im_matrix->at<cv::Vec3b>(h,w)[2] = dist;
+	short color = color_normalize(dist, 2, 255);
+	color = MIN(255, color);
+	color = MAX(0, color);
+	im_matrix->at<cv::Vec3b>(h,w)[0] = color;
+	im_matrix->at<cv::Vec3b>(h,w)[1] = color;
+	im_matrix->at<cv::Vec3b>(h,w)[2] = color;
 }
 
 class ImageConverter{
