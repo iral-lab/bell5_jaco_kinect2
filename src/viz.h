@@ -108,6 +108,7 @@ class ImageConverter{
 	image_transport::ImageTransport it_;
 	image_transport::Subscriber image_sub_;
 	ros::Subscriber pcl_sub_;
+	int frames;
 
 	vector< vector<int> > centroids;
 	pthread_mutex_t centroid_mutex;
@@ -115,6 +116,7 @@ class ImageConverter{
 	public:
 	ImageConverter() : 
 	it_(nh_){
+		frames = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pcl_sub_ = nh_.subscribe ("/kinect2/hd/points", 1, &ImageConverter::cloudCb, this);
 	
@@ -131,9 +133,11 @@ class ImageConverter{
 		bool verbose = false;
 		
 		// skip every-other frame for speed
-		if(rand() % 2 == 1){
+		/*
+		if(rand() % 2 > 0){
 			return;
 		}
+		*/
 		
 		pcl::PointCloud<pcl::PointXYZRGB> cloud;
   		pcl::fromROSMsg (*input, cloud);
@@ -164,6 +168,9 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
 				
+				
+				continue;
+				
 				new_h = h;
 				new_w = w;
 				apply_calibration(&new_h, &new_w, im_matrix.rows, im_matrix.cols);
@@ -174,6 +181,11 @@ class ImageConverter{
 		
 		if(verbose)
 			cout << "post: " << matched_points.size() << endl;
+		/*		
+		if(frames > 1){
+			return;
+		}
+		*/
 		
 		compute_centroids(&matched_points, &centroids, verbose);
 
@@ -181,7 +193,7 @@ class ImageConverter{
 			// Draw an circle on the video stream around the centroids
 			cv::circle(im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
 		}
-
+		
 		// Update GUI Window
 		
 		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
@@ -209,6 +221,7 @@ class ImageConverter{
 		
 		cv::imshow(OPENCV_WINDOW, im_matrix);
 		cv::waitKey(3);
+		frames++;
 	}
 
 	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids, bool verbose){
@@ -221,21 +234,27 @@ class ImageConverter{
 				distances.push_back(euclid_distance_2d(matches->at(i), matches->at(j)));
 			}
 		}
-	
+		/*
+		FILE *fp = fopen("distances.log", "w");
+		for(i = 0; i < distances.size(); i++){
+			fprintf(fp, "%i\n", distances.at(i));
+		}
+		fclose(fp);
+		*/
 		// do sort/unique on distance measures
 		sort (distances.begin(), distances.end());
 		std::vector<int>::iterator it;
 		it = std::unique (distances.begin(), distances.end());
 		distances.resize( std::distance(distances.begin(),it) );
-	
-	
+		
+		
 		// now distances are unique
 		if(verbose)
 			cout << "\tFinal distances: " << distances.size() << endl;
 	
 		// find clusters based on histogram
 		int missing = 0, index = 0, current;
-		int missing_needed = 200;
+		int missing_needed = 10;
 		int last = -1;
 		int delta, threshold;
 		while(index < distances.size() && missing < missing_needed){
