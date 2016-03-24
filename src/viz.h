@@ -118,6 +118,9 @@ class ImageConverter{
 		int i, j, x, y;
 
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
+		
+		vector< vector<int> > matched_points;
+		
 		for (int h=0; h<im_matrix.rows; h++) {
 			for (int w=0; w<im_matrix.cols; w++) {
 				point = &cloud.at(w, h);
@@ -127,18 +130,11 @@ class ImageConverter{
 				im_matrix.at<cv::Vec3b>(h,w)[0] = rgb[2];
 				im_matrix.at<cv::Vec3b>(h,w)[1] = rgb[1];
 				im_matrix.at<cv::Vec3b>(h,w)[2] = rgb[0];
+				
+				do_pixel_test(h, w, &im_matrix, &orange, &matched_points);
 			}
 		}
-
 		
-		vector< vector<int> > matched_points;
-		
-		for(i = 0; i < im_matrix.rows; i+=2){
-			for(j = 0; j < im_matrix.cols; j+=2){
-				do_pixel_test(i, j, &im_matrix, &orange, &matched_points);
-			}
-		}
-
 		
 		if(verbose)
 			cout << "post: " << matched_points.size() << endl;
