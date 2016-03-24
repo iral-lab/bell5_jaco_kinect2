@@ -84,10 +84,16 @@ int color_normalize(double dist, double max, int span){
 	return (int)((dist / max) * span);
 }
 
+void apply_calibration(int *new_h, int *new_w, int max_h, int max_w){
+	(*new_w) -= 30;
+	(*new_w) = MAX(0, (*new_w));
+	(*new_w) = MIN(max_w, (*new_w));
+}
+
 void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *point){
 	double dist;
 	double xyz[3] = {point->x, point->y, point->z};
-	
+				
 	dist = vector_length_3d(xyz);
 	short color = color_normalize(dist, 2, 255);
 	color = MIN(255, color);
@@ -139,6 +145,7 @@ class ImageConverter{
 		
 		vector< vector<int> > matched_points;
 		bool match = false;
+		int new_h, new_w;
 		for (int h=0; h<im_matrix.rows; h++) {
 			for (int w=0; w<im_matrix.cols; w++) {
 				point = &cloud.at(w, h);
@@ -157,7 +164,10 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
 				
-				apply_distance_filter(&im_matrix, h, w, point);
+				new_h = h;
+				new_w = w;
+				apply_calibration(&new_h, &new_w, im_matrix.rows, im_matrix.cols);
+				apply_distance_filter(&im_matrix, new_h, new_w, point);
 			}
 		}
 		
