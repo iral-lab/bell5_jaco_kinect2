@@ -1,5 +1,6 @@
 #include <vector>
 #include <pthread.h>
+#include <cmath>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/flann/miniflann.hpp"
@@ -36,8 +37,8 @@ struct rgb{
 };
 
 
-// orange color: #fabb5e
-struct rgb orange = {250, 187, 94};
+// orange color: #ef5e25
+struct rgb orange = {239, 94, 37};
 
 // bottle color: #45c5d2
 struct rgb bottle = {69, 197, 210};
@@ -72,6 +73,9 @@ int euclid_distance_2d(vector<int> a, vector<int> b){
 	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)));
 }
 
+double vector_length_3d(double x, double y, double z){
+	return (double) sqrtf(x*x + y*y + z*z);
+}
 
 
 
@@ -116,9 +120,14 @@ class ImageConverter{
 			x = centroids.at(i).at(0);
 			y = centroids.at(i).at(1);
 			point = &cloud.at(x,y);
-			cout << *point << endl;
-			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << ")" << endl;
-			break;
+			//cout << *point << endl;
+			
+			// Test for Nan, if item is too close
+			if(isnan(point->x)){
+				continue;		
+			}
+			
+			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << "), dist from center (?): " << vector_length_3d((double) point->x, (double) point->y, (double) point->z) << "." << endl;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
 	}
