@@ -92,7 +92,7 @@ class ImageConverter{
 	ImageConverter() : 
 	it_(nh_){
 		// Subscrive to input video feed and publish output video feed
-		image_sub_ = it_.subscribe("/kinect2/hd/image_color_rect", 1, &ImageConverter::imageCb, this);
+		//image_sub_ = it_.subscribe("/kinect2/hd/image_color_rect", 1, &ImageConverter::imageCb, this);
 		
 
 		// Create a ROS subscriber for the input point cloud
@@ -108,12 +108,34 @@ class ImageConverter{
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
+		// skip every-other frame for speed
+		if(rand() % 2 == 1){
+			return;
+		}
+		
 		pcl::PointCloud<pcl::PointXYZRGB> cloud;
   		pcl::fromROSMsg (*input, cloud);
 		pcl::PointXYZRGB *point;
 		
-		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
 		int i, x, y;
+
+		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
+		for (int h=0; h<im_matrix.rows; h++) {
+			for (int w=0; w<im_matrix.cols; w++) {
+				point = &cloud.at(w, h);
+
+				Eigen::Vector3i rgb = point->getRGBVector3i();
+
+				im_matrix.at<cv::Vec3b>(h,w)[0] = rgb[2];
+				im_matrix.at<cv::Vec3b>(h,w)[1] = rgb[1];
+				im_matrix.at<cv::Vec3b>(h,w)[2] = rgb[0];
+			}
+		}
+		
+		cv::imshow(OPENCV_WINDOW, im_matrix);
+		cv::waitKey(3);
+		
+		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
 		//pthread_mutex_lock(&centroid_mutex);
 		//for(x = 0; x < cloud.width; x++){
 		for(i = 0; i < centroids.size(); i++){
