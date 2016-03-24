@@ -85,7 +85,7 @@ int color_normalize(double dist, double max, int span){
 }
 
 void apply_calibration(int *new_h, int *new_w, int max_h, int max_w){
-	(*new_w) -= 30;
+	(*new_w) -= 34;
 	(*new_w) = MAX(0, (*new_w));
 	(*new_w) = MIN(max_w, (*new_w));
 }
