@@ -93,9 +93,9 @@ void apply_calibration(int *new_h, int *new_w, int max_h, int max_w){
 void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *point){
 	double dist;
 	double xyz[3] = {point->x, point->y, point->z};
-				
+	
 	dist = vector_length_3d(xyz);
-	short color = color_normalize(dist, 2, 255);
+	short color = color_normalize(dist, 3.0, 255);
 	color = MIN(255, color);
 	color = MAX(0, color);
 	im_matrix->at<cv::Vec3b>(h,w)[0] = color;
