@@ -276,8 +276,6 @@ class ImageConverter{
 		cv::Mat *im_matrix = &(cv_ptr->image);
 		
 		
-		struct rgb test;
-		
 		vector< vector<int> > matched_points;
 
 		int i, j;
