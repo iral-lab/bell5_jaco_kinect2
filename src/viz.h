@@ -54,18 +54,21 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
 
-void do_pixel_test(int i, int j, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches){
+bool do_pixel_test(int i, int j, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches){
 	struct rgb test;
 	test.r = (*image).at<cv::Vec3b>(i,j)[2];
 	test.g = (*image).at<cv::Vec3b>(i,j)[1];
 	test.b = (*image).at<cv::Vec3b>(i,j)[0];
 	
 	int matches_size = matches->size();
+	bool match = false;
 	if(colors_are_similar(desired, &test)){
 		matches->push_back( vector<int>(0) );
 		matches->at(matches_size).push_back(i);
 		matches->at(matches_size).push_back(j);
-	}	
+		match = true;
+	}
+	return match;
 }
 
 int euclid_distance_2d(vector<int> a, vector<int> b){
@@ -120,7 +123,7 @@ class ImageConverter{
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		
 		vector< vector<int> > matched_points;
-		
+		bool match;
 		for (int h=0; h<im_matrix.rows; h++) {
 			for (int w=0; w<im_matrix.cols; w++) {
 				point = &cloud.at(w, h);
@@ -131,19 +134,19 @@ class ImageConverter{
 				im_matrix.at<cv::Vec3b>(h,w)[1] = rgb[1];
 				im_matrix.at<cv::Vec3b>(h,w)[2] = rgb[0];
 				
-				do_pixel_test(h, w, &im_matrix, &orange, &matched_points);
+				match = do_pixel_test(h, w, &im_matrix, &orange, &matched_points);
+				if(match){
+					// do pixel shading
+					im_matrix.at<cv::Vec3b>(h,w)[0] = 255;
+					im_matrix.at<cv::Vec3b>(h,w)[1] = 255;
+					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
+				}
 			}
 		}
 		
 		
 		if(verbose)
 			cout << "post: " << matched_points.size() << endl;
-
-		for(i = 0; i < matched_points.size(); i++){
-			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[0] = 255;
-			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[1] = 255;
-			im_matrix.at<cv::Vec3b>(matched_points.at(i).at(0),matched_points.at(i).at(1))[2] = 255;
-		}
 		
 		compute_centroids(&matched_points, &centroids, verbose);
 
