@@ -80,7 +80,19 @@ double vector_length_3d(double x, double y, double z){
 	return (double) sqrtf(x*x + y*y + z*z);
 }
 
+int color_normalize(double dist, double max, int span){
+	return (int)((dist / max) * span);
+}
 
+void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *point){
+	double dist;
+	
+	dist = vector_length_3d((double) point->x, (double) point->y, (double) point->z);
+	dist = color_normalize(dist, 2, 255);
+	im_matrix->at<cv::Vec3b>(h,w)[0] = dist;
+	im_matrix->at<cv::Vec3b>(h,w)[1] = dist;
+	im_matrix->at<cv::Vec3b>(h,w)[2] = dist;
+}
 
 class ImageConverter{
 	ros::NodeHandle nh_;
@@ -123,7 +135,7 @@ class ImageConverter{
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		
 		vector< vector<int> > matched_points;
-		bool match;
+		bool match = false;
 		for (int h=0; h<im_matrix.rows; h++) {
 			for (int w=0; w<im_matrix.cols; w++) {
 				point = &cloud.at(w, h);
@@ -141,6 +153,8 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[1] = 255;
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
+				
+				//apply_distance_filter(&im_matrix, h, w, point);
 			}
 		}
 		
