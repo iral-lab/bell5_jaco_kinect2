@@ -76,8 +76,8 @@ int euclid_distance_2d(vector<int> a, vector<int> b){
 	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)));
 }
 
-double vector_length_3d(double x, double y, double z){
-	return (double) sqrtf(x*x + y*y + z*z);
+double vector_length_3d(double *xyz){
+	return (double) sqrtf(xyz[0]*xyz[0] + xyz[1]*xyz[1] + xyz[2]*xyz[2]);
 }
 
 int color_normalize(double dist, double max, int span){
@@ -86,8 +86,9 @@ int color_normalize(double dist, double max, int span){
 
 void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *point){
 	double dist;
+	double xyz[3] = {point->x, point->y, point->z};
 	
-	dist = vector_length_3d((double) point->x, (double) point->y, (double) point->z);
+	dist = vector_length_3d(xyz);
 	short color = color_normalize(dist, 2, 255);
 	color = MIN(255, color);
 	color = MAX(0, color);
@@ -156,7 +157,7 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
 				
-				//apply_distance_filter(&im_matrix, h, w, point);
+				apply_distance_filter(&im_matrix, h, w, point);
 			}
 		}
 		
@@ -176,6 +177,7 @@ class ImageConverter{
 		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
 		//pthread_mutex_lock(&centroid_mutex);
 		//for(x = 0; x < cloud.width; x++){
+		double xyz[3];
 		for(i = 0; i < centroids.size(); i++){
 			x = centroids.at(i).at(0);
 			y = centroids.at(i).at(1);
@@ -186,8 +188,12 @@ class ImageConverter{
 			if(isnan(point->x)){
 				continue;		
 			}
+
+			xyz[0] = point->x;
+			xyz[1] = point->y;
+			xyz[2] = point->z;
 			
-			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << "), dist from center (?): " << vector_length_3d((double) point->x, (double) point->y, (double) point->z) << "." << endl;
+			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << "), dist from center (?): " << vector_length_3d(xyz) << "." << endl;
 		}
 		//pthread_mutex_unlock(&centroid_mutex);
 		
