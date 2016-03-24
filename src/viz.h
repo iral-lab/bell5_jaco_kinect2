@@ -76,6 +76,16 @@ int euclid_distance_2d(vector<int> a, vector<int> b){
 	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)));
 }
 
+int euclid_distance_3d(vector<int> a, vector<int> b){
+	// compute integer distance between two points
+	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)) + (a.at(2) - b.at(2)) * (a.at(2) - b.at(2)) );
+}
+
+int euclid_distance_3d_not_vec(double *a, double *b){
+	// compute integer distance between two points
+	return (int) sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]) );
+}
+
 double vector_length_3d(double *xyz){
 	return (double) sqrtf(xyz[0]*xyz[0] + xyz[1]*xyz[1] + xyz[2]*xyz[2]);
 }
@@ -90,9 +100,17 @@ void apply_calibration(int *new_h, int *new_w, int max_h, int max_w){
 	(*new_w) = MIN(max_w, (*new_w));
 }
 
-void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointXYZRGB *point){
+void get_xyz_from_xyzrgb(int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
+	pcl::PointXYZRGB *point = &(cloud->at(w, h));
+	xyz[0] = point->x;
+	xyz[1] = point->y;
+	xyz[2] = point->z;
+}
+
+void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
 	double dist;
-	double xyz[3] = {point->x, point->y, point->z};
+	double xyz[3];
+	get_xyz_from_xyzrgb(h, w, cloud, xyz);
 	
 	dist = vector_length_3d(xyz);
 	short color = color_normalize(dist, 3.0, 255);
@@ -169,12 +187,11 @@ class ImageConverter{
 				}
 				
 				
-				continue;
 				
 				new_h = h;
 				new_w = w;
-				apply_calibration(&new_h, &new_w, im_matrix.rows, im_matrix.cols);
-				apply_distance_filter(&im_matrix, new_h, new_w, point);
+				//apply_calibration(&new_h, &new_w, im_matrix.rows, im_matrix.cols);
+				apply_distance_filter(&im_matrix, new_h, new_w, &cloud);
 			}
 		}
 		
@@ -188,10 +205,17 @@ class ImageConverter{
 		*/
 		
 		compute_centroids(&matched_points, &centroids, verbose);
-
+		
 		for(i = 0; i < centroids.size(); i++){
 			// Draw an circle on the video stream around the centroids
 			cv::circle(im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
+		}
+		if(centroids.size() == 2){
+			double c0_xyz[3];
+			double c1_xyz[3];
+			get_xyz_from_xyzrgb(centroids.at(0).at(0), centroids.at(0).at(1), &cloud, c0_xyz);
+			get_xyz_from_xyzrgb(centroids.at(1).at(0), centroids.at(1).at(1), &cloud, c1_xyz);
+			cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
 		// Update GUI Window
