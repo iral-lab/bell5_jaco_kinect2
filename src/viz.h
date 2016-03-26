@@ -175,6 +175,11 @@ class ImageConverter{
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
+		if(args->terminate){
+			cv::destroyWindow(OPENCV_WINDOW);
+			return;
+		}
+		
 		bool verbose = false;
 		
 		// skip every-other frame for faster rendering
@@ -434,8 +439,14 @@ void *handle_viz(void *thread_args){
 	ros::init(*viz_args->argc, *viz_args->argv, "image_converter");
 	ImageConverter ic;
 	ic.set_args(viz_args);
-	ros::spin();
+	ros::Rate r(10);
 	
+	while(!viz_args->terminate){
+		ros::spinOnce();
+		r.sleep();
+	}
+	cout << endl << "Terminating viz" << endl;
+	cv::destroyWindow(OPENCV_WINDOW);
 }
 
 

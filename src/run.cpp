@@ -288,11 +288,14 @@ int main(int argc, char **argv){
 		cout << endl << "C L O S I N G   A P I" << endl;
 		// result = (*MyCloseAPI)();
 	}
-
-	pthread_join(viz_thread, NULL);
-	
 	dlclose(commandLayer_handle);
-	pthread_exit(NULL);
-	return 0;
+	
+	viz_args.terminate = true;
+	
+	// suboptimal exit, but can't figure out closing CV window on exit otherwise.
+	exit(0);
+	
+	//pthread_exit(NULL);
+	//return 0;
 }
 
