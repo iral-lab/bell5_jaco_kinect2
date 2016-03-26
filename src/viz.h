@@ -1,6 +1,7 @@
 #include <vector>
 #include <pthread.h>
 #include <cmath>
+#include <cfloat>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/flann/miniflann.hpp"
@@ -54,35 +55,14 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
 
-bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches){
-	struct rgb test;
-	test.r = (*image).at<cv::Vec3b>(y,x)[2];
-	test.g = (*image).at<cv::Vec3b>(y,x)[1];
-	test.b = (*image).at<cv::Vec3b>(y,x)[0];
-	
-	int matches_size = matches->size();
-	bool match = false;
-	if(colors_are_similar(desired, &test)){
-		matches->push_back( vector<int>(0) );
-		matches->at(matches_size).push_back(x);
-		matches->at(matches_size).push_back(y);
-		match = true;
-	}
-	return match;
-}
 
-int euclid_distance_2d(vector<int> a, vector<int> b){
-	// compute integer distance between two points
-	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)));
-}
-
-int euclid_distance_3d(vector<int> a, vector<int> b){
-	// compute integer distance between two points
-	return (int) sqrt((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)) + (a.at(2) - b.at(2)) * (a.at(2) - b.at(2)) );
+double euclid_distance_3d(vector<double> a, vector<double> b){
+	// compute integer distance between two points in 3d
+	return (double) sqrtf((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)) + (a.at(2) - b.at(2)) * (a.at(2) - b.at(2)) );
 }
 
 int euclid_distance_3d_not_vec(double *a, double *b){
-	// compute integer distance between two points
+	// compute integer distance between two points in 3d as a[] and b[]
 	return (int) sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]) );
 }
 
@@ -115,6 +95,43 @@ void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointCloud<pcl
 	im_matrix->at<cv::Vec3b>(h,w)[2] = color;
 }
 
+bool is_valid_xyz(double *xyz){
+	return !std::isnan(xyz[0]) && !std::isnan(xyz[1]) && !std::isnan(xyz[2]);
+}
+
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
+	struct rgb test;
+	test.r = (*image).at<cv::Vec3b>(y,x)[2];
+	test.g = (*image).at<cv::Vec3b>(y,x)[1];
+	test.b = (*image).at<cv::Vec3b>(y,x)[0];
+	
+	int matches_size = matches_2d->size();
+	bool match = false;
+	if(colors_are_similar(desired, &test)){
+		double xyz[3];
+		get_xyz_from_xyzrgb(x, y, cloud, xyz);
+		
+		if(!is_valid_xyz(xyz)){
+			return false;
+		}
+		
+		matches_3d->push_back( vector<double>(3) );
+		matches_3d->at(matches_size).at(0) = xyz[0];
+		matches_3d->at(matches_size).at(1) = xyz[1];
+		matches_3d->at(matches_size).at(2) = xyz[2];
+		
+		matches_2d->push_back( vector<int>(2) );
+		matches_2d->at(matches_size).at(0) = x;
+		matches_2d->at(matches_size).at(1) = y;
+		
+		//cout << "3d xyz: " << xyz[0] << "," << xyz[1] << "," << xyz[2] << endl;
+		//cout << "3d match: " << matches_3d->at(matches_size).at(0) << "," << matches_3d->at(matches_size).at(1) << "," << matches_3d->at(matches_size).at(2) << endl;
+		//cout << "2d match: " << matches_2d->at(matches_size).at(0) << "," << matches_2d->at(matches_size).at(1) << endl;
+		match = true;
+	}
+	return match;
+}
+
 class ImageConverter{
 	ros::NodeHandle nh_;
 	image_transport::ImageTransport it_;
@@ -122,7 +139,10 @@ class ImageConverter{
 	ros::Subscriber pcl_sub_;
 	int frames;
 
-	vector< vector<int> > centroids;
+	// store the centroids in both xyz and 2d image
+	vector< vector<int> > centroids_2d;
+	vector< vector<double> > centroids_3d;
+	
 	pthread_mutex_t centroid_mutex;
 
 	public:
@@ -130,9 +150,10 @@ class ImageConverter{
 	it_(nh_){
 		frames = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
-		pcl_sub_ = nh_.subscribe ("/kinect2/hd/points", 1, &ImageConverter::cloudCb, this);
+		pcl_sub_ = nh_.subscribe ("/kinect2/qhd/points", 1, &ImageConverter::cloudCb, this);
 	
-		centroids.clear();
+		centroids_2d.clear();
+		centroids_3d.clear();
 		
 		cv::namedWindow(OPENCV_WINDOW);
 	}
@@ -161,9 +182,13 @@ class ImageConverter{
 
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		
-		vector< vector<int> > matched_points;
+		// store 2d matches and 3d matches
+		vector< vector<int> > matched_points_2d;
+		vector< vector<double> > matched_points_3d;
 		bool match = false;
 		int new_h, new_w;
+		if(verbose)
+			cout << "about to find colors" << endl;
 		
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
@@ -177,7 +202,7 @@ class ImageConverter{
 				im_matrix.at<cv::Vec3b>(y,x)[1] = rgb[1];
 				im_matrix.at<cv::Vec3b>(y,x)[2] = rgb[0];
 				
-				match = do_pixel_test(x, y, &im_matrix, &orange, &matched_points);
+				match = do_pixel_test(x, y, &im_matrix, &orange, &matched_points_2d, &matched_points_3d, &cloud);
 				if(match){
 					// do pixel shading
 					im_matrix.at<cv::Vec3b>(y,x)[0] = 255;
@@ -191,91 +216,81 @@ class ImageConverter{
 		
 		
 		if(verbose)
-			cout << "post: " << matched_points.size() << endl;
+			cout << "post: " << matched_points_2d.size() << endl;
 		/*		
 		if(frames > 1){
 			return;
 		}
 		*/
 
-		pthread_mutex_lock(&centroid_mutex);
-		compute_centroids(&matched_points, &centroids, verbose);
-		pthread_mutex_unlock(&centroid_mutex);
+		//pthread_mutex_lock(&centroid_mutex);
+		compute_centroids(&matched_points_2d, &matched_points_3d, &centroids_2d, &centroids_3d, verbose);
+		//pthread_mutex_unlock(&centroid_mutex);
 		
-		for(i = 0; i < centroids.size(); i++){
-			// Draw an circle on the video stream around the centroids
-			cv::circle(im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
+		for(i = 0; i < centroids_2d.size(); i++){
+			// Draw an circle on the video stream around the 2d centroids
+			cv::circle(im_matrix, cv::Point(centroids_2d.at(i).at(0), centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
 		}
 		
-		if(centroids.size() == 2){
+		if(centroids_3d.size() == 2){
 			double c0_xyz[3];
 			double c1_xyz[3];
-			get_xyz_from_xyzrgb(centroids.at(0).at(0), centroids.at(0).at(1), &cloud, c0_xyz);
-			get_xyz_from_xyzrgb(centroids.at(1).at(0), centroids.at(1).at(1), &cloud, c1_xyz);
+			
+			c0_xyz[0] = centroids_3d.at(0).at(0);
+			c0_xyz[1] = centroids_3d.at(0).at(1);
+			c0_xyz[2] = centroids_3d.at(0).at(2);
+
 			cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
 		// Update GUI Window
 		
-		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
-		//for(x = 0; x < cloud.width; x++){
-		double xyz[3];
-		for(i = 0; i < centroids.size(); i++){
-			x = centroids.at(i).at(0);
-			y = centroids.at(i).at(1);
-			point = &cloud.at(x,y);
-			//cout << *point << endl;
-			
-			// Test for Nan, if item is too close
-			if(isnan(point->x)){
-				continue;		
-			}
-
-			xyz[0] = point->x;
-			xyz[1] = point->y;
-			xyz[2] = point->z;
-			
-			cout << "(" << x << "," << y << ") = ( " << point->x << "," << point->y << "," << point->z << "), dist from center (?): " << vector_length_3d(xyz) << "." << endl;
-		}
-		//pthread_mutex_unlock(&centroid_mutex);
-		
 		cv::imshow(OPENCV_WINDOW, im_matrix);
 		cv::waitKey(3);
 	}
 
-	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids, bool verbose){
+	void compute_centroids(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
 		// get all distances between points
-		vector<int> distances;
+		if(verbose)
+			cout << "beginning centroids" << endl;
+		vector<double> distances;
 		int i, j, k;
-		int num_matches = matches->size();
+		double dist;
+		int num_matches = matches_3d->size();
 		for(i = 0; i < num_matches; i++){
 			for(j = i+1; j < num_matches; j++){
-				distances.push_back(euclid_distance_2d(matches->at(i), matches->at(j)));
+				dist = euclid_distance_3d(matches_3d->at(i), matches_3d->at(j));
+				if(std::isnan(dist)){
+					//cout << "distance: " << dist << endl;
+				}else{
+					//cout << "distance: " << dist << endl;
+					distances.push_back(dist);
+				}
 			}
 		}
-		/*
-		FILE *fp = fopen("distances.log", "w");
-		for(i = 0; i < distances.size(); i++){
-			fprintf(fp, "%i\n", distances.at(i));
-		}
-		fclose(fp);
-		*/
+		cout << "finished distances" << cout;
 		// do sort/unique on distance measures
 		sort (distances.begin(), distances.end());
-		std::vector<int>::iterator it;
+		std::vector<double>::iterator it;
 		it = std::unique (distances.begin(), distances.end());
 		distances.resize( std::distance(distances.begin(),it) );
 		
+		
+		FILE *fp = fopen("distances.log", "w");
+		for(i = 0; i < distances.size(); i++){
+			fprintf(fp, "%f\n", distances.at(i));
+		}
+		fclose(fp);
 		
 		// now distances are unique
 		if(verbose)
 			cout << "\tFinal distances: " << distances.size() << endl;
 	
 		// find clusters based on histogram
-		int missing = 0, index = 0, current;
-		int missing_needed = 10;
-		int last = -1;
-		int delta, threshold;
+		double missing = 0, index = 0, current;
+		double missing_needed = 0.1;
+		double last = -1;
+		double delta, threshold;
 		while(index < distances.size() && missing < missing_needed){
 			if(-1 == last){
 				last = distances.at(index);
@@ -292,71 +307,107 @@ class ImageConverter{
 		
 		if(verbose)
 			cout << "\tCutoff: " << missing << " @ " << threshold << ","<< last << "," << index << endl;
-
-		int dist;
+		
+		
 		bool found_cluster, matched_all;
-		vector< vector< vector<int> > > clusters;
+		
+		vector< vector< vector<int> > > clusters_2d;
+		vector< vector< vector<double> > > clusters_3d;
+		
+		cout << "beginning clustering" << endl << endl;
 		for(i = 0; i < num_matches; i++){
 			// find which cluster the point belongs in, or create new cluster
 			found_cluster = false;
 		
-			for(j = 0; !found_cluster && j < clusters.size(); j++){
+			for(j = 0; !found_cluster && j < clusters_3d.size(); j++){
 				matched_all = true;
-				for(k = 0; matched_all && k < clusters.at(j).size(); k++){
-					dist = euclid_distance_2d(matches->at(i), clusters.at(j).at(k));
+				for(k = 0; matched_all && k < clusters_3d.at(j).size(); k++){
+					dist = euclid_distance_3d(matches_3d->at(i), clusters_3d.at(j).at(k));
 					if(dist > threshold){
 						matched_all = false;
 					}
 				}
 			
-				if(matched_all && clusters.size() > 0){
-					clusters.at(j).push_back(matches->at(i));
+				if(matched_all && clusters_3d.size() > 0){
+					clusters_2d.at(j).push_back(matches_2d->at(i));
+					clusters_3d.at(j).push_back(matches_3d->at(i));
 					found_cluster = true;
 				}
 			}
 			if(!found_cluster){
 				// create new cluster
-				clusters.push_back( vector< vector<int> >(0) );
+				clusters_2d.push_back( vector< vector<int> >(0) );
+				clusters_3d.push_back( vector< vector<double> >(0) );
 				// add this point to the cluster we just made
-				clusters.at(clusters.size() - 1).push_back( matches->at(i));
+				clusters_2d.at(clusters_2d.size() - 1).push_back( matches_2d->at(i));
+				clusters_3d.at(clusters_3d.size() - 1).push_back( matches_3d->at(i));
 			}
 		}
 	
+		cout << "done clustering" << endl << endl;
 		if(verbose)
-			cout << "\tNum clusters: " << clusters.size() << endl;
+			cout << "\tNum clusters: " << clusters_3d.size() << endl << endl;
 		
 		int minimum_points_per_cluster = 100;
 		
-		centroids->clear();
+		centroids_2d->clear();
+		centroids_3d->clear();
 	
-		int x_sum, y_sum, num_centroids, total;
-		for(i = 0; i < clusters.size(); i++){
-			//cout << "Cluster " << i << " has " << clusters.at(i).size() << endl;
-			total = clusters.at(i).size();
+		double x_sum, y_sum, z_sum, num_centroids, total;
+		int x_sum_2d, y_sum_2d;
+		for(i = 0; i < clusters_3d.size(); i++){
+			total = clusters_3d.at(i).size();
+			cout << "Cluster " << i << " has 3d: " << clusters_3d.at(i).size() << ", 2d: " << clusters_2d.at(i).size() << endl;
 			if(total < minimum_points_per_cluster){
 				continue;
 			}
 		
-			x_sum = y_sum = 0;
+			x_sum = y_sum = z_sum = 0.0;
+			x_sum_2d = y_sum_2d = 0;
 			for(j = 0; j < total; j++){
-				x_sum += clusters.at(i).at(j).at(0);
-				y_sum += clusters.at(i).at(j).at(1);
-				//cout << j << " added " << clusters.at(i).at(j).at(0) << "," << clusters.at(i).at(j).at(1) << " => (" << x_sum << "," << y_sum << ")" << endl;
+				
+				//cout << "++ " << clusters_2d.at(i).at(j).at(0) << ","<< clusters_2d.at(i).at(j).at(1) << "," << clusters_3d.at(i).at(j).at(0) << "," << clusters_3d.at(i).at(j).at(1) << ","<< clusters_3d.at(i).at(j).at(2) << "," << endl;
+				x_sum += clusters_3d.at(i).at(j).at(0);
+				y_sum += clusters_3d.at(i).at(j).at(1);
+				z_sum += clusters_3d.at(i).at(j).at(2);
+
+				x_sum_2d += clusters_2d.at(i).at(j).at(0);
+				y_sum_2d += clusters_2d.at(i).at(j).at(1);
 			}
-			num_centroids = centroids->size();
-			centroids->push_back(vector<int>(2));
-			centroids->at(num_centroids).at(0) = (int)(x_sum / total);
-			centroids->at(num_centroids).at(1) = (int)(y_sum / total);
-			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
+			
+			//cout << "<< " << x_sum_2d << "," << y_sum_2d << ","<< x_sum << ","<< y_sum << ","<< z_sum << endl;
+			x_sum_2d = (x_sum_2d / total);
+			y_sum_2d = (y_sum_2d / total);
+
+			
+			x_sum = (x_sum / total);
+			y_sum = (y_sum / total);
+			z_sum = (z_sum / total);
+			//cout << ">> " << x_sum_2d << "," << y_sum_2d << ","<< x_sum << ","<< y_sum << ","<< z_sum << endl;
+
+			num_centroids = centroids_2d->size();
+			centroids_2d->push_back(vector<int>(2));
+			centroids_2d->at(num_centroids).at(0) = (int) x_sum_2d;
+			centroids_2d->at(num_centroids).at(1) = (int) y_sum_2d;
+
+			centroids_3d->push_back(vector<double>(3));
+			centroids_3d->at(num_centroids).at(0) = (double) x_sum;
+			centroids_3d->at(num_centroids).at(1) = (double) y_sum;
+			centroids_3d->at(num_centroids).at(2) = (double) z_sum;
+			
+			if(verbose){
+				cout << "3d centroid computed at: " << centroids_3d->at(num_centroids).at(0) << "," << centroids_3d->at(num_centroids).at(1) << "," << centroids_3d->at(num_centroids).at(2) << endl;
+				cout << "2d centroid computed at: " << centroids_2d->at(num_centroids).at(0) << "," << centroids_2d->at(num_centroids).at(1) << endl;
+			}
 		}
 		
 		if(verbose){
-			cout << "\tNum centroids: " << centroids->size() << endl;
-			for(i = 0; i < centroids->size(); i++){
+			cout << "\tNum centroids: " << centroids_3d->size() << endl;
+			for(i = 0; i < centroids_3d->size(); i++){
 				cout << "centroid " << i << endl;
-				cout << "\t" << centroids->at(i).at(0) << "," << centroids->at(i).at(1) << endl;
+				cout << "\t" << centroids_3d->at(i).at(0) << "," << centroids_3d->at(i).at(1) << "," << centroids_3d->at(i).at(2) << endl;
 			}
-		}		
+		}	
 	}
 	
 };
