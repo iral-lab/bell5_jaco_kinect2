@@ -180,36 +180,32 @@ class ImageConverter{
 		args = viz_args;
 	}
 
-	void find_matches_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
+	void find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
 		pcl::PointXYZRGB *point;
 		bool match = false;
 		if(verbose)
 			cout << "about to find colors" << endl;
 		
-		for (int y = 0; y < im_matrix->rows; y++) {
-			for (int x = 0; x < im_matrix->cols; x++) {
-				// Cloud is (columns, rows)
-				point = &cloud->at(x, y);
+		// Cloud is (columns, rows)
+		point = &cloud->at(x, y);
 
-				Eigen::Vector3i rgb = point->getRGBVector3i();
+		Eigen::Vector3i rgb = point->getRGBVector3i();
 
-				// im_matrix is (rows, columns)
-				im_matrix->at<cv::Vec3b>(y,x)[0] = rgb[2];
-				im_matrix->at<cv::Vec3b>(y,x)[1] = rgb[1];
-				im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
-				
-				match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
-				if(match){
-					// do pixel shading
-					im_matrix->at<cv::Vec3b>(y,x)[0] = 255;
-					im_matrix->at<cv::Vec3b>(y,x)[1] = 255;
-					im_matrix->at<cv::Vec3b>(y,x)[2] = 255;
-				}
+		// im_matrix is (rows, columns)
+		im_matrix->at<cv::Vec3b>(y,x)[0] = rgb[2];
+		im_matrix->at<cv::Vec3b>(y,x)[1] = rgb[1];
+		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
+		
+		match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
+		if(match){
+			// do pixel shading
+			im_matrix->at<cv::Vec3b>(y,x)[0] = 255;
+			im_matrix->at<cv::Vec3b>(y,x)[1] = 255;
+			im_matrix->at<cv::Vec3b>(y,x)[2] = 255;
+		}
 
-				if(args->draw_depth_filter){
-					apply_distance_filter(im_matrix, x, y, cloud);
-				}
-			}
+		if(args->draw_depth_filter){
+			apply_distance_filter(im_matrix, x, y, cloud);
 		}
 	}
 	
@@ -240,7 +236,13 @@ class ImageConverter{
 		vector< vector<int> > matched_points_2d;
 		vector< vector<double> > matched_points_3d;
 		
-		find_matches_by_color(&im_matrix, &cloud, &matched_points_2d, &matched_points_3d, &orange, verbose);
+		for (int y = 0; y < im_matrix.rows; y++) {
+			for (int x = 0; x < im_matrix.cols; x++) {
+				
+				// find orange		
+				find_match_by_color(&im_matrix, &cloud, x, y,&matched_points_2d, &matched_points_3d, &orange, verbose);
+			}
+		}
 		
 		if(verbose)
 			cout << "post: " << matched_points_2d.size() << endl;
