@@ -34,14 +34,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-struct viz_thread_args{
-	int *argc;
-	char ***argv;
-	bool terminate;
-	bool draw_depth_filter;
-	bool draw_pixel_match_color;
-	bool verbose;
-};
 
 struct rgb{
 	short r;
@@ -86,6 +78,10 @@ int euclid_distance_3d_not_vec(double *a, double *b){
 
 double vector_length_3d(double *xyz){
 	return (double) sqrtf(xyz[0]*xyz[0] + xyz[1]*xyz[1] + xyz[2]*xyz[2]);
+}
+
+double vector_length_3d_struct(struct xyz *xyz){
+	return (double) sqrtf(xyz->x*xyz->x + xyz->y*xyz->y + xyz->z*xyz->z);
 }
 
 int color_normalize(double dist, double max, int span){
@@ -280,10 +276,11 @@ class ImageConverter{
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(centroids_2d.at(i).at(0), centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
 		}
-
+		
 		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(jaco_tag_centroids_2d.at(i).at(0), jaco_tag_centroids_2d.at(i).at(1)), 20, CV_RGB(0,255,0));
+			
 		}
 		
 		if(centroids_3d.size() == 2){
@@ -297,15 +294,33 @@ class ImageConverter{
 				cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
-		if(jaco_tag_centroids_3d.size() > 0){
-			for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
-				double xyz[3];
-				xyz[0] = jaco_tag_centroids_3d[i].at(0);
-				xyz[1] = jaco_tag_centroids_3d[i].at(1);
-				xyz[2] = jaco_tag_centroids_3d[i].at(2);
-				// found jaco tag
+		int num_jaco_tag_centroids_3d = jaco_tag_centroids_3d.size();
+		if(num_jaco_tag_centroids_3d > 0){
+			if(args->num_jaco_tags != num_jaco_tag_centroids_3d){
+				struct xyz *temp = (struct xyz *) malloc (num_jaco_tag_centroids_3d * sizeof(struct xyz));
+				if(args->jaco_tag_xyz){
+					free(args->jaco_tag_xyz);
+				}
+				args->jaco_tag_xyz = temp;
+
+
+				double *temp_dist = (double *) malloc (num_jaco_tag_centroids_3d * sizeof(double));
+				if(args->jaco_distances){
+					free(args->jaco_distances);
+				}
+				args->jaco_distances = temp_dist;
+			}
+			args->num_jaco_tags = num_jaco_tag_centroids_3d;
+			for(i = 0; i < num_jaco_tag_centroids_3d; i++){
+				
+				args->jaco_tag_xyz[i].x = jaco_tag_centroids_3d[i].at(0);
+				args->jaco_tag_xyz[i].y = jaco_tag_centroids_3d[i].at(1);
+				args->jaco_tag_xyz[i].z = jaco_tag_centroids_3d[i].at(2);
+				
+				args->jaco_distances[i] = vector_length_3d_struct(& args->jaco_tag_xyz[i]);
+				
 				if(verbose){
-					cout << "Distance to JACO tag: " << vector_length_3d(xyz) << endl;
+					cout << "Distance to JACO tag (" << i << ") : " << args->jaco_distances[i] << endl;
 				}
 
 

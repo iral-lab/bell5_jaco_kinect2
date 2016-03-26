@@ -24,6 +24,7 @@
 
 using namespace std;
 
+
 // Borrowed heavily from the Kinova SDK examples
 
 void print_help(){
@@ -126,7 +127,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		sleep(COMMAND_DELAY);
 	
 	}else if(!strcmp("print state", cmd)){
-		print_state();
+		print_state(viz_args);
 	
 	}else if(!strcmp("shutdown", cmd)){
 		shutdown(&args[0]);
