@@ -230,9 +230,11 @@ int main(int argc, char **argv){
 	struct viz_thread_args viz_args;
 	viz_args.argc = &argc;
 	viz_args.argv = &argv;
+	viz_args.terminate = false;
 	
-	handle_viz(&viz_args);
-	return 0;
+	pthread_t viz_thread;
+	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
+	
 	
 	//We load the handle for the library's command layer.
 	void * commandLayer_handle = dlopen("Kinova.API.USBCommandLayerUbuntu.so",RTLD_NOW|RTLD_GLOBAL);
@@ -287,6 +289,8 @@ int main(int argc, char **argv){
 		// result = (*MyCloseAPI)();
 	}
 
+	pthread_join(viz_thread, NULL);
+	
 	dlclose(commandLayer_handle);
 	pthread_exit(NULL);
 	return 0;

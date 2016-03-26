@@ -34,6 +34,7 @@
 struct viz_thread_args{
 	int *argc;
 	char ***argv;
+	bool terminate;
 };
 
 struct rgb{
@@ -143,6 +144,7 @@ class ImageConverter{
 	image_transport::Subscriber image_sub_;
 	ros::Subscriber pcl_sub_;
 	int frames;
+	struct viz_thread_args *args;
 
 	// store the centroids in both xyz and 2d image
 	vector< vector<int> > centroids_2d;
@@ -167,6 +169,9 @@ class ImageConverter{
 		cv::destroyWindow(OPENCV_WINDOW);
 	}
 
+	void set_args(struct viz_thread_args *viz_args){
+		args = viz_args;
+	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
@@ -174,7 +179,7 @@ class ImageConverter{
 		
 		// skip every-other frame for faster rendering
 		if(++frames % 2 == 0){
-			cout << "skipping " << frames << endl;
+			//cout << "skipping " << frames << endl;
 			return;
 		}
 		
@@ -244,8 +249,8 @@ class ImageConverter{
 			c0_xyz[0] = centroids_3d.at(0).at(0);
 			c0_xyz[1] = centroids_3d.at(0).at(1);
 			c0_xyz[2] = centroids_3d.at(0).at(2);
-
-			cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
+			if(verbose)
+				cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
 		// Update GUI Window
@@ -273,20 +278,22 @@ class ImageConverter{
 				}
 			}
 		}
-		cout << "finished distances" << cout;
+		if(verbose){
+			cout << "finished distances" << cout;
+		}
 		// do sort/unique on distance measures
 		sort (distances.begin(), distances.end());
 		std::vector<double>::iterator it;
 		it = std::unique (distances.begin(), distances.end());
 		distances.resize( std::distance(distances.begin(),it) );
 		
-		
+		/*
 		FILE *fp = fopen("distances.log", "w");
 		for(i = 0; i < distances.size(); i++){
 			fprintf(fp, "%f\n", distances.at(i));
 		}
 		fclose(fp);
-		
+		*/
 		// now distances are unique
 		if(verbose)
 			cout << "\tFinal distances: " << distances.size() << endl;
@@ -319,7 +326,8 @@ class ImageConverter{
 		vector< vector< vector<int> > > clusters_2d;
 		vector< vector< vector<double> > > clusters_3d;
 		
-		cout << "beginning clustering" << endl << endl;
+		if(verbose)
+			cout << "beginning clustering" << endl << endl;
 		for(i = 0; i < num_matches; i++){
 			// find which cluster the point belongs in, or create new cluster
 			found_cluster = false;
@@ -349,10 +357,10 @@ class ImageConverter{
 			}
 		}
 	
-		cout << "done clustering" << endl << endl;
-		if(verbose)
+		if(verbose){
+			cout << "done clustering" << endl << endl;
 			cout << "\tNum clusters: " << clusters_3d.size() << endl << endl;
-		
+		}
 		int minimum_points_per_cluster = 100;
 		
 		centroids_2d->clear();
@@ -362,7 +370,9 @@ class ImageConverter{
 		int x_sum_2d, y_sum_2d;
 		for(i = 0; i < clusters_3d.size(); i++){
 			total = clusters_3d.at(i).size();
-			cout << "Cluster " << i << " has 3d: " << clusters_3d.at(i).size() << ", 2d: " << clusters_2d.at(i).size() << endl;
+			if(verbose){
+				cout << "Cluster " << i << " has 3d: " << clusters_3d.at(i).size() << ", 2d: " << clusters_2d.at(i).size() << endl;
+			}
 			if(total < minimum_points_per_cluster){
 				continue;
 			}
@@ -418,10 +428,12 @@ class ImageConverter{
 };
 
 
-void handle_viz(struct viz_thread_args *viz_args){
+void *handle_viz(void *thread_args){
+	struct viz_thread_args *viz_args = (struct viz_thread_args *) thread_args;
 	
 	ros::init(*viz_args->argc, *viz_args->argv, "image_converter");
 	ImageConverter ic;
+	ic.set_args(viz_args);
 	ros::spin();
 	
 }
