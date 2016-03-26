@@ -50,6 +50,7 @@ void print_help(){
 	cout << "Visualization: " << endl;
 	cout << "\tv depth         : toggle depth filter. " << endl;
 	cout << "\tv pixels        : toggle pixel match color filter. " << endl;
+	cout << "\tv verbose       : toggle verbosity. " << endl;
 	
 }
 
@@ -132,6 +133,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
+
+	}else if(!strcmp("v verbose", cmd)){
+		viz_args->verbose = !viz_args->verbose;
 
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;

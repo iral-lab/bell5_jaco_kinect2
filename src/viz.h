@@ -40,6 +40,7 @@ struct viz_thread_args{
 	bool terminate;
 	bool draw_depth_filter;
 	bool draw_pixel_match_color;
+	bool verbose;
 };
 
 struct rgb{
@@ -175,6 +176,9 @@ class ImageConverter{
 	
 		centroids_2d.clear();
 		centroids_3d.clear();
+	
+		jaco_tag_centroids_2d.clear();
+		jaco_tag_centroids_3d.clear();
 		
 		cv::namedWindow(OPENCV_WINDOW);
 	}
@@ -189,9 +193,6 @@ class ImageConverter{
 
 	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
 		pcl::PointXYZRGB *point;
-		
-		if(verbose)
-			cout << "about to find colors" << endl;
 		
 		// Cloud is (columns, rows)
 		point = &cloud->at(x, y);
@@ -218,7 +219,7 @@ class ImageConverter{
 			return;
 		}
 		
-		bool verbose = false;
+		bool verbose = args->verbose;
 		
 		// skip every-other frame for faster rendering
 		if(++frames % 2 == 0){
@@ -271,6 +272,8 @@ class ImageConverter{
 		//pthread_mutex_lock(&centroid_mutex);
 		compute_centroids(&matched_points_2d, &matched_points_3d, &centroids_2d, &centroids_3d, verbose);
 		compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
+
+		
 		//pthread_mutex_unlock(&centroid_mutex);
 		
 		for(i = 0; i < centroids_2d.size(); i++){
@@ -292,6 +295,23 @@ class ImageConverter{
 			c0_xyz[2] = centroids_3d.at(0).at(2);
 			if(verbose)
 				cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
+		}
+		
+		if(jaco_tag_centroids_3d.size() > 0){
+			for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
+				double xyz[3];
+				xyz[0] = jaco_tag_centroids_3d[i].at(0);
+				xyz[1] = jaco_tag_centroids_3d[i].at(1);
+				xyz[2] = jaco_tag_centroids_3d[i].at(2);
+				// found jaco tag
+				if(verbose){
+					cout << "Distance to JACO tag: " << vector_length_3d(xyz) << endl;
+				}
+
+
+
+				
+			}
 		}
 		
 		// Update GUI Window
