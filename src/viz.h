@@ -51,6 +51,9 @@ struct rgb{
 // orange color: #ef5e25
 struct rgb orange = {239, 94, 37};
 
+// blue tag color: #2499bc
+struct rgb blue_tag = {36, 153, 188};
+
 // bottle color: #45c5d2
 struct rgb bottle = {69, 197, 210};
 
