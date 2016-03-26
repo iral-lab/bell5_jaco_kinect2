@@ -54,18 +54,18 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
 
-bool do_pixel_test(int i, int j, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches){
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches){
 	struct rgb test;
-	test.r = (*image).at<cv::Vec3b>(i,j)[2];
-	test.g = (*image).at<cv::Vec3b>(i,j)[1];
-	test.b = (*image).at<cv::Vec3b>(i,j)[0];
+	test.r = (*image).at<cv::Vec3b>(y,x)[2];
+	test.g = (*image).at<cv::Vec3b>(y,x)[1];
+	test.b = (*image).at<cv::Vec3b>(y,x)[0];
 	
 	int matches_size = matches->size();
 	bool match = false;
 	if(colors_are_similar(desired, &test)){
 		matches->push_back( vector<int>(0) );
-		matches->at(matches_size).push_back(i);
-		matches->at(matches_size).push_back(j);
+		matches->at(matches_size).push_back(x);
+		matches->at(matches_size).push_back(y);
 		match = true;
 	}
 	return match;
@@ -94,8 +94,8 @@ int color_normalize(double dist, double max, int span){
 	return (int)((dist / max) * span);
 }
 
-void get_xyz_from_xyzrgb(int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
-	pcl::PointXYZRGB *point = &(cloud->at(w, h));
+void get_xyz_from_xyzrgb(int x, int y, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
+	pcl::PointXYZRGB *point = &(cloud->at(x, y));
 	xyz[0] = point->x;
 	xyz[1] = point->y;
 	xyz[2] = point->z;
@@ -132,6 +132,8 @@ class ImageConverter{
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pcl_sub_ = nh_.subscribe ("/kinect2/hd/points", 1, &ImageConverter::cloudCb, this);
 	
+		centroids.clear();
+		
 		cv::namedWindow(OPENCV_WINDOW);
 	}
 
@@ -163,25 +165,27 @@ class ImageConverter{
 		bool match = false;
 		int new_h, new_w;
 		
-		for (int h=0; h<im_matrix.rows; h++) {
-			for (int w=0; w<im_matrix.cols; w++) {
-				point = &cloud.at(w, h);
+		for (int y = 0; y < im_matrix.rows; y++) {
+			for (int x = 0; x < im_matrix.cols; x++) {
+				// Cloud is (columns, rows)
+				point = &cloud.at(x, y);
 
 				Eigen::Vector3i rgb = point->getRGBVector3i();
 
-				im_matrix.at<cv::Vec3b>(h,w)[0] = rgb[2];
-				im_matrix.at<cv::Vec3b>(h,w)[1] = rgb[1];
-				im_matrix.at<cv::Vec3b>(h,w)[2] = rgb[0];
+				// im_matrix is (rows, columns)
+				im_matrix.at<cv::Vec3b>(y,x)[0] = rgb[2];
+				im_matrix.at<cv::Vec3b>(y,x)[1] = rgb[1];
+				im_matrix.at<cv::Vec3b>(y,x)[2] = rgb[0];
 				
-				match = do_pixel_test(h, w, &im_matrix, &orange, &matched_points);
+				match = do_pixel_test(x, y, &im_matrix, &orange, &matched_points);
 				if(match){
 					// do pixel shading
-					im_matrix.at<cv::Vec3b>(h,w)[0] = 255;
-					im_matrix.at<cv::Vec3b>(h,w)[1] = 255;
-					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
+					im_matrix.at<cv::Vec3b>(y,x)[0] = 255;
+					im_matrix.at<cv::Vec3b>(y,x)[1] = 255;
+					im_matrix.at<cv::Vec3b>(y,x)[2] = 255;
 				}
 				
-				//apply_distance_filter(&im_matrix, h, w, &cloud);
+				//apply_distance_filter(&im_matrix, x, y, &cloud);
 			}
 		}
 		
@@ -193,7 +197,7 @@ class ImageConverter{
 			return;
 		}
 		*/
-		
+
 		pthread_mutex_lock(&centroid_mutex);
 		compute_centroids(&matched_points, &centroids, verbose);
 		pthread_mutex_unlock(&centroid_mutex);
@@ -206,8 +210,8 @@ class ImageConverter{
 		if(centroids.size() == 2){
 			double c0_xyz[3];
 			double c1_xyz[3];
-			get_xyz_from_xyzrgb(centroids.at(0).at(1), centroids.at(0).at(0), &cloud, c0_xyz);
-			get_xyz_from_xyzrgb(centroids.at(1).at(1), centroids.at(1).at(0), &cloud, c1_xyz);
+			get_xyz_from_xyzrgb(centroids.at(0).at(0), centroids.at(0).at(1), &cloud, c0_xyz);
+			get_xyz_from_xyzrgb(centroids.at(1).at(0), centroids.at(1).at(1), &cloud, c1_xyz);
 			cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
@@ -341,9 +345,8 @@ class ImageConverter{
 			}
 			num_centroids = centroids->size();
 			centroids->push_back(vector<int>(2));
-			// NOT SURE WHY X,Y ARE FLIPPED HERE.
-			centroids->at(num_centroids).at(1) = (int)(x_sum / total);
-			centroids->at(num_centroids).at(0) = (int)(y_sum / total);
+			centroids->at(num_centroids).at(0) = (int)(x_sum / total);
+			centroids->at(num_centroids).at(1) = (int)(y_sum / total);
 			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
 		}
 		
