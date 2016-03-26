@@ -178,7 +178,7 @@ void shutdown(struct thread_args *args){
 	args->angles[8] = 0;
 	
 	do_action(args, true);
-	close_fingers(args, UNDEF);
+	//close_fingers(args, UNDEF);
 	
 	load_current_angles(args->angles);
 	args->angles[2] = 25;
