@@ -49,6 +49,7 @@ void print_help(){
 	cout << "\twait            : Wait " << COMMAND_DELAY << " seconds" << endl;
 	cout << "Visualization: " << endl;
 	cout << "\tv depth         : toggle depth filter. " << endl;
+	cout << "\tv pixels        : toggle pixel match color filter. " << endl;
 	
 }
 
@@ -134,6 +135,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
+
+	}else if(!strcmp("v pixels", cmd)){
+		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 	
 	}else if(strlen(cmd) > 2 && cmd[0] == 'm' && cmd[1] == 'v'){
 		handle_move_command(&args[0], (char *) cmd);

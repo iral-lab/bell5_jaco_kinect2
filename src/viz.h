@@ -39,6 +39,7 @@ struct viz_thread_args{
 	char ***argv;
 	bool terminate;
 	bool draw_depth_filter;
+	bool draw_pixel_match_color;
 };
 
 struct rgb{
@@ -56,6 +57,9 @@ struct rgb blue_tag = {36, 153, 188};
 
 // bottle color: #45c5d2
 struct rgb bottle = {69, 197, 210};
+
+// pixel shading color for matches
+struct rgb match_color = {0xff, 0xd7, 0x00};
 
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
@@ -156,6 +160,9 @@ class ImageConverter{
 	// store the centroids in both xyz and 2d image
 	vector< vector<int> > centroids_2d;
 	vector< vector<double> > centroids_3d;
+
+	vector< vector<int> > jaco_tag_centroids_2d;
+	vector< vector<double> > jaco_tag_centroids_3d;
 	
 	pthread_mutex_t centroid_mutex;
 
@@ -180,9 +187,9 @@ class ImageConverter{
 		args = viz_args;
 	}
 
-	void find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
+	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
 		pcl::PointXYZRGB *point;
-		bool match = false;
+		
 		if(verbose)
 			cout << "about to find colors" << endl;
 		
@@ -196,17 +203,12 @@ class ImageConverter{
 		im_matrix->at<cv::Vec3b>(y,x)[1] = rgb[1];
 		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
 		
-		match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
-		if(match){
-			// do pixel shading
-			im_matrix->at<cv::Vec3b>(y,x)[0] = 255;
-			im_matrix->at<cv::Vec3b>(y,x)[1] = 255;
-			im_matrix->at<cv::Vec3b>(y,x)[2] = 255;
-		}
-
+		bool match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
+		
 		if(args->draw_depth_filter){
 			apply_distance_filter(im_matrix, x, y, cloud);
 		}
+		return match;
 	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
@@ -235,12 +237,26 @@ class ImageConverter{
 		// store 2d matches and 3d matches
 		vector< vector<int> > matched_points_2d;
 		vector< vector<double> > matched_points_3d;
+
+		vector< vector<int> > jaco_tag_matched_points_2d;
+		vector< vector<double> > jaco_tag_matched_points_3d;
 		
+		bool match;
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
 				// find orange		
-				find_match_by_color(&im_matrix, &cloud, x, y,&matched_points_2d, &matched_points_3d, &orange, verbose);
+				match = find_match_by_color(&im_matrix, &cloud, x, y,&matched_points_2d, &matched_points_3d, &orange, verbose);
+
+				// find jaco tag		
+				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
+				
+				if(match && args->draw_pixel_match_color){
+					// do pixel shading
+					im_matrix.at<cv::Vec3b>(y,x)[0] = match_color.b;
+					im_matrix.at<cv::Vec3b>(y,x)[1] = match_color.g;
+					im_matrix.at<cv::Vec3b>(y,x)[2] = match_color.r;
+				}
 			}
 		}
 		
@@ -254,11 +270,17 @@ class ImageConverter{
 
 		//pthread_mutex_lock(&centroid_mutex);
 		compute_centroids(&matched_points_2d, &matched_points_3d, &centroids_2d, &centroids_3d, verbose);
+		compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
 		//pthread_mutex_unlock(&centroid_mutex);
 		
 		for(i = 0; i < centroids_2d.size(); i++){
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(centroids_2d.at(i).at(0), centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
+		}
+
+		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
+			// Draw an circle on the video stream around the 2d centroids
+			cv::circle(im_matrix, cv::Point(jaco_tag_centroids_2d.at(i).at(0), jaco_tag_centroids_2d.at(i).at(1)), 20, CV_RGB(0,255,0));
 		}
 		
 		if(centroids_3d.size() == 2){
