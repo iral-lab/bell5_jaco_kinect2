@@ -176,6 +176,39 @@ class ImageConverter{
 	void set_args(struct viz_thread_args *viz_args){
 		args = viz_args;
 	}
+
+	void find_matches_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
+		pcl::PointXYZRGB *point;
+		bool match = false;
+		if(verbose)
+			cout << "about to find colors" << endl;
+		
+		for (int y = 0; y < im_matrix->rows; y++) {
+			for (int x = 0; x < im_matrix->cols; x++) {
+				// Cloud is (columns, rows)
+				point = &cloud->at(x, y);
+
+				Eigen::Vector3i rgb = point->getRGBVector3i();
+
+				// im_matrix is (rows, columns)
+				im_matrix->at<cv::Vec3b>(y,x)[0] = rgb[2];
+				im_matrix->at<cv::Vec3b>(y,x)[1] = rgb[1];
+				im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
+				
+				match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
+				if(match){
+					// do pixel shading
+					im_matrix->at<cv::Vec3b>(y,x)[0] = 255;
+					im_matrix->at<cv::Vec3b>(y,x)[1] = 255;
+					im_matrix->at<cv::Vec3b>(y,x)[2] = 255;
+				}
+
+				if(args->draw_depth_filter){
+					apply_distance_filter(im_matrix, x, y, cloud);
+				}
+			}
+		}
+	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
@@ -195,7 +228,6 @@ class ImageConverter{
 		
 		pcl::PointCloud<pcl::PointXYZRGB> cloud;
   		pcl::fromROSMsg (*input, cloud);
-		pcl::PointXYZRGB *point;
 		
 		int i, j, x, y;
 
@@ -204,37 +236,8 @@ class ImageConverter{
 		// store 2d matches and 3d matches
 		vector< vector<int> > matched_points_2d;
 		vector< vector<double> > matched_points_3d;
-		bool match = false;
-		int new_h, new_w;
-		if(verbose)
-			cout << "about to find colors" << endl;
 		
-		for (int y = 0; y < im_matrix.rows; y++) {
-			for (int x = 0; x < im_matrix.cols; x++) {
-				// Cloud is (columns, rows)
-				point = &cloud.at(x, y);
-
-				Eigen::Vector3i rgb = point->getRGBVector3i();
-
-				// im_matrix is (rows, columns)
-				im_matrix.at<cv::Vec3b>(y,x)[0] = rgb[2];
-				im_matrix.at<cv::Vec3b>(y,x)[1] = rgb[1];
-				im_matrix.at<cv::Vec3b>(y,x)[2] = rgb[0];
-				
-				match = do_pixel_test(x, y, &im_matrix, &orange, &matched_points_2d, &matched_points_3d, &cloud);
-				if(match){
-					// do pixel shading
-					im_matrix.at<cv::Vec3b>(y,x)[0] = 255;
-					im_matrix.at<cv::Vec3b>(y,x)[1] = 255;
-					im_matrix.at<cv::Vec3b>(y,x)[2] = 255;
-				}
-
-				if(args->draw_depth_filter){
-					apply_distance_filter(&im_matrix, x, y, &cloud);
-				}
-			}
-		}
-		
+		find_matches_by_color(&im_matrix, &cloud, &matched_points_2d, &matched_points_3d, &orange, verbose);
 		
 		if(verbose)
 			cout << "post: " << matched_points_2d.size() << endl;
