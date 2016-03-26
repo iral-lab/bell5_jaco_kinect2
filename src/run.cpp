@@ -227,9 +227,11 @@ int main(int argc, char **argv){
 	
 	int result;
 	srand(time(NULL));
+	struct viz_thread_args viz_args;
+	viz_args.argc = &argc;
+	viz_args.argv = &argv;
 	
-	//handle_depth(argc,argv);
-	handle_viz(argc, argv);
+	handle_viz(&viz_args);
 	return 0;
 	
 	//We load the handle for the library's command layer.

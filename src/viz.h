@@ -31,6 +31,11 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+struct viz_thread_args{
+	int *argc;
+	char ***argv;
+};
+
 struct rgb{
 	short r;
 	short g;
@@ -413,9 +418,9 @@ class ImageConverter{
 };
 
 
-void handle_viz(int argc, char **argv){
+void handle_viz(struct viz_thread_args *viz_args){
 	
-	ros::init(argc, argv, "image_converter");
+	ros::init(*viz_args->argc, *viz_args->argv, "image_converter");
 	ImageConverter ic;
 	ros::spin();
 	
