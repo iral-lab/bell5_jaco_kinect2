@@ -94,12 +94,6 @@ int color_normalize(double dist, double max, int span){
 	return (int)((dist / max) * span);
 }
 
-void apply_calibration(int *new_h, int *new_w, int max_h, int max_w){
-	(*new_w) -= 34;
-	(*new_w) = MAX(0, (*new_w));
-	(*new_w) = MIN(max_w, (*new_w));
-}
-
 void get_xyz_from_xyzrgb(int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
 	pcl::PointXYZRGB *point = &(cloud->at(w, h));
 	xyz[0] = point->x;
@@ -186,12 +180,7 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
 				
-				
-				
-				new_h = h;
-				new_w = w;
-				//apply_calibration(&new_h, &new_w, im_matrix.rows, im_matrix.cols);
-				apply_distance_filter(&im_matrix, new_h, new_w, &cloud);
+				apply_distance_filter(&im_matrix, h, w, &cloud);
 			}
 		}
 		
