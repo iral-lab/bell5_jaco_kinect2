@@ -88,6 +88,9 @@ struct thread_args{
 	
 	// shutdown flag, terminate pthread
 	bool shutdown;
+
+	// pass info to the visualizer
+	struct viz_thread_args *viz_args;
 };
 
 void do_action(struct thread_args *args, bool blocking){

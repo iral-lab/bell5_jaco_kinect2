@@ -1,3 +1,6 @@
+#ifndef _VIZH_
+#define _VIZH_
+
 #include <vector>
 #include <pthread.h>
 #include <cmath>
@@ -35,6 +38,7 @@ struct viz_thread_args{
 	int *argc;
 	char ***argv;
 	bool terminate;
+	bool draw_depth_filter;
 };
 
 struct rgb{
@@ -87,18 +91,18 @@ void get_xyz_from_xyzrgb(int x, int y, pcl::PointCloud<pcl::PointXYZRGB> *cloud,
 	xyz[2] = point->z;
 }
 
-void apply_distance_filter(cv::Mat *im_matrix, int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
+void apply_distance_filter(cv::Mat *im_matrix, int x, int y, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
 	double dist;
 	double xyz[3];
-	get_xyz_from_xyzrgb(h, w, cloud, xyz);
+	get_xyz_from_xyzrgb(x, y, cloud, xyz);
 	
 	dist = vector_length_3d(xyz);
 	short color = color_normalize(dist, 3.0, 255);
 	color = MIN(255, color);
 	color = MAX(0, color);
-	im_matrix->at<cv::Vec3b>(h,w)[0] = color;
-	im_matrix->at<cv::Vec3b>(h,w)[1] = color;
-	im_matrix->at<cv::Vec3b>(h,w)[2] = color;
+	im_matrix->at<cv::Vec3b>(y,x)[0] = color;
+	im_matrix->at<cv::Vec3b>(y,x)[1] = color;
+	im_matrix->at<cv::Vec3b>(y,x)[2] = color;
 }
 
 bool is_valid_xyz(double *xyz){
@@ -224,8 +228,10 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(y,x)[1] = 255;
 					im_matrix.at<cv::Vec3b>(y,x)[2] = 255;
 				}
-				
-				//apply_distance_filter(&im_matrix, x, y, &cloud);
+
+				if(args->draw_depth_filter){
+					apply_distance_filter(&im_matrix, x, y, &cloud);
+				}
 			}
 		}
 		
@@ -452,4 +458,5 @@ void *handle_viz(void *thread_args){
 
 
 
+#endif
 

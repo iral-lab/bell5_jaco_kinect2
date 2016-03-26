@@ -47,6 +47,8 @@ void print_help(){
 	cout << "\tmv <id> <+/->   : Increase/decrease a given actuator's angle (joints by " << JOINT_DELTA_DEGREES << " degrees, fingers by " << FINGER_DELTA_DEGREES << endl;
 	cout << "Use | to chain commands \"load_throw | wait | prep throw | throw\"" << endl;
 	cout << "\twait            : Wait " << COMMAND_DELAY << " seconds" << endl;
+	cout << "Visualization: " << endl;
+	cout << "\tv depth         : toggle depth filter. " << endl;
 	
 }
 
@@ -91,7 +93,7 @@ void handle_move_command(struct thread_args *args, char *cmd){
 	do_action(args, true);
 }
 
-bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, grasped_object_type object){
+bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
 		straighten(&args[0]);
@@ -129,6 +131,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, gras
 	
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
+
+	}else if(!strcmp("v depth", cmd)){
+		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
 	
 	}else if(strlen(cmd) > 2 && cmd[0] == 'm' && cmd[1] == 'v'){
 		handle_move_command(&args[0], (char *) cmd);
@@ -139,7 +144,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, const char *cmd, gras
 	return true;
 }
 
-void do_repl(int num_threads, struct thread_args *args){
+void do_repl(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args){
 	string cmd;
 	int cmd_size = 1024, i;
 	char cmd_char[cmd_size];
@@ -178,7 +183,7 @@ void do_repl(int num_threads, struct thread_args *args){
 		while(token && active){
 			token = trimwhitespace(token);
 			cout << "CMD: " << token << endl;
-			active = handle_cmd(num_threads, args, token, object);
+			active = handle_cmd(num_threads, args, viz_args, token, object);
 			token = strtok_r(NULL, delim.c_str(), &save_ptr);
 			is_first_command = false;
 		}
@@ -228,6 +233,7 @@ int main(int argc, char **argv){
 	int result;
 	srand(time(NULL));
 	struct viz_thread_args viz_args;
+	memset(&viz_args, 0, sizeof(struct viz_thread_args));
 	viz_args.argc = &argc;
 	viz_args.argv = &argv;
 	viz_args.terminate = false;
@@ -276,12 +282,13 @@ int main(int argc, char **argv){
 			
 			args[i].id = i;
 			args[i].device = &list[i];
+			args[i].viz_args = &viz_args;
 			
 			pthread_create(&threads[i], NULL, run_thread, (void *) &(args[i]));
 		}
 		
 		
-		do_repl(devicesCount, args);
+		do_repl(devicesCount, args, &viz_args);
 		
 
 		//cout << endl << "WARNING: Your robot is now set to angular control. If you use the joystick, it will be a joint by joint movement." << endl;
