@@ -144,12 +144,12 @@ class ImageConverter{
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
 		bool verbose = false;
 		
-		// skip every-other frame for speed
-		/*
-		if(rand() % 2 > 0){
+		// skip every-other frame for faster rendering
+		if(++frames % 2 == 0){
+			cout << "skipping " << frames << endl;
 			return;
 		}
-		*/
+		
 		
 		pcl::PointCloud<pcl::PointXYZRGB> cloud;
   		pcl::fromROSMsg (*input, cloud);
@@ -237,7 +237,6 @@ class ImageConverter{
 		
 		cv::imshow(OPENCV_WINDOW, im_matrix);
 		cv::waitKey(3);
-		frames++;
 	}
 
 	void compute_centroids(vector< vector<int> > *matches, vector< vector<int> > *centroids, bool verbose){
