@@ -95,6 +95,8 @@ int color_normalize(double dist, double max, int span){
 }
 
 void get_xyz_from_xyzrgb(int h, int w, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
+	cout << "h,w: " << h << "," << w << endl;
+	cout << "point: " << cloud->at(w, h) << endl;
 	pcl::PointXYZRGB *point = &(cloud->at(w, h));
 	xyz[0] = point->x;
 	xyz[1] = point->y;
@@ -162,6 +164,7 @@ class ImageConverter{
 		vector< vector<int> > matched_points;
 		bool match = false;
 		int new_h, new_w;
+		
 		for (int h=0; h<im_matrix.rows; h++) {
 			for (int w=0; w<im_matrix.cols; w++) {
 				point = &cloud.at(w, h);
@@ -180,7 +183,7 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(h,w)[2] = 255;
 				}
 				
-				apply_distance_filter(&im_matrix, h, w, &cloud);
+				//apply_distance_filter(&im_matrix, h, w, &cloud);
 			}
 		}
 		
@@ -193,24 +196,26 @@ class ImageConverter{
 		}
 		*/
 		
+		pthread_mutex_lock(&centroid_mutex);
 		compute_centroids(&matched_points, &centroids, verbose);
+		pthread_mutex_unlock(&centroid_mutex);
 		
 		for(i = 0; i < centroids.size(); i++){
 			// Draw an circle on the video stream around the centroids
 			cv::circle(im_matrix, cv::Point(centroids.at(i).at(0), centroids.at(i).at(1)), 20, CV_RGB(255,0,0));
 		}
+		
 		if(centroids.size() == 2){
 			double c0_xyz[3];
 			double c1_xyz[3];
-			get_xyz_from_xyzrgb(centroids.at(0).at(0), centroids.at(0).at(1), &cloud, c0_xyz);
-			get_xyz_from_xyzrgb(centroids.at(1).at(0), centroids.at(1).at(1), &cloud, c1_xyz);
+			get_xyz_from_xyzrgb(centroids.at(0).at(1), centroids.at(0).at(0), &cloud, c0_xyz);
+			get_xyz_from_xyzrgb(centroids.at(1).at(1), centroids.at(1).at(0), &cloud, c1_xyz);
 			cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
 		
 		// Update GUI Window
 		
 		//cout << "got packet, H: " << cloud.width << ", W: " << cloud.height << endl;
-		//pthread_mutex_lock(&centroid_mutex);
 		//for(x = 0; x < cloud.width; x++){
 		double xyz[3];
 		for(i = 0; i < centroids.size(); i++){
@@ -320,8 +325,7 @@ class ImageConverter{
 			cout << "\tNum clusters: " << clusters.size() << endl;
 		
 		int minimum_points_per_cluster = 100;
-	
-		//pthread_mutex_lock(&centroid_mutex);
+		
 		centroids->clear();
 	
 		int x_sum, y_sum, num_centroids, total;
@@ -345,11 +349,14 @@ class ImageConverter{
 			centroids->at(num_centroids).at(0) = (int)(y_sum / total);
 			//cout << "centroid computed at: " << centroids->at(num_centroids).at(0) << "," << centroids->at(num_centroids).at(1) << endl;
 		}
-		//pthread_mutex_unlock(&centroid_mutex);
 		
-		if(verbose)
-			cout << "\tNum centroids: " << centroids->size() << endl;	
-		
+		if(verbose){
+			cout << "\tNum centroids: " << centroids->size() << endl;
+			for(i = 0; i < centroids->size(); i++){
+				cout << "centroid " << i << endl;
+				cout << "\t" << centroids->at(i).at(0) << "," << centroids->at(i).at(1) << endl;
+			}
+		}		
 	}
 	
 };
