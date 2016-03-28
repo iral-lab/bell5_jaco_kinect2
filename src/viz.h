@@ -155,8 +155,8 @@ class ImageConverter{
 	struct viz_thread_args *args;
 
 	// store the centroids in both xyz and 2d image
-	vector< vector<int> > centroids_2d;
-	vector< vector<double> > centroids_3d;
+	vector< vector<int> > object_centroids_2d;
+	vector< vector<double> > object_centroids_3d;
 
 	vector< vector<int> > jaco_tag_centroids_2d;
 	vector< vector<double> > jaco_tag_centroids_3d;
@@ -170,8 +170,8 @@ class ImageConverter{
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pcl_sub_ = nh_.subscribe ("/kinect2/qhd/points", 1, &ImageConverter::cloudCb, this);
 	
-		centroids_2d.clear();
-		centroids_3d.clear();
+		object_centroids_2d.clear();
+		object_centroids_3d.clear();
 	
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
@@ -232,8 +232,8 @@ class ImageConverter{
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		
 		// store 2d matches and 3d matches
-		vector< vector<int> > matched_points_2d;
-		vector< vector<double> > matched_points_3d;
+		vector< vector<int> > object_matched_points_2d;
+		vector< vector<double> > object_matched_points_3d;
 
 		vector< vector<int> > jaco_tag_matched_points_2d;
 		vector< vector<double> > jaco_tag_matched_points_3d;
@@ -243,7 +243,7 @@ class ImageConverter{
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
 				// find orange		
-				match = find_match_by_color(&im_matrix, &cloud, x, y,&matched_points_2d, &matched_points_3d, &orange, verbose);
+				match = find_match_by_color(&im_matrix, &cloud, x, y,&object_matched_points_2d, &object_matched_points_3d, &orange, verbose);
 
 				// find jaco tag		
 				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
@@ -258,7 +258,7 @@ class ImageConverter{
 		}
 		
 		if(verbose)
-			cout << "post: " << matched_points_2d.size() << endl;
+			cout << "post: " << object_matched_points_2d.size() << endl;
 		/*		
 		if(frames > 1){
 			return;
@@ -266,15 +266,15 @@ class ImageConverter{
 		*/
 
 		//pthread_mutex_lock(&centroid_mutex);
-		compute_centroids(&matched_points_2d, &matched_points_3d, &centroids_2d, &centroids_3d, verbose);
+		compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 		compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
 
 		
 		//pthread_mutex_unlock(&centroid_mutex);
 		
-		for(i = 0; i < centroids_2d.size(); i++){
+		for(i = 0; i < object_centroids_2d.size(); i++){
 			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(centroids_2d.at(i).at(0), centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
+			cv::circle(im_matrix, cv::Point(object_centroids_2d.at(i).at(0), object_centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
 		}
 		
 		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
@@ -283,16 +283,52 @@ class ImageConverter{
 			
 		}
 		
-		if(centroids_3d.size() == 2){
+		if(object_centroids_3d.size() == 2){
 			double c0_xyz[3];
 			double c1_xyz[3];
 			
-			c0_xyz[0] = centroids_3d.at(0).at(0);
-			c0_xyz[1] = centroids_3d.at(0).at(1);
-			c0_xyz[2] = centroids_3d.at(0).at(2);
+			c0_xyz[0] = object_centroids_3d.at(0).at(0);
+			c0_xyz[1] = object_centroids_3d.at(0).at(1);
+			c0_xyz[2] = object_centroids_3d.at(0).at(2);
 			if(verbose)
 				cout << "\tdistance between centroids: " << euclid_distance_3d_not_vec(c0_xyz, c1_xyz) << endl;
 		}
+		
+		int num_object_centroids_3d = object_centroids_3d.size();
+		if(num_object_centroids_3d > 0){
+			if(args->num_objects != num_object_centroids_3d){
+				struct xyz *temp = (struct xyz *) malloc (num_object_centroids_3d * sizeof(struct xyz));
+				if(args->object_xyz){
+					free(args->object_xyz);
+				}
+				args->object_xyz = temp;
+
+
+				double *temp_dist = (double *) malloc (num_object_centroids_3d * sizeof(double));
+				if(args->object_distances){
+					free(args->object_distances);
+				}
+				args->object_distances = temp_dist;
+			}
+			args->num_objects = num_object_centroids_3d;
+			for(i = 0; i < num_object_centroids_3d; i++){
+				
+				args->object_xyz[i].x = object_centroids_3d[i].at(0);
+				args->object_xyz[i].y = object_centroids_3d[i].at(1);
+				args->object_xyz[i].z = object_centroids_3d[i].at(2);
+				
+				args->object_distances[i] = vector_length_3d_struct(& args->object_xyz[i]);
+				
+				if(verbose){
+					cout << "Distance to Object (" << i << ") : " << args->object_distances[i] << endl;
+				}
+
+
+
+				
+			}
+		}
+		
 		
 		int num_jaco_tag_centroids_3d = jaco_tag_centroids_3d.size();
 		if(num_jaco_tag_centroids_3d > 0){

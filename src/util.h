@@ -19,6 +19,9 @@ struct viz_thread_args{
 	struct xyz *jaco_tag_xyz;
 	double *jaco_distances;
 	int num_jaco_tags;
+	struct xyz *object_xyz;
+	double *object_distances;
+	int num_objects;
 };
 
 
