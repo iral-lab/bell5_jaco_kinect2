@@ -1,9 +1,10 @@
 #ifndef _POSESH_
 #define _POSESH_
 
+#include <iostream>
 #include "actions.h"
 
-
+using namespace std;
 
 void straighten(struct thread_args *args){
 	cout << "Straightening arm" << endl;

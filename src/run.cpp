@@ -10,8 +10,8 @@
 #include <pthread.h>
 
 #include "util.h"
-#include "actions.h"
 #include "poses.h"
+#include "actions.h"
 #include "viz.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
@@ -37,23 +37,48 @@ void print_help(){
 	cout << "\tquit            : put arm into shutdown position then exit. " << endl;
 	cout << "\tprint state     : Print current arm/finger state. " << endl;
 	cout << "\tr               : Repeat previous command " << endl;
+
+	cout << "Bottle-related: " << endl;
+	cout << "\tgoto x y z     : move arm to x,y,z in Kinect2-space " << endl;
+
 	cout << "Throwing: " << endl;
 	cout << "\tload throw      : put arm into loading position. " << endl;
 	cout << "\tclose fingers   : Close fingers for throw. " << endl;
 	cout << "\topen fingers    : Open fingers. " << endl;
 	cout << "\tprep throw      : Position arm for throw. " << endl;
 	cout << "\tthrow           : Throw. " << endl;
+
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle> : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
 	cout << "\tmv <id> <+/->   : Increase/decrease a given actuator's angle (joints by " << JOINT_DELTA_DEGREES << " degrees, fingers by " << FINGER_DELTA_DEGREES << endl;
 	cout << "Use | to chain commands \"load_throw | wait | prep throw | throw\"" << endl;
 	cout << "\twait            : Wait " << COMMAND_DELAY << " seconds" << endl;
+
 	cout << "Visualization: " << endl;
 	cout << "\tv depth         : toggle depth filter. " << endl;
 	cout << "\tv pixels        : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose       : toggle verbosity. " << endl;
 	
 }
+
+
+void handle_goto_command(struct thread_args *args, char *cmd){
+	string delim = " ";
+	char * save_ptr;
+	char * x;
+	char * y;
+	char * z;
+	struct xyz xyz;
+
+	// strip mv	
+	strtok_r(cmd, delim.c_str(), &save_ptr);
+	
+	x = strtok_r(NULL, delim.c_str(), &save_ptr);
+	y = strtok_r(NULL, delim.c_str(), &save_ptr);
+	z = strtok_r(NULL, delim.c_str(), &save_ptr);
+	cout << x << "," << y << "," << z << endl;
+}
+
 
 void handle_move_command(struct thread_args *args, char *cmd){
 	string delim = " ";
@@ -144,8 +169,11 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 	
-	}else if(strlen(cmd) > 2 && cmd[0] == 'm' && cmd[1] == 'v'){
+	}else if(strlen(cmd) > 2 && strncmp(cmd, "mv ", 3) == 0){
 		handle_move_command(&args[0], (char *) cmd);
+	
+	}else if(strlen(cmd) > 4 && strncmp(cmd, "goto ", 5) == 0){
+		handle_goto_command(&args[0], (char *) cmd);
 	
 	}else{
 		print_help();
