@@ -161,6 +161,10 @@ void load_throw(struct thread_args *args, grasped_object_type object){
 
 
 void shutdown(struct thread_args *args){
+	if(!args->arm_has_moved){
+		cout << "Arm never moved" << endl;
+		return;
+	}
 	cout << "Going to shutdown position" << endl;
 	
 	straighten(args);
@@ -183,6 +187,7 @@ void shutdown(struct thread_args *args){
 	load_current_angles(args->angles);
 	args->angles[2] = 25;
 	do_action(args, true);
+	args->arm_has_moved = false;
 }
 
 

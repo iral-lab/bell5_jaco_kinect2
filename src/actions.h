@@ -79,6 +79,9 @@ struct thread_args{
 	// Triggers that can be matched during move execution
 	int num_triggers;
 	struct actuator_trigger *triggers;
+
+	// track if arm state is dirty, avoid straightening/shutdown if never moved.	
+	bool arm_has_moved;
 	
 	// flag to wake the thread back up
 	bool wake_up;
@@ -94,6 +97,8 @@ struct thread_args{
 };
 
 void do_action(struct thread_args *args, bool blocking){
+	args->arm_has_moved = true;
+	
 	args->completed_move = false;
 	args->wake_up = true;
 	while(blocking && !args->completed_move){
