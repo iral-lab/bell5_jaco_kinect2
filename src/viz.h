@@ -51,6 +51,9 @@ struct rgb blue_tag = {36, 153, 188};
 // bottle color: #45c5d2
 struct rgb bottle = {69, 197, 210};
 
+// green cylinder color: #52c77f
+struct rgb green_cylinder = {82, 199, 127};
+
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
 
@@ -242,8 +245,8 @@ class ImageConverter{
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
-				// find orange		
-				match = find_match_by_color(&im_matrix, &cloud, x, y,&object_matched_points_2d, &object_matched_points_3d, &orange, verbose);
+				// find green_cylinder		
+				match = find_match_by_color(&im_matrix, &cloud, x, y,&object_matched_points_2d, &object_matched_points_3d, &green_cylinder, verbose);
 
 				// find jaco tag		
 				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
