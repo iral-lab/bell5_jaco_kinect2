@@ -15,6 +15,8 @@ AngularPosition current_command;
 AngularPosition data_command;
 AngularPosition data_position;
 
+CartesianPosition cartesian_position;
+
 //Function pointers to the functions we need
 int (*MyInitAPI)();
 int (*MyCloseAPI)();
@@ -31,6 +33,20 @@ struct xyz{
 	double x;
 	double y;
 	double z;
+};
+
+struct cartesian_xyz{
+	double x;
+	double y;
+	double z;
+	
+	double theta_x;
+	double theta_y;
+	double theta_z;
+	
+	int finger_1;
+	int finger_2;
+	int finger_3;
 };
 
 struct viz_thread_args{
@@ -91,6 +107,9 @@ struct thread_args{
 	// Track what the goal angles are for each actuator/finger of the arm
 	int angles[NUM_COMPONENTS];
 	
+	// Track what the goal cartesian angles are for the arm/fingers
+	struct cartesian_xyz xyz_thetas;
+	
 	// Triggers that can be matched during move execution
 	int num_triggers;
 	struct actuator_trigger *triggers;
@@ -100,6 +119,7 @@ struct thread_args{
 	
 	// flag to wake the thread back up
 	bool wake_up;
+	bool wake_up_cartesian;
 	
 	// thread will set this to true when current instructions are met
 	bool completed_move;

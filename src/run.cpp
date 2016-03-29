@@ -12,6 +12,7 @@
 #include "util.h"
 #include "poses.h"
 #include "actions.h"
+#include "cartesian_actions.h"
 #include "viz.h"
 
 #include "Kinova.API.CommLayerUbuntu.h"
@@ -39,7 +40,10 @@ void print_help(){
 	cout << "\tr               : Repeat previous command " << endl;
 
 	cout << "Bottle-related: " << endl;
-	cout << "\tgoto x y z     : move arm to x,y,z in Kinect2-space " << endl;
+	cout << "\tgoto x y z      : move arm to x,y,z in Kinect2-space " << endl;
+
+	cout << "Cartesian space: " << endl;
+	cout << "\tcart straighten : straighten arm using cartesian commands " << endl;
 
 	cout << "Throwing: " << endl;
 	cout << "\tload throw      : put arm into loading position. " << endl;
@@ -160,6 +164,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
 
+	}else if(!strcmp("cart straighten", cmd)){
+		cartesian_straighten(&args[0]);
+
 	}else if(!strcmp("v verbose", cmd)){
 		viz_args->verbose = !viz_args->verbose;
 
@@ -256,6 +263,11 @@ void *run_thread(void *thread_args){
 			args->wake_up = false; // race condition here, woken up between activation and this being set.
 			
 			layered_move(args->angles, args->triggers, args->num_triggers);
+			args->completed_move = true;
+		}else if(args->wake_up_cartesian){
+			args->wake_up_cartesian = false; // race condition here, woken up between activation and this being set.
+			
+			layered_cartesian_move(& args->xyz_thetas);
 			args->completed_move = true;
 		}
 		
