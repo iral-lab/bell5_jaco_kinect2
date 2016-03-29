@@ -119,7 +119,7 @@ bool is_valid_xyz(double *xyz){
 	return !std::isnan(xyz[0]) && !std::isnan(xyz[1]) && !std::isnan(xyz[2]);
 }
 
-bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
 	struct rgb test;
 	test.r = (*image).at<cv::Vec3b>(y,x)[2];
 	test.g = (*image).at<cv::Vec3b>(y,x)[1];
@@ -140,9 +140,9 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 		matches_3d->at(matches_size).at(1) = xyz[1];
 		matches_3d->at(matches_size).at(2) = xyz[2];
 		
-		matches_2d->push_back( vector<int>(2) );
-		matches_2d->at(matches_size).at(0) = x;
-		matches_2d->at(matches_size).at(1) = y;
+		matches_2d->push_back( vector<double>(2) );
+		matches_2d->at(matches_size).at(0) = (int) x;
+		matches_2d->at(matches_size).at(1) = (int) y;
 		
 		//cout << "3d xyz: " << xyz[0] << "," << xyz[1] << "," << xyz[2] << endl;
 		//cout << "3d match: " << matches_3d->at(matches_size).at(0) << "," << matches_3d->at(matches_size).at(1) << "," << matches_3d->at(matches_size).at(2) << endl;
@@ -161,10 +161,10 @@ class ImageConverter{
 	struct viz_thread_args *args;
 
 	// store the centroids in both xyz and 2d image
-	vector< vector<int> > object_centroids_2d;
+	vector< vector<double> > object_centroids_2d;
 	vector< vector<double> > object_centroids_3d;
 
-	vector< vector<int> > jaco_tag_centroids_2d;
+	vector< vector<double> > jaco_tag_centroids_2d;
 	vector< vector<double> > jaco_tag_centroids_3d;
 	
 	pthread_mutex_t centroid_mutex;
@@ -193,7 +193,7 @@ class ImageConverter{
 		args = viz_args;
 	}
 
-	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<int> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
+	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<double> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
 		pcl::PointXYZRGB *point;
 		
 		// Cloud is (columns, rows)
@@ -214,42 +214,51 @@ class ImageConverter{
 		return match;
 	}
 
-	void kmeans_cluster_and_centroid(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
+	void kmeans_cluster_and_centroid(vector< vector<double> > *matches, vector< vector<double> > *centroids, bool verbose){
 		// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
 		// http://arma.sourceforge.net/docs.html
-		
+		centroids->clear();
+		if(matches->size() == 0){
+			return;
+		}
 		// The dataset we are clustering.
 		arma::mat data;
-		data.zeros(3, matches_3d->size()); // Column major, 3 rows for xyz, n columns
-		//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches_3d->size() << " points" << endl;
+		data.zeros(matches->at(0).size(), matches->size()); // Column major, 3 rows for xyz, n columns
+		cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
 		
-		for(int i = 0; i < matches_3d->size(); i++){
-			data.at(0, i) = matches_3d->at(i).at(0);
-			data.at(1, i) = matches_3d->at(i).at(1);
-			data.at(2, i) = matches_3d->at(i).at(2);
+		for(int i = 0; i < matches->size(); i++){
+			for(int j = 0; j < matches->at(i).size(); j++){
+				data.at(j, i) = matches->at(i).at(j);
+			}
 		}
 		
 		// The number of clusters we are getting.
 		size_t num_clusters;
-		num_clusters = 1;
 		
 		// The assignments will be stored in this vector.
 		arma::Row<size_t> assignments;
 		// The centroids will be stored in this matrix.
-		arma::mat centroids;
+		arma::mat k_centroids;
 		// Initialize with the default arguments.
 		KMeans<> k;
 		
-		for(int i = 0; ; i++){
+		for(int i = 1; ; i++){
 			num_clusters = i;
-			k->Cluster(data, num_clusters, assignments, centroids);
+			k.Cluster(data, num_clusters, assignments, k_centroids);
 			
 			// TODO: some logic to know when to break when another cluster isn't beneficial
 			// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
 			break;
 		}
-		
-		
+		if(k_centroids.size() == 1){
+			cout << "centroid size: " << k_centroids.size() << endl;
+			int num_centroids = centroids->size();
+
+			centroids->push_back(vector<double>(data.n_rows));
+			for(int i = 0; i < data.n_rows; i++){
+				centroids->at(num_centroids).at(i) = k_centroids[i];
+			}
+		}
 	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
@@ -276,10 +285,10 @@ class ImageConverter{
 		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
 		
 		// store 2d matches and 3d matches
-		vector< vector<int> > object_matched_points_2d;
+		vector< vector<double> > object_matched_points_2d;
 		vector< vector<double> > object_matched_points_3d;
 
-		vector< vector<int> > jaco_tag_matched_points_2d;
+		vector< vector<double> > jaco_tag_matched_points_2d;
 		vector< vector<double> > jaco_tag_matched_points_3d;
 		
 		bool match;
@@ -310,7 +319,8 @@ class ImageConverter{
 		*/
 
 		//pthread_mutex_lock(&centroid_mutex);
-		kmeans_cluster_and_centroid(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
+		//kmeans_cluster_and_centroid(&object_matched_points_2d, &object_centroids_2d, verbose);
+		kmeans_cluster_and_centroid(&object_matched_points_3d, &object_centroids_3d, verbose);
 		
 		//compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 		//compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
@@ -418,7 +428,7 @@ class ImageConverter{
 	}
 	
 	
-	void compute_centroids(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
+	void compute_centroids(vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<double> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
 		// get all distances between points
 		if(verbose)
 			cout << "beginning centroids" << endl;
@@ -482,7 +492,7 @@ class ImageConverter{
 		
 		bool found_cluster, matched_all;
 		
-		vector< vector< vector<int> > > clusters_2d;
+		vector< vector< vector<double> > > clusters_2d;
 		vector< vector< vector<double> > > clusters_3d;
 		
 		if(verbose)
@@ -508,7 +518,7 @@ class ImageConverter{
 			}
 			if(!found_cluster){
 				// create new cluster
-				clusters_2d.push_back( vector< vector<int> >(0) );
+				clusters_2d.push_back( vector< vector<double> >(0) );
 				clusters_3d.push_back( vector< vector<double> >(0) );
 				// add this point to the cluster we just made
 				clusters_2d.at(clusters_2d.size() - 1).push_back( matches_2d->at(i));
@@ -526,7 +536,7 @@ class ImageConverter{
 		centroids_3d->clear();
 	
 		double x_sum, y_sum, z_sum, num_centroids, total;
-		int x_sum_2d, y_sum_2d;
+		double x_sum_2d, y_sum_2d;
 		for(i = 0; i < clusters_3d.size(); i++){
 			total = clusters_3d.at(i).size();
 			if(verbose){
@@ -560,9 +570,9 @@ class ImageConverter{
 			//cout << ">> " << x_sum_2d << "," << y_sum_2d << ","<< x_sum << ","<< y_sum << ","<< z_sum << endl;
 
 			num_centroids = centroids_2d->size();
-			centroids_2d->push_back(vector<int>(2));
-			centroids_2d->at(num_centroids).at(0) = (int) x_sum_2d;
-			centroids_2d->at(num_centroids).at(1) = (int) y_sum_2d;
+			centroids_2d->push_back(vector<double>(2));
+			centroids_2d->at(num_centroids).at(0) = (double) x_sum_2d;
+			centroids_2d->at(num_centroids).at(1) = (double) y_sum_2d;
 
 			centroids_3d->push_back(vector<double>(3));
 			centroids_3d->at(num_centroids).at(0) = (double) x_sum;
