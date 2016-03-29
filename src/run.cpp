@@ -250,6 +250,7 @@ void *run_thread(void *thread_args){
 	MySetActiveDevice(*args->device);
 	cout << "("<<args->id<<") "<< "Setting device to: " << args->device << endl;
 	cout << "("<<args->id<<") "<< "args @ : " << args << endl;
+	MyInitFingers();
 	while(!args->shutdown){
 		if(args->wake_up){
 			args->wake_up = false; // race condition here, woken up between activation and this being set.
