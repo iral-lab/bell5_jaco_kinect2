@@ -1,6 +1,8 @@
 #ifndef _VIZH_
 #define _VIZH_
 
+#include <mlpack/methods/kmeans/kmeans.hpp>
+
 #include <vector>
 #include <pthread.h>
 #include <cmath>
@@ -34,6 +36,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+using namespace mlpack::kmeans;
 
 struct rgb{
 	short r;
@@ -210,6 +213,39 @@ class ImageConverter{
 		}
 		return match;
 	}
+
+
+	void kmeans_cluster_and_centroid(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
+		// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
+		// http://arma.sourceforge.net/docs.html
+		
+		cout << "beginning kmeans" << endl;
+		// The dataset we are clustering.
+		arma::mat data;
+		data.set_size(3, matches_3d->size());
+		data.zeros();
+		cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << endl;
+		
+		vector<double> point;
+		for(int i = 0; i < matches_3d->size(); i++){
+			point = matches_3d->at(i);
+			data.at(i,0) = point.at(0);
+			data.at(i,1) = point.at(1);
+			data.at(i,2) = point.at(2);
+		}
+		// The number of clusters we are getting.
+		//extern size_t new_clusters;
+		//new_clusters = 1;
+		
+		// The assignments will be stored in this vector.
+		//arma::Row<size_t> assignments;
+		// The centroids will be stored in this matrix.
+		//arma::mat centroids;
+		// Initialize with the default arguments.
+		//KMeans<> k;
+		//k.Cluster(data, new_clusters, assignments);
+		cout << "done" << endl;
+	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
@@ -269,8 +305,10 @@ class ImageConverter{
 		*/
 
 		//pthread_mutex_lock(&centroid_mutex);
-		compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
-		compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
+		kmeans_cluster_and_centroid(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
+		
+		//compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
+		//compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
 
 		
 		//pthread_mutex_unlock(&centroid_mutex);
@@ -373,7 +411,8 @@ class ImageConverter{
 		cv::imshow(OPENCV_WINDOW, im_matrix);
 		cv::waitKey(3);
 	}
-
+	
+	
 	void compute_centroids(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
 		// get all distances between points
 		if(verbose)

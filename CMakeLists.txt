@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 2.8.3)
 project(bell5_jaco_kinect)
 
 set(CMAKE_CXX_FLAGS "-lpthread")
+set(CMAKE_CXX_FLAGS "-lmlpack")
+set(CMAKE_CXX_FLAGS "-larmadillo")
 set(CMAKE_CXX_FLAGS "-std=c++11")
+#set(CMAKE_CXX_FLAGS "-std=gnu++11")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -175,4 +178,6 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 add_executable(run src/run.cpp)
 target_link_libraries(run ${catkin_LIBRARIES})
 target_link_libraries(run /opt/kinova/API)
+target_link_libraries(run /usr/local/lib/libmlpack.so)
+
 
