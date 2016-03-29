@@ -25,6 +25,7 @@ int (*MyMoveHome)();
 int (*MyInitFingers)();
 int (*MyGetAngularCommand)(AngularPosition &);
 int (*MyGetAngularPosition)(AngularPosition &);
+int (*MyGetCartesianCommand)(CartesianPosition &);
 
 struct xyz{
 	double x;
