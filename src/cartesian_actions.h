@@ -78,14 +78,13 @@ void cartesian_straighten(struct thread_args *args){
 }
 
 double update_cartesian_movement(double current_position, double goal_coord, bool *all_done){
-	return 0.1f;
 	double diff = current_position - goal_coord;
 	double to_move = 0.0;
-	double xyz_speed = 0.15;
-	double angle_epsilon = 0.01;
+	double xyz_speed = 0.1;
+	double location_epsilon = 0.05;
 	double max_speed;
-	if(diff > angle_epsilon){
-		cout << "diff: " << diff << endl;
+	cout << "diff: " << diff << endl;
+	if(diff > location_epsilon){
 		max_speed = fabs(diff) < xyz_speed ? diff : xyz_speed;
 		to_move = ((diff > 0 ? -1 : 1) * max_speed);
 		cout << "diff: " << diff << ", to move: " << to_move << endl;
@@ -110,28 +109,33 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 		reset_cartesian_point_to_send(&point_to_send);
 		(*MyGetCartesianCommand)(cartesian_position);
 		
-		//point_to_send.Position.CartesianPosition.X += update_cartesian_movement(cartesian_position.Coordinates.X, goal_xyz_thetas->x, &arrived);
-		//point_to_send.Position.CartesianPosition.Y += update_cartesian_movement(cartesian_position.Coordinates.Y, goal_xyz_thetas->y, &arrived);
-		//point_to_send.Position.CartesianPosition.Z += update_cartesian_movement(cartesian_position.Coordinates.Z, goal_xyz_thetas->z, &arrived);
+		cout << "x:" << endl;
+		point_to_send.Position.CartesianPosition.X = update_cartesian_movement(cartesian_position.Coordinates.X, goal_xyz_thetas->x, &arrived);
+		cout << "y:" << endl;
+		point_to_send.Position.CartesianPosition.Y = update_cartesian_movement(cartesian_position.Coordinates.Y, goal_xyz_thetas->y, &arrived);
+		cout << "z:" << endl;
+		point_to_send.Position.CartesianPosition.Z = update_cartesian_movement(cartesian_position.Coordinates.Z, goal_xyz_thetas->z, &arrived);
 
-                point_to_send.Position.CartesianPosition.Y = -0.15; //Move along Y axis at 20 cm per second
-
-
-                for(int i = 0; i < 200; i++){
+                //point_to_send.Position.CartesianPosition.Y = -0.15; //Move along Y axis at 20 cm per second
+		
+                //for(int i = 0; i < 200; i++){
                         //We send the velocity vector every 5 ms as long as we want the robot to move along that vector.
-                        MySendBasicTrajectory(point_to_send);
-                        usleep(5000);
-                }
+                //        MySendBasicTrajectory(point_to_send);
+                //        usleep(5000);
+                //}
 
 
+		cout << "desired: (" << goal_xyz_thetas->x << "," << goal_xyz_thetas->y << "," << goal_xyz_thetas->z << ")" << endl;
+		
+		cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ")" << endl;
 
 		cout << "movement: (" << point_to_send.Position.CartesianPosition.X << "," << point_to_send.Position.CartesianPosition.Y << "," << point_to_send.Position.CartesianPosition.Z << ")" << endl;
 
-		cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ")" << endl;
 		
-		//MySendBasicTrajectory(point_to_send);
-                //        usleep(5000);
-		break;
+		
+		MySendBasicTrajectory(point_to_send);
+                usleep(5000);
+		//break;
 	}
 }
 
