@@ -214,37 +214,42 @@ class ImageConverter{
 		return match;
 	}
 
-
 	void kmeans_cluster_and_centroid(vector< vector<int> > *matches_2d, vector< vector<double> > *matches_3d, vector< vector<int> > *centroids_2d, vector< vector<double> > *centroids_3d, bool verbose){
 		// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
 		// http://arma.sourceforge.net/docs.html
 		
-		cout << "beginning kmeans" << endl;
 		// The dataset we are clustering.
 		arma::mat data;
-		data.set_size(3, matches_3d->size());
-		data.zeros();
-		cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << endl;
+		data.zeros(3, matches_3d->size()); // Column major, 3 rows for xyz, n columns
+		//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches_3d->size() << " points" << endl;
 		
-		vector<double> point;
 		for(int i = 0; i < matches_3d->size(); i++){
-			point = matches_3d->at(i);
-			data.at(i,0) = point.at(0);
-			data.at(i,1) = point.at(1);
-			data.at(i,2) = point.at(2);
+			data.at(0, i) = matches_3d->at(i).at(0);
+			data.at(1, i) = matches_3d->at(i).at(1);
+			data.at(2, i) = matches_3d->at(i).at(2);
 		}
+		
 		// The number of clusters we are getting.
-		//extern size_t new_clusters;
-		//new_clusters = 1;
+		size_t num_clusters;
+		num_clusters = 1;
 		
 		// The assignments will be stored in this vector.
-		//arma::Row<size_t> assignments;
+		arma::Row<size_t> assignments;
 		// The centroids will be stored in this matrix.
-		//arma::mat centroids;
+		arma::mat centroids;
 		// Initialize with the default arguments.
-		//KMeans<> k;
-		//k.Cluster(data, new_clusters, assignments);
-		cout << "done" << endl;
+		KMeans<> k;
+		
+		for(int i = 0; ; i++){
+			num_clusters = i;
+			k->Cluster(data, num_clusters, assignments, centroids);
+			
+			// TODO: some logic to know when to break when another cluster isn't beneficial
+			// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
+			break;
+		}
+		
+		
 	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
