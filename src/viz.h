@@ -223,14 +223,23 @@ class ImageConverter{
 		}
 		// The dataset we are clustering.
 		arma::mat data;
-		data.zeros(matches->at(0).size(), matches->size()); // Column major, 3 rows for xyz, n columns
-		cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
-		
+		data.zeros(matches->at(0).size(), matches->size()); // Column major, number of elements in a match (2d = 2, 3d = 3, etc) rows for xyz, n columns
 		for(int i = 0; i < matches->size(); i++){
 			for(int j = 0; j < matches->at(i).size(); j++){
 				data.at(j, i) = matches->at(i).at(j);
 			}
 		}
+		
+		/*
+		data << 0 << 0 << 0 << 0 << 5 << 5 << 5 << 5 << arma::endr
+		     << 0 << 0 << 1 << 1 << 0 << 0 << 1 << 1 << arma::endr
+		     << 0 << 1 << 0 << 1 << 0 << 1 << 0 << 1 << arma::endr;
+		// results in (2.5,0.5,0.5) for a single centroid.
+		
+		*/
+		//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
+		
+		
 		
 		// The number of clusters we are getting.
 		size_t num_clusters;
@@ -250,13 +259,12 @@ class ImageConverter{
 			// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
 			break;
 		}
-		if(k_centroids.size() == 1){
-			cout << "centroid size: " << k_centroids.size() << endl;
+		
+		for(int j = 0; j < num_clusters; j++){
 			int num_centroids = centroids->size();
-
 			centroids->push_back(vector<double>(data.n_rows));
 			for(int i = 0; i < data.n_rows; i++){
-				centroids->at(num_centroids).at(i) = k_centroids[i];
+				centroids->at(j).at(i) = k_centroids[j*data.n_rows + i];
 			}
 		}
 	}
