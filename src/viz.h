@@ -77,6 +77,11 @@ double euclid_distance_3d(vector<double> a, vector<double> b){
 	return (double) sqrtf((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)) + (a.at(2) - b.at(2)) * (a.at(2) - b.at(2)) );
 }
 
+double euclid_distance_3d_not_vec_double(double *a, double *b){
+	// compute integer distance between two points in 3d as a[] and b[]
+	return (double) sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]) );
+}
+
 int euclid_distance_3d_not_vec(double *a, double *b){
 	// compute integer distance between two points in 3d as a[] and b[]
 	return (int) sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]) );
@@ -329,7 +334,7 @@ class ImageConverter{
 		
 		k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
 		error_sum_this_round = 0;
-		
+		centroids->clear();
 		for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
 			build_centroid(centroids, &k_centroids, this_centroid, data.n_rows);
 			centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, &assignments, samples, &num_assignments);
@@ -346,6 +351,39 @@ class ImageConverter{
 			cout << "\tFinal error: " << error_sum_this_round << endl;
 		}
 		
+	}
+
+	void get_2d_coord_for_3d_depth_coord(double *x_2d, double *y_2d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, vector<double> *point_3d){
+		// terrible method for finding which 2d coord on the image plain maps to the 3d point in the depth data.
+		// Should instead figure out the projection matrix onto the image plain, but I can't find that.
+		// It looks for the closest point based on euclidean distance
+		
+		double desired_point[3] = {point_3d->at(0), point_3d->at(1), point_3d->at(2)};
+		//cout << "desired_point: " << desired_point[0] << "," << desired_point[1] << "," << desired_point[2] << endl;
+		
+		double xyz[3];
+		double best_xyz[3];
+		double best_distance = 99999999;
+		double this_distance;
+		for(int x = 0; x < cloud->width; x++){
+			for(int y = 0; y < cloud->height; y++){
+				get_xyz_from_xyzrgb(x, y, cloud, xyz);
+				if(!is_valid_xyz(xyz)){
+					continue;
+				}
+				
+				this_distance = euclid_distance_3d_not_vec_double(xyz, desired_point);
+				//cout << "x: " << x << ", y: " << y << ", xyz: " << xyz[0] << "," << xyz[1] << "," << xyz[2] << ", distance: " << this_distance << endl;
+			
+				if(this_distance < best_distance){
+					//cout << "updating " << this_distance << " < " << best_distance << ", " << x << "x" << y << endl;
+					(*x_2d) = x;
+					(*y_2d) = y;
+					best_distance = this_distance;
+					memcpy(best_xyz, xyz, 3 * sizeof(double));
+				}
+			}
+		}
 	}
 	
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
@@ -420,9 +458,16 @@ class ImageConverter{
 		
 		//pthread_mutex_unlock(&centroid_mutex);
 		
-		for(i = 0; i < object_centroids_2d.size(); i++){
+		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
+		double x_2d,y_2d;
+		for(i = 0; i < object_centroids_3d.size(); i++){
+			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &object_centroids_3d.at(i));
+
+			//cout << i << ", centroid: " << x_2d << "," << y_2d << endl;
 			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(object_centroids_2d.at(i).at(0), object_centroids_2d.at(i).at(1)), 20, CV_RGB(255,0,0));
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(255,0,0));
+			//break;
 		}
 		
 		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
