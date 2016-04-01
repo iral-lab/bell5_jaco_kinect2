@@ -1,0 +1,19 @@
+This repository is currently in progress and may not be perfect for your goal. That said, if it helps, feel free to get ideas.
+
+Actual licensing is being determined.
+
+This code is in support of the Interactive Robotics and Language (IRAL) laboratory at the University of Maryland, Baltimore County (UMBC). Any questions or concerns should be sent to the primary stakeholder bell5@umbc.edu.
+
+Overview:
+This code ties together Kinova JACO arm manipulation control and Kinect2 visual data. The end goal is to produce a dynamic 3-dimensionally aware bi-manipulation framework. It uses the Kinova APIs for control over the JACO arms while leveraging the Robot Operating System (ROS) to parse and provide Kinect2 data. Pthreads and shared memory tie it all together.
+
+Necessary libraries (subject to change):
+ROS
+Kinova JACO API c++ bindings
+mlpack c++ libraries in support of kmeans
+Kinect2 iai_bridge to interface with roscore locally
+PCL
+whatever else is in the CMakeLists.txt to get catkin_make to compile successfully
+
+
+
