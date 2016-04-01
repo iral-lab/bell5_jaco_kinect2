@@ -7,6 +7,9 @@ This code is in support of the Interactive Robotics and Language (IRAL) laborato
 Overview:
 This code ties together Kinova JACO arm manipulation control and Kinect2 visual data. The end goal is to produce a dynamic 3-dimensionally aware bi-manipulation framework. It uses the Kinova APIs for control over the JACO arms while leveraging the Robot Operating System (ROS) to parse and provide Kinect2 data. Pthreads and shared memory tie it all together.
 
+While it's the goal of this code to provide programmatic access to the hardware elements, actual user interfacing is available in two ways: REPL or code. A read-eval-print-loop (REPL) is implemented to allow for dynamic instructions or control during a single execution. These behaviors or capabilities should be added into the code so that they can either be programmed to run automatically in some script (code) or called during a running execution (REPL). 
+
+
 Necessary libraries (subject to change):
 ROS
 Kinova JACO API c++ bindings
@@ -15,5 +18,11 @@ Kinect2 iai_bridge to interface with roscore locally
 PCL
 whatever else is in the CMakeLists.txt to get catkin_make to compile successfully
 
+To run:
+$ roscore
+$ roslaunch kinect2_bridge kinect2_bridge.launch depth_method:=cpu _fps_limit:=2
+# and finally:
+$ catkin_make && rosrun bell5_jaco_kinect run
 
+screenshots show evolving capabilities, and will be added occasionally.
 
