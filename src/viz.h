@@ -60,6 +60,9 @@ struct rgb green_cylinder = {82, 199, 127};
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
 
+// pixel shading color for jaco tag, red
+struct rgb jaco_match_color = {0xff, 0, 0};
+
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
@@ -175,6 +178,9 @@ class ImageConverter{
 
 	vector< vector<double> > jaco_tag_centroids_2d;
 	vector< vector<double> > jaco_tag_centroids_3d;
+
+	vector< vector< vector<double> > > jaco_tag_matched_points_2d_previous_rounds;
+	vector< vector< vector<double> > > jaco_tag_matched_points_3d_previous_rounds;
 	
 	pthread_mutex_t centroid_mutex;
 
@@ -191,6 +197,9 @@ class ImageConverter{
 
 		object_matched_points_2d_previous_rounds.clear();
 		object_matched_points_3d_previous_rounds.clear();
+
+		jaco_tag_matched_points_2d_previous_rounds.clear();
+		jaco_tag_matched_points_3d_previous_rounds.clear();
 
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
@@ -444,9 +453,9 @@ class ImageConverter{
 		for(int i = 0; i < points->size(); i++){
 			x = points->at(i).at(0);
 			y = points->at(i).at(1);
-			im_matrix->at<cv::Vec3b>(y,x)[0] = match_color.b;
-			im_matrix->at<cv::Vec3b>(y,x)[1] = match_color.g;
-			im_matrix->at<cv::Vec3b>(y,x)[2] = match_color.r;
+			im_matrix->at<cv::Vec3b>(y,x)[0] = color->b;
+			im_matrix->at<cv::Vec3b>(y,x)[1] = color->g;
+			im_matrix->at<cv::Vec3b>(y,x)[2] = color->r;
 		}
 	}
 
@@ -487,10 +496,10 @@ class ImageConverter{
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
 				// find green_cylinder
-				match = find_match_by_color(&im_matrix, &cloud, x, y,&object_matched_points_2d, &object_matched_points_3d, &green_cylinder, verbose);
+				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &green_cylinder, verbose);
 
 				// find jaco tag
-				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
+				match |= find_match_by_color(&im_matrix, &cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
 			}
 		}
@@ -503,9 +512,18 @@ class ImageConverter{
 		perform_frame_combinations(&object_matched_points_3d_combined, &object_matched_points_3d, &object_matched_points_3d_previous_rounds);
 		
 
+		vector< vector<double> > jaco_tag_matched_points_2d_combined;
+		vector< vector<double> > jaco_tag_matched_points_3d_combined;
+
+		perform_frame_combinations(&jaco_tag_matched_points_2d_combined, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
+		
+
 		// draw pixels on screen
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
+
+			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 		}
 		
 		/*
