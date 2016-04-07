@@ -70,6 +70,7 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
+#define DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE 2
 
 
 double euclid_distance_3d(vector<double> a, vector<double> b){
@@ -169,6 +170,9 @@ class ImageConverter{
 	vector< vector<double> > object_centroids_2d;
 	vector< vector<double> > object_centroids_3d;
 
+	vector< vector< vector<double> > > object_matched_points_2d_previous_rounds;
+	vector< vector< vector<double> > > object_matched_points_3d_previous_rounds;
+
 	vector< vector<double> > jaco_tag_centroids_2d;
 	vector< vector<double> > jaco_tag_centroids_3d;
 	
@@ -184,6 +188,10 @@ class ImageConverter{
 		object_centroids_2d.clear();
 		object_centroids_3d.clear();
 	
+
+		object_matched_points_2d_previous_rounds.clear();
+		object_matched_points_3d_previous_rounds.clear();
+
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
 		
@@ -427,9 +435,11 @@ class ImageConverter{
 		vector< vector<double> > object_matched_points_2d;
 		vector< vector<double> > object_matched_points_3d;
 
+
 		vector< vector<double> > jaco_tag_matched_points_2d;
 		vector< vector<double> > jaco_tag_matched_points_3d;
 		
+
 		bool match;
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
@@ -440,15 +450,62 @@ class ImageConverter{
 				// find jaco tag		
 				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
-				if(match && args->draw_pixel_match_color){
-					// do pixel shading
-					im_matrix.at<cv::Vec3b>(y,x)[0] = match_color.b;
-					im_matrix.at<cv::Vec3b>(y,x)[1] = match_color.g;
-					im_matrix.at<cv::Vec3b>(y,x)[2] = match_color.r;
-				}
 			}
 		}
+
 		
+		vector< vector<double> > object_matched_points_2d_combined;
+		vector< vector<double> > object_matched_points_3d_combined;
+		object_matched_points_2d_combined.clear();
+		object_matched_points_3d_combined.clear();
+		// load this round into combined list
+		for(int i = 0; i < object_matched_points_2d.size(); i++){
+			object_matched_points_2d_combined.push_back(object_matched_points_2d.at(i));
+			object_matched_points_3d_combined.push_back(object_matched_points_3d.at(i));
+		}
+		// load points from previous rounds into combined list
+		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < object_matched_points_2d_previous_rounds.size(); i++){
+			// load points from specific round
+			//cout << "adding prev round " << i << endl;
+			for(int j = 0; j < object_matched_points_2d_previous_rounds.at(i).size(); j++){
+				object_matched_points_2d_combined.push_back(object_matched_points_2d_previous_rounds.at(i).at(j));
+				object_matched_points_3d_combined.push_back(object_matched_points_3d_previous_rounds.at(i).at(j));
+			}
+		}
+
+		// draw pixels on screen
+		if(args->draw_pixel_match_color){
+			int x,y;
+			for(int i = 0; i < object_matched_points_2d_combined.size(); i++){
+				x = object_matched_points_2d_combined.at(i).at(0);
+				y = object_matched_points_2d_combined.at(i).at(1);
+				im_matrix.at<cv::Vec3b>(y,x)[0] = match_color.b;
+				im_matrix.at<cv::Vec3b>(y,x)[1] = match_color.g;
+				im_matrix.at<cv::Vec3b>(y,x)[2] = match_color.r;
+			}
+		}
+		if(args->additional_color_match_frames_to_combine > 0){
+			// update previous-rounds to include this one. lower = newer, higher = older.
+
+			// if we're maxed out or over the limit (if it changes), delete the last one.
+			while(object_matched_points_2d_previous_rounds.size() >= args->additional_color_match_frames_to_combine){
+				//cout << "Deleting at index " << object_matched_points_2d_previous_rounds.size() - 1 << endl;
+				object_matched_points_2d_previous_rounds.erase(object_matched_points_2d_previous_rounds.begin()+object_matched_points_2d_previous_rounds.size() - 1);
+				object_matched_points_3d_previous_rounds.erase(object_matched_points_3d_previous_rounds.begin()+object_matched_points_3d_previous_rounds.size() - 1);
+			}
+			object_matched_points_2d_previous_rounds.push_back(  vector< vector<double> >(0) );
+			object_matched_points_3d_previous_rounds.push_back(  vector< vector<double> >(0) );
+		
+			for(int i = 0; i < object_matched_points_2d.size(); i++){
+				object_matched_points_2d_previous_rounds.at(0).push_back(object_matched_points_2d.at(i));
+				object_matched_points_3d_previous_rounds.at(0).push_back(object_matched_points_3d.at(i));
+			}
+		}
+		/*
+		cout << "2d Matched: " << object_matched_points_2d.size() << ", combined: " << object_matched_points_2d_combined.size() << endl;
+		cout << "3d Matched: " << object_matched_points_3d.size() << ", combined: " << object_matched_points_3d_combined.size() << endl;
+		cout << "new last round: " << object_matched_points_3d_combined.size() << ", current: " << object_matched_points_3d.size() << endl;
+		*/
 		if(verbose)
 			cout << "post: " << object_matched_points_2d.size() << endl;
 		/*		
@@ -463,7 +520,7 @@ class ImageConverter{
 
 		// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
 		int max_centroids = 5;
-		kmeans_cluster_and_centroid(&object_matched_points_3d, &object_centroids_3d, &max_centroids, verbose);
+		kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, &max_centroids, verbose);
 		
 		
 		//compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);

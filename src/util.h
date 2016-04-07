@@ -62,6 +62,7 @@ struct viz_thread_args{
 	struct xyz *object_xyz;
 	double *object_distances;
 	int num_objects;
+	int additional_color_match_frames_to_combine;
 };
 
 

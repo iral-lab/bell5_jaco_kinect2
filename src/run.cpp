@@ -62,6 +62,7 @@ void print_help(){
 	cout << "\tv depth         : toggle depth filter. " << endl;
 	cout << "\tv pixels        : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose       : toggle verbosity. " << endl;
+	cout << "\tv frames <n>    : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
 	
 }
 
@@ -125,6 +126,10 @@ void handle_move_command(struct thread_args *args, char *cmd){
 	do_action(args, true);
 }
 
+void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
+	viz_args->additional_color_match_frames_to_combine = atoi(num);
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -172,6 +177,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
+
+	}else if(strlen(cmd) > 9 && strncmp(cmd, "v frames ", 9) == 0){
+		handle_viz_frames_to_combine(viz_args, (char *) &(cmd[9]) );
 
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
@@ -287,7 +295,9 @@ int main(int argc, char **argv){
 	viz_args.argc = &argc;
 	viz_args.argv = &argv;
 	viz_args.terminate = false;
-	
+	viz_args.additional_color_match_frames_to_combine = DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE;
+	viz_args.draw_pixel_match_color = true;
+
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
 	
