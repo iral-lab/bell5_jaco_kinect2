@@ -73,7 +73,6 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
-#define DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE 2
 
 
 double euclid_distance_3d(vector<double> a, vector<double> b){
@@ -160,6 +159,9 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 	}
 	return match;
 }
+
+// Function sorts vectors with (centroid id, number of members) pairs
+bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
 
 class ImageConverter{
 	ros::NodeHandle nh_;
@@ -272,7 +274,7 @@ class ImageConverter{
 		return (old_val * 0.66667) < new_val;
 	}
 
-	void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int *max_centroids, bool verbose){
+	void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, bool verbose){
 		// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
 		// http://arma.sourceforge.net/docs.html
 		centroids->clear();
@@ -314,7 +316,7 @@ class ImageConverter{
 		int ideal_centroid_count = -1;
 		double error_sum_this_round, error_sum_last_round;
 		
-		for(int num_centroids = 1; num_centroids < *max_centroids; num_centroids++){
+		for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
 			centroids->clear();
 			if(samples->size() < num_centroids){
 				continue;
@@ -350,8 +352,11 @@ class ImageConverter{
 			error_sum_last_round = error_sum_this_round;
 		}
 		if(ideal_centroid_count == -1){
-			ideal_centroid_count = *max_centroids;
+			ideal_centroid_count = max_centroids_to_try;
 		}
+		
+		vector< vector< double > > centroid_sizes;
+		int num_so_far = 0;
 		
 		if(samples->size() >= ideal_centroid_count){
 			k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
@@ -368,7 +373,12 @@ class ImageConverter{
 					continue;
 				}
 				error_sum_this_round += centroid_error;
-			
+				
+				centroid_sizes.push_back( vector< double >(2) );
+				centroid_sizes.at(num_so_far).at(0) = num_so_far;
+				centroid_sizes.at(num_so_far).at(1) = num_assignments;
+				num_so_far++;
+				
 				if(verbose){
 					cout << "\tcentroid " << num_centroids-1 << ": ";
 					for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
@@ -382,6 +392,14 @@ class ImageConverter{
 			}
 		}
 		
+		// Leave only the absolute-max-centroid number of biggest matches
+		if(absolute_max_centroids > 0){
+			sort(centroid_sizes.begin(), centroid_sizes.end(), sort_centroid_members);
+		
+			for(int i = absolute_max_centroids; i < centroid_sizes.size(); i++){
+				centroids->erase(centroids->begin() + i);
+			}
+		}
 	}
 
 	void get_2d_coord_for_3d_depth_coord(double *x_2d, double *y_2d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, vector<double> *point_3d){
@@ -540,13 +558,11 @@ class ImageConverter{
 		*/
 
 		//pthread_mutex_lock(&centroid_mutex);
-		//kmeans_cluster_and_centroid(&object_matched_points_2d, &object_centroids_2d, verbose);
-		
-
 		// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
-		int max_centroids = 5;
-		kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, &max_centroids, verbose);
+		int max_centroids_to_try = 5;
+		kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
 		
+		kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
 		
 		//compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 		//compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
@@ -560,15 +576,15 @@ class ImageConverter{
 			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
 			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &object_centroids_3d.at(i));
 
-			//cout << i << ", centroid: " << x_2d << "," << y_2d << endl;
 			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(255,0,0));
-			//break;
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(match_color.r,match_color.g,match_color.b));
 		}
 		
 		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &object_centroids_3d.at(i));
+			
 			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(jaco_tag_centroids_2d.at(i).at(0), jaco_tag_centroids_2d.at(i).at(1)), 20, CV_RGB(0,255,0));
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(jaco_match_color.r,jaco_match_color.g,jaco_match_color.b));
 			
 		}
 		

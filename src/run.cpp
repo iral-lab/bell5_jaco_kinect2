@@ -298,6 +298,8 @@ int main(int argc, char **argv){
 	viz_args.additional_color_match_frames_to_combine = DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE;
 	viz_args.draw_pixel_match_color = true;
 	viz_args.draw_depth_filter = true;
+	viz_args.num_jaco_arms_in_scene = DEFAULT_NUM_JACO_ARMS_IN_SCENE;
+	viz_args.num_objects_in_scene = DEFAULT_NUM_OBJECTS_IN_SCENE;
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);

@@ -11,6 +11,10 @@
 #define NUM_FINGERS 3
 #define NUM_COMPONENTS NUM_ACTUATORS+NUM_FINGERS
 
+#define DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE 2
+#define DEFAULT_NUM_JACO_ARMS_IN_SCENE 1
+#define DEFAULT_NUM_OBJECTS_IN_SCENE 1
+
 AngularPosition current_command;
 AngularPosition data_command;
 AngularPosition data_position;
@@ -63,6 +67,9 @@ struct viz_thread_args{
 	double *object_distances;
 	int num_objects;
 	int additional_color_match_frames_to_combine;
+	
+	int num_objects_in_scene;
+	int num_jaco_arms_in_scene;
 };
 
 
