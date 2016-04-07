@@ -580,8 +580,8 @@ class ImageConverter{
 			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(match_color.r,match_color.g,match_color.b));
 		}
 		
-		for(i = 0; i < jaco_tag_centroids_2d.size(); i++){
-			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &object_centroids_3d.at(i));
+		for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &jaco_tag_centroids_3d.at(i));
 			
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(jaco_match_color.r,jaco_match_color.g,jaco_match_color.b));
