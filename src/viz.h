@@ -408,6 +408,34 @@ class ImageConverter{
 		}
 	}
 	
+	void perform_frame_combinations(vector< vector<double> > *combined, vector< vector<double> > *matches, vector< vector< vector<double> > > *previous_rounds){
+		combined->clear();
+		// load this round into combined list
+		for(int i = 0; i < matches->size(); i++){
+			combined->push_back(matches->at(i));
+		}
+		// load points from previous rounds into combined list
+		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < previous_rounds->size(); i++){
+			// load points from specific round
+			for(int j = 0; j < previous_rounds->at(i).size(); j++){
+				combined->push_back(previous_rounds->at(i).at(j));
+			}
+		}
+		if(args->additional_color_match_frames_to_combine > 0){
+			// update previous-rounds to include this one. lower = newer, higher = older.
+
+			// if we're maxed out or over the limit (if it changes), delete the last one.
+			while(previous_rounds->size() >= args->additional_color_match_frames_to_combine){
+				previous_rounds->erase(previous_rounds->begin() + previous_rounds->size() - 1);
+			}
+			previous_rounds->push_back(  vector< vector<double> >(0) );
+		
+			for(int i = 0; i < matches->size(); i++){
+				previous_rounds->at(0).push_back(matches->at(i));
+			}
+		}
+	}
+
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
 		if(args->terminate){
@@ -456,22 +484,10 @@ class ImageConverter{
 		
 		vector< vector<double> > object_matched_points_2d_combined;
 		vector< vector<double> > object_matched_points_3d_combined;
-		object_matched_points_2d_combined.clear();
-		object_matched_points_3d_combined.clear();
-		// load this round into combined list
-		for(int i = 0; i < object_matched_points_2d.size(); i++){
-			object_matched_points_2d_combined.push_back(object_matched_points_2d.at(i));
-			object_matched_points_3d_combined.push_back(object_matched_points_3d.at(i));
-		}
-		// load points from previous rounds into combined list
-		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < object_matched_points_2d_previous_rounds.size(); i++){
-			// load points from specific round
-			//cout << "adding prev round " << i << endl;
-			for(int j = 0; j < object_matched_points_2d_previous_rounds.at(i).size(); j++){
-				object_matched_points_2d_combined.push_back(object_matched_points_2d_previous_rounds.at(i).at(j));
-				object_matched_points_3d_combined.push_back(object_matched_points_3d_previous_rounds.at(i).at(j));
-			}
-		}
+
+		perform_frame_combinations(&object_matched_points_2d_combined, &object_matched_points_2d, &object_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&object_matched_points_3d_combined, &object_matched_points_3d, &object_matched_points_3d_previous_rounds);
+		
 
 		// draw pixels on screen
 		if(args->draw_pixel_match_color){
@@ -484,23 +500,7 @@ class ImageConverter{
 				im_matrix.at<cv::Vec3b>(y,x)[2] = match_color.r;
 			}
 		}
-		if(args->additional_color_match_frames_to_combine > 0){
-			// update previous-rounds to include this one. lower = newer, higher = older.
-
-			// if we're maxed out or over the limit (if it changes), delete the last one.
-			while(object_matched_points_2d_previous_rounds.size() >= args->additional_color_match_frames_to_combine){
-				//cout << "Deleting at index " << object_matched_points_2d_previous_rounds.size() - 1 << endl;
-				object_matched_points_2d_previous_rounds.erase(object_matched_points_2d_previous_rounds.begin()+object_matched_points_2d_previous_rounds.size() - 1);
-				object_matched_points_3d_previous_rounds.erase(object_matched_points_3d_previous_rounds.begin()+object_matched_points_3d_previous_rounds.size() - 1);
-			}
-			object_matched_points_2d_previous_rounds.push_back(  vector< vector<double> >(0) );
-			object_matched_points_3d_previous_rounds.push_back(  vector< vector<double> >(0) );
 		
-			for(int i = 0; i < object_matched_points_2d.size(); i++){
-				object_matched_points_2d_previous_rounds.at(0).push_back(object_matched_points_2d.at(i));
-				object_matched_points_3d_previous_rounds.at(0).push_back(object_matched_points_3d.at(i));
-			}
-		}
 		/*
 		cout << "2d Matched: " << object_matched_points_2d.size() << ", combined: " << object_matched_points_2d_combined.size() << endl;
 		cout << "3d Matched: " << object_matched_points_3d.size() << ", combined: " << object_matched_points_3d_combined.size() << endl;
