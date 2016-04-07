@@ -297,6 +297,7 @@ int main(int argc, char **argv){
 	viz_args.terminate = false;
 	viz_args.additional_color_match_frames_to_combine = DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE;
 	viz_args.draw_pixel_match_color = true;
+	viz_args.draw_depth_filter = true;
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
