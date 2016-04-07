@@ -436,6 +436,17 @@ class ImageConverter{
 		}
 	}
 
+	void color_pixels(cv::Mat *im_matrix, vector< vector<double> > *points, struct rgb *color){
+		int x,y;
+		for(int i = 0; i < points->size(); i++){
+			x = points->at(i).at(0);
+			y = points->at(i).at(1);
+			im_matrix->at<cv::Vec3b>(y,x)[0] = match_color.b;
+			im_matrix->at<cv::Vec3b>(y,x)[1] = match_color.g;
+			im_matrix->at<cv::Vec3b>(y,x)[2] = match_color.r;
+		}
+	}
+
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
 		if(args->terminate){
@@ -491,14 +502,7 @@ class ImageConverter{
 
 		// draw pixels on screen
 		if(args->draw_pixel_match_color){
-			int x,y;
-			for(int i = 0; i < object_matched_points_2d_combined.size(); i++){
-				x = object_matched_points_2d_combined.at(i).at(0);
-				y = object_matched_points_2d_combined.at(i).at(1);
-				im_matrix.at<cv::Vec3b>(y,x)[0] = match_color.b;
-				im_matrix.at<cv::Vec3b>(y,x)[1] = match_color.g;
-				im_matrix.at<cv::Vec3b>(y,x)[2] = match_color.r;
-			}
+			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 		}
 		
 		/*
