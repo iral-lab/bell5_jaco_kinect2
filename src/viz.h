@@ -44,18 +44,24 @@ struct rgb{
 	short b;
 };
 
+#define MAX_COLORS_PER_ITEM 3
+struct rgb_set{
+	int num_colors;
+	struct rgb colors[MAX_COLORS_PER_ITEM];
+};
+
 
 // orange color: #ef5e25
-struct rgb orange = {239, 94, 37};
+struct rgb_set orange = {1, {{239, 94, 37}} };
 
-// blue tag color: #2499bc
-struct rgb blue_tag = {36, 153, 188};
+// blue tag color: #2499bc, #60fffe
+struct rgb_set blue_tag = {2, {{36, 153, 188}, {96,255,254}} };
 
 // bottle color: #45c5d2
-struct rgb bottle = {69, 197, 210};
+struct rgb_set bottle = {1, {{69, 197, 210}} };
 
 // green cylinder color: #52c77f
-struct rgb green_cylinder = {82, 199, 127};
+struct rgb_set green_cylinder = {1, {{82, 199, 127}} };
 
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
@@ -217,7 +223,7 @@ class ImageConverter{
 		args = viz_args;
 	}
 
-	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<double> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb *object, bool verbose){
+	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<double> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb_set *color_set, bool verbose){
 		pcl::PointXYZRGB *point;
 		
 		// Cloud is (columns, rows)
@@ -229,8 +235,10 @@ class ImageConverter{
 		im_matrix->at<cv::Vec3b>(y,x)[0] = rgb[2];
 		im_matrix->at<cv::Vec3b>(y,x)[1] = rgb[1];
 		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
-		
-		bool match = do_pixel_test(x, y, im_matrix, object, matched_points_2d, matched_points_3d, cloud);
+		bool match = false;
+		for(int i = 0; !match && i < color_set->num_colors; i++){
+			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud);
+		}
 		
 		if(args->draw_depth_filter){
 			apply_distance_filter(im_matrix, x, y, cloud);
