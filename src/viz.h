@@ -299,6 +299,9 @@ class ImageConverter{
 		
 		for(int num_centroids = 1; num_centroids < *max_centroids; num_centroids++){
 			centroids->clear();
+			if(samples->size() < num_centroids){
+				continue;
+			}
 			
 			k.Cluster(data, num_centroids, assignments, k_centroids);
 			
@@ -333,31 +336,33 @@ class ImageConverter{
 			ideal_centroid_count = *max_centroids;
 		}
 		
-		k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
-		error_sum_this_round = 0;
-		centroids->clear();
-		int min_points_per_cluster = 100; // completely arbitrary value here, testing...
-		int num_centroids;
-		for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
-			build_centroid(centroids, &k_centroids, data.n_rows);
-			num_centroids = centroids->size();
-			centroid_error = compute_centroid_error(&(centroids->at(num_centroids - 1)), this_centroid, &assignments, samples, &num_assignments);
-			if(num_assignments < min_points_per_cluster){
-				centroids->erase(centroids->begin() + num_centroids - 1);
-				continue;
-			}
-			error_sum_this_round += centroid_error;
-			
-			if(verbose){
-				cout << "\tcentroid " << num_centroids-1 << ": ";
-				for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
-					cout << centroids->at(num_centroids - 1).at(element_offset) << " ";
+		if(samples->size() >= ideal_centroid_count){
+			k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
+			error_sum_this_round = 0;
+			centroids->clear();
+			int min_points_per_cluster = 100; // completely arbitrary value here, testing...
+			int num_centroids;
+			for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
+				build_centroid(centroids, &k_centroids, data.n_rows);
+				num_centroids = centroids->size();
+				centroid_error = compute_centroid_error(&(centroids->at(num_centroids - 1)), this_centroid, &assignments, samples, &num_assignments);
+				if(num_assignments < min_points_per_cluster){
+					centroids->erase(centroids->begin() + num_centroids - 1);
+					continue;
 				}
-				cout << " has error: " << centroid_error << " and contains " << num_assignments << endl;
+				error_sum_this_round += centroid_error;
+			
+				if(verbose){
+					cout << "\tcentroid " << num_centroids-1 << ": ";
+					for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
+						cout << centroids->at(num_centroids - 1).at(element_offset) << " ";
+					}
+					cout << " has error: " << centroid_error << " and contains " << num_assignments << endl;
+				}
 			}
-		}
-		if(verbose){
-			cout << "\tFinal error: " << error_sum_this_round << endl;
+			if(verbose){
+				cout << "\tFinal error: " << error_sum_this_round << endl;
+			}
 		}
 		
 	}
