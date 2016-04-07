@@ -408,30 +408,33 @@ class ImageConverter{
 		}
 	}
 	
-	void perform_frame_combinations(vector< vector<double> > *combined, vector< vector<double> > *matches, vector< vector< vector<double> > > *previous_rounds){
+	void perform_frame_combinations(vector< vector<double> > *combined, vector< vector<double> > *matches, vector< vector< vector<double> > > *previous_frames){
 		combined->clear();
 		// load this round into combined list
 		for(int i = 0; i < matches->size(); i++){
 			combined->push_back(matches->at(i));
 		}
 		// load points from previous rounds into combined list
-		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < previous_rounds->size(); i++){
-			// load points from specific round
-			for(int j = 0; j < previous_rounds->at(i).size(); j++){
-				combined->push_back(previous_rounds->at(i).at(j));
+		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < previous_frames->size(); i++){
+			// load points from specific frame
+			for(int j = 0; j < previous_frames->at(i).size(); j++){
+				combined->push_back(previous_frames->at(i).at(j));
 			}
 		}
 		if(args->additional_color_match_frames_to_combine > 0){
-			// update previous-rounds to include this one. lower = newer, higher = older.
+			// update previous-frames to include this one. higher = newer, lower = older.
 
 			// if we're maxed out or over the limit (if it changes), delete the last one.
-			while(previous_rounds->size() >= args->additional_color_match_frames_to_combine){
-				previous_rounds->erase(previous_rounds->begin() + previous_rounds->size() - 1);
+			while(previous_frames->size() >= args->additional_color_match_frames_to_combine){
+				previous_frames->erase(previous_frames->begin());
 			}
-			previous_rounds->push_back(  vector< vector<double> >(0) );
+			// add new frame's data to last slot
+			int new_frame_index = previous_frames->size();
+			
+			previous_frames->push_back(  vector< vector<double> >(0) );
 		
 			for(int i = 0; i < matches->size(); i++){
-				previous_rounds->at(0).push_back(matches->at(i));
+				previous_frames->at(new_frame_index).push_back(matches->at(i));
 			}
 		}
 	}
