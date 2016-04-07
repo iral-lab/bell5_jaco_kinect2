@@ -472,10 +472,10 @@ class ImageConverter{
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
-				// find green_cylinder		
+				// find green_cylinder
 				match = find_match_by_color(&im_matrix, &cloud, x, y,&object_matched_points_2d, &object_matched_points_3d, &green_cylinder, verbose);
 
-				// find jaco tag		
+				// find jaco tag
 				match |= find_match_by_color(&im_matrix, &cloud, x, y,&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
 			}
