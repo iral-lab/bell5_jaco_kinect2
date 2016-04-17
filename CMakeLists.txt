@@ -174,10 +174,14 @@ include_directories(
 
 
 include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include /usr/lib)
 
 add_executable(run src/run.cpp)
 target_link_libraries(run ${catkin_LIBRARIES})
 target_link_libraries(run /opt/kinova/API)
 target_link_libraries(run /usr/local/lib/libmlpack.so)
+target_link_libraries(run /usr/lib/libblas.a)
+target_link_libraries(run armadillo)
+
 
 
