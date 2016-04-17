@@ -18,6 +18,16 @@
 #define DEFAULT_MAX_INTERESTED_DISTANCE 2.0
 #define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
 
+typedef enum {
+	KMEANS = 0,
+	HISTOGRAM,
+
+	NUMBER_OF_DETECTION_ALGORITHMS
+} object_detection_algorithm;
+
+const char* const detection_algorithm_names[] = {"kmeans", "histogram", 0};
+#define DEFAULT_OBJECT_DETECTION_ALG HISTOGRAM
+
 AngularPosition current_command;
 AngularPosition data_command;
 AngularPosition data_position;
@@ -75,6 +85,7 @@ struct viz_thread_args{
 	int num_jaco_arms_in_scene;
 
 	double max_interested_distance;
+	object_detection_algorithm detection_algorithm;
 };
 
 

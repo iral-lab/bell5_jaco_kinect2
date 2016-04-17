@@ -565,15 +565,18 @@ class ImageConverter{
 		*/
 
 		//pthread_mutex_lock(&centroid_mutex);
-		// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
-		int max_centroids_to_try = 5;
-		kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
-		
-		kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
-		
-		//compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
-		//compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
 
+		if(args->detection_algorithm == KMEANS){
+			// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
+			int max_centroids_to_try = 5;
+			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
+		
+			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
+		}else if(args->detection_algorithm == HISTOGRAM){
+		
+			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
+			compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
+		}
 		
 		//pthread_mutex_unlock(&centroid_mutex);
 		

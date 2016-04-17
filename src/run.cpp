@@ -29,6 +29,8 @@ using namespace std;
 // Borrowed heavily from the Kinova SDK examples
 
 void print_help(){
+	int i;
+	
 	cout << "General: " << endl;
 	cout << "\thelp                           : show this text. " << endl;
 	cout << "\tbegin                          : straighten arm, prepare for action. " << endl;
@@ -62,6 +64,14 @@ void print_help(){
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
 	cout << "\tv dist <+/->                   : Increase or decrease max recognition window (default = " << DEFAULT_MAX_INTERESTED_DISTANCE << "). " << endl;
+	cout << "\tv cluster <";
+	for(i = 0; i < NUMBER_OF_DETECTION_ALGORITHMS; i++){
+		cout << detection_algorithm_names[i];
+		if(i < NUMBER_OF_DETECTION_ALGORITHMS-1){
+			cout << ",";
+		}
+	}
+	cout << ">\n\t\t\tChange object detection algorithm (default = " << detection_algorithm_names[DEFAULT_OBJECT_DETECTION_ALG] << "). " << endl;
 	
 }
 
@@ -138,6 +148,18 @@ void handle_move_command(struct thread_args *args, char *cmd){
 	do_action(args, true);
 }
 
+void handle_detection_algorithm(struct viz_thread_args *viz_args, char * algorithm){
+	int i;
+	for(i = 0; i < NUMBER_OF_DETECTION_ALGORITHMS; i++){
+		if(strcmp(algorithm, detection_algorithm_names[i]) == 0){
+			viz_args->detection_algorithm = (object_detection_algorithm) i;
+			break;
+		}
+	}
+	
+	cout << "Algorithm now: " << detection_algorithm_names[viz_args->detection_algorithm] << endl;
+}
+
 void handle_viz_distance(struct viz_thread_args *viz_args, char * num){
 	if(num[0] == '+'){
 		viz_args->max_interested_distance += MAX_INTERESTED_DISTANCE_INTERVAL;
@@ -211,6 +233,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
+
+	}else if(strlen(cmd) > 10 && strncmp(cmd, "v cluster ", 10) == 0){
+		handle_detection_algorithm(viz_args, (char *) &(cmd[10]) );
 	
 	}else if(strlen(cmd) > 2 && strncmp(cmd, "mv ", 3) == 0){
 		handle_move_command(&args[0], (char *) cmd);
@@ -326,6 +351,7 @@ int main(int argc, char **argv){
 	viz_args.num_jaco_arms_in_scene = DEFAULT_NUM_JACO_ARMS_IN_SCENE;
 	viz_args.num_objects_in_scene = DEFAULT_NUM_OBJECTS_IN_SCENE;
 	viz_args.max_interested_distance = DEFAULT_MAX_INTERESTED_DISTANCE;
+	viz_args.detection_algorithm = DEFAULT_OBJECT_DETECTION_ALG;
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
