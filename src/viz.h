@@ -54,14 +54,14 @@ struct rgb_set{
 // orange color: #ef5e25
 struct rgb_set orange = {1, {{239, 94, 37}} };
 
-// blue tag color: #2499bc, #60fffe
-struct rgb_set blue_tag = {2, {{36, 153, 188}, {96,255,254}} };
+// blue tag color: #2499bc, #60fffe, #3fcde3
+struct rgb_set blue_tag = {3, {{36, 153, 188}, {96,255,254}, {63,205,227}} };
 
 // bottle color: #45c5d2
 struct rgb_set bottle = {1, {{69, 197, 210}} };
 
-// green cylinder color: #52c77f
-struct rgb_set green_cylinder = {1, {{82, 199, 127}} };
+// green cylinder color: #52c77f, #3e8d43, #48b66f
+struct rgb_set green_cylinder = {3, {{82, 199, 127}, {62,141,67}, {72,182,111}} };
 
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
