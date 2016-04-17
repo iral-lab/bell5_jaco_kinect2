@@ -52,6 +52,11 @@ void print_help(){
 	cout << "\tprep throw                     : Position arm for throw. " << endl;
 	cout << "\tthrow                          : Throw. " << endl;
 
+	cout << "Handoff: " << endl;
+	cout << "\tgoto object                    : Move the JACO arm to the object. " << endl;
+
+
+
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle>                : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
 	cout << "\tmv <id> <+/->                  : Increase/decrease a given actuator's angle (joints by " << JOINT_DELTA_DEGREES << " degrees, fingers by " << FINGER_DELTA_DEGREES << endl;
@@ -174,6 +179,12 @@ void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
 }
 
+
+void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
+	cout << "going" << endl;
+	
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -212,6 +223,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
+
+	}else if(!strcmp("goto object", cmd)){
+		goto_object(&args[0], viz_args);
 
 	}else if(!strcmp("cart home", cmd)){
 		cartesian_home(&args[0]);
