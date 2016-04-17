@@ -15,6 +15,9 @@
 #define DEFAULT_NUM_JACO_ARMS_IN_SCENE 1
 #define DEFAULT_NUM_OBJECTS_IN_SCENE 1
 
+#define DEFAULT_MAX_INTERESTED_DISTANCE 2.0
+#define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
+
 AngularPosition current_command;
 AngularPosition data_command;
 AngularPosition data_position;
@@ -70,6 +73,8 @@ struct viz_thread_args{
 	
 	int num_objects_in_scene;
 	int num_jaco_arms_in_scene;
+
+	double max_interested_distance;
 };
 
 

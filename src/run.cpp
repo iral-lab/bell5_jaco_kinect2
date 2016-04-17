@@ -61,6 +61,7 @@ void print_help(){
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
+	cout << "\tv dist <+/->                   : Increase or decrease max recognition window (default = " << DEFAULT_MAX_INTERESTED_DISTANCE << "). " << endl;
 	
 }
 
@@ -137,6 +138,16 @@ void handle_move_command(struct thread_args *args, char *cmd){
 	do_action(args, true);
 }
 
+void handle_viz_distance(struct viz_thread_args *viz_args, char * num){
+	if(num[0] == '+'){
+		viz_args->max_interested_distance += MAX_INTERESTED_DISTANCE_INTERVAL;
+	}else if(num[0] == '-'){
+		viz_args->max_interested_distance -= MAX_INTERESTED_DISTANCE_INTERVAL;
+	}
+	cout << "Max distance: " << viz_args->max_interested_distance << endl;
+}
+
+
 void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
 }
@@ -191,6 +202,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
+
+	}else if(strlen(cmd) == 8 && strncmp(cmd, "v dist ", 7) == 0){
+		handle_viz_distance(viz_args, (char *) &(cmd[7]) );
 
 	}else if(strlen(cmd) > 9 && strncmp(cmd, "v frames ", 9) == 0){
 		handle_viz_frames_to_combine(viz_args, (char *) &(cmd[9]) );
@@ -311,6 +325,7 @@ int main(int argc, char **argv){
 	viz_args.draw_depth_filter = true;
 	viz_args.num_jaco_arms_in_scene = DEFAULT_NUM_JACO_ARMS_IN_SCENE;
 	viz_args.num_objects_in_scene = DEFAULT_NUM_OBJECTS_IN_SCENE;
+	viz_args.max_interested_distance = DEFAULT_MAX_INTERESTED_DISTANCE;
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);

@@ -80,7 +80,6 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
 
-
 double euclid_distance_3d(vector<double> a, vector<double> b){
 	// compute integer distance between two points in 3d
 	return (double) sqrtf((a.at(0) - b.at(0)) * (a.at(0) - b.at(0)) + (a.at(1) - b.at(1)) * (a.at(1) - b.at(1)) + (a.at(2) - b.at(2)) * (a.at(2) - b.at(2)) );
@@ -133,7 +132,7 @@ bool is_valid_xyz(double *xyz){
 	return !std::isnan(xyz[0]) && !std::isnan(xyz[1]) && !std::isnan(xyz[2]);
 }
 
-bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud){
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double max_distance){
 	struct rgb test;
 	test.r = (*image).at<cv::Vec3b>(y,x)[2];
 	test.g = (*image).at<cv::Vec3b>(y,x)[1];
@@ -145,7 +144,7 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 		double xyz[3];
 		get_xyz_from_xyzrgb(x, y, cloud, xyz);
 		
-		if(!is_valid_xyz(xyz)){
+		if(!is_valid_xyz(xyz) || vector_length_3d(xyz) > max_distance){
 			return false;
 		}
 		
@@ -237,7 +236,7 @@ class ImageConverter{
 		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
 		bool match = false;
 		for(int i = 0; !match && i < color_set->num_colors; i++){
-			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud);
+			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud, args->max_interested_distance);
 		}
 		
 		if(args->draw_depth_filter){
