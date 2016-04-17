@@ -43,7 +43,7 @@ void print_help(){
 	cout << "\tgoto x y z      : move arm to x,y,z in Kinect2-space " << endl;
 
 	cout << "Cartesian space: " << endl;
-	cout << "\tcart straighten : straighten arm using cartesian commands " << endl;
+	cout << "\tcart home       : send arm to home position using cartesian commands " << endl;
 
 	cout << "Throwing: " << endl;
 	cout << "\tload throw      : put arm into loading position. " << endl;
@@ -169,8 +169,8 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
 
-	}else if(!strcmp("cart straighten", cmd)){
-		cartesian_straighten(&args[0]);
+	}else if(!strcmp("cart home", cmd)){
+		cartesian_home(&args[0]);
 
 	}else if(!strcmp("v verbose", cmd)){
 		viz_args->verbose = !viz_args->verbose;

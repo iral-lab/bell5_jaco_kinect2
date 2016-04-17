@@ -16,15 +16,16 @@
 
 #include "util.h"
 
-void cartesian_straighten(struct thread_args *args);
+void cartesian_home(struct thread_args *args);
 
 
 
 void do_cartesian_action(struct thread_args *args, bool blocking){
 	if(!args->arm_has_moved){
-		cout << "doing action" << endl;
+		cout << "initializing" << endl;
 		args->arm_has_moved = true;
-		cartesian_straighten(args);
+		MyInitFingers();
+		MyMoveHome();
 	}
 	
 	args->completed_move = false;
@@ -49,30 +50,36 @@ void load_current_cartesian_position(struct cartesian_xyz *xyz_thetas){
 }
 
 
-void reset_cartesian_point_to_send(TrajectoryPoint *point_to_send){
-	point_to_send->InitStruct();
-	point_to_send->Position.Type = CARTESIAN_VELOCITY;
-	
-	point_to_send->Position.CartesianPosition.X = 0;
-	point_to_send->Position.CartesianPosition.Y = 0;
-	point_to_send->Position.CartesianPosition.Z = 0;
-	point_to_send->Position.CartesianPosition.ThetaX = 0;
-	point_to_send->Position.CartesianPosition.ThetaY = 0;
-	point_to_send->Position.CartesianPosition.ThetaZ = 0;
+void load_current_cartesian_coords(TrajectoryPoint *point_to_send){
+	(*MyGetCartesianCommand)(cartesian_position);
+	point_to_send->Position.CartesianPosition.X = cartesian_position.Coordinates.X;
+	point_to_send->Position.CartesianPosition.Y = cartesian_position.Coordinates.Y;
+	point_to_send->Position.CartesianPosition.Z = cartesian_position.Coordinates.Z;
+	point_to_send->Position.CartesianPosition.ThetaX = cartesian_position.Coordinates.ThetaX;
+	point_to_send->Position.CartesianPosition.ThetaY = cartesian_position.Coordinates.ThetaY;
+	point_to_send->Position.CartesianPosition.ThetaZ = cartesian_position.Coordinates.ThetaZ;
 
 	point_to_send->Position.Fingers.Finger1 = 0;
 	point_to_send->Position.Fingers.Finger2 = 0;
 	point_to_send->Position.Fingers.Finger3 = 0;
 }
 
-void cartesian_straighten(struct thread_args *args){
-	cout << "Running cartesian straighten" << endl;
-	args->xyz_thetas.x = 0.068451;
-	args->xyz_thetas.y = -0.0126348;
-	args->xyz_thetas.z = 1.18026;
-	args->xyz_thetas.theta_x = 0.0296927;
-	args->xyz_thetas.theta_y = 0.0103306;
-	args->xyz_thetas.theta_z = -3.09015;
+void reset_cartesian_point_to_send(TrajectoryPoint *point_to_send){
+	point_to_send->InitStruct();
+	point_to_send->Position.Type = CARTESIAN_POSITION;
+	
+
+	load_current_cartesian_coords(point_to_send);
+}
+
+void cartesian_home(struct thread_args *args){
+	cout << "Running cartesian go home" << endl;
+	args->xyz_thetas.x = 0.223358;
+	args->xyz_thetas.y = -0.203183;
+	args->xyz_thetas.z = 0.505893;
+	args->xyz_thetas.theta_x = 1.78079;
+	args->xyz_thetas.theta_y = 1.22449;
+	args->xyz_thetas.theta_z = -0.229752;
 	
 	do_cartesian_action(args, true);
 }
@@ -80,17 +87,17 @@ void cartesian_straighten(struct thread_args *args){
 double update_cartesian_movement(double current_position, double goal_coord, bool *all_done){
 	double diff = current_position - goal_coord;
 	double to_move = 0.0;
-	double xyz_speed = 0.1;
+	double xyz_speed = 0.15;
 	double location_epsilon = 0.05;
 	double max_speed;
 	cout << "diff: " << diff << endl;
-	if(diff > location_epsilon){
+	if(fabs(diff) > location_epsilon){
 		max_speed = fabs(diff) < xyz_speed ? diff : xyz_speed;
 		to_move = ((diff > 0 ? -1 : 1) * max_speed);
 		cout << "diff: " << diff << ", to move: " << to_move << endl;
 		(*all_done) = false;
 	}
-	return to_move;
+	return to_move;	
 }
 
 void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
@@ -104,39 +111,81 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 	// higher allowance for fingers
 	int i, j, position_number, finger_number;
 	CartesianPosition currentCommand;
-	while(!arrived && keepRunning){
+	
+	reset_cartesian_point_to_send(&point_to_send);
+		/*
+	//while(!arrived && keepRunning){
 		arrived = true;
-		reset_cartesian_point_to_send(&point_to_send);
-		(*MyGetCartesianCommand)(cartesian_position);
+		load_current_cartesian_coords(&point_to_send);
 		
-		cout << "x:" << endl;
-		point_to_send.Position.CartesianPosition.X = update_cartesian_movement(cartesian_position.Coordinates.X, goal_xyz_thetas->x, &arrived);
-		cout << "y:" << endl;
-		point_to_send.Position.CartesianPosition.Y = update_cartesian_movement(cartesian_position.Coordinates.Y, goal_xyz_thetas->y, &arrived);
-		cout << "z:" << endl;
-		point_to_send.Position.CartesianPosition.Z = update_cartesian_movement(cartesian_position.Coordinates.Z, goal_xyz_thetas->z, &arrived);
+		diff = update_cartesian_movement(cartesian_position.Coordinates.X, goal_xyz_thetas->x, &arrived);
+		cout << "x: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
+		diff = update_cartesian_movement(cartesian_position.Coordinates.Y, goal_xyz_thetas->y, &arrived);
+		cout << "y: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
+		diff = update_cartesian_movement(cartesian_position.Coordinates.Z, goal_xyz_thetas->z, &arrived);
+		cout << "z: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
 
-                //point_to_send.Position.CartesianPosition.Y = -0.15; //Move along Y axis at 20 cm per second
-		
-                //for(int i = 0; i < 200; i++){
-                        //We send the velocity vector every 5 ms as long as we want the robot to move along that vector.
-                //        MySendBasicTrajectory(point_to_send);
-                //        usleep(5000);
-                //}
-
-
-		cout << "desired: (" << goal_xyz_thetas->x << "," << goal_xyz_thetas->y << "," << goal_xyz_thetas->z << ")" << endl;
-		
-		cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ")" << endl;
-
-		cout << "movement: (" << point_to_send.Position.CartesianPosition.X << "," << point_to_send.Position.CartesianPosition.Y << "," << point_to_send.Position.CartesianPosition.Z << ")" << endl;
-
+		diff = update_cartesian_movement(cartesian_position.Coordinates.ThetaX, goal_xyz_thetas->theta_x, &arrived);
+		cout << "theta x: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
+		diff = update_cartesian_movement(cartesian_position.Coordinates.ThetaY, goal_xyz_thetas->theta_y, &arrived);
+		cout << "theta y: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
+		diff = update_cartesian_movement(cartesian_position.Coordinates.ThetaZ, goal_xyz_thetas->theta_z, &arrived);
+		cout << "theta z: " << diff << " arrived: " << (arrived ? "yes" : "no") << endl;
 		
 		
-		MySendBasicTrajectory(point_to_send);
-                usleep(5000);
-		//break;
-	}
+		point_to_send.Position.CartesianPosition.X = goal_xyz_thetas->x;
+		point_to_send.Position.CartesianPosition.Y = goal_xyz_thetas->y;
+		point_to_send.Position.CartesianPosition.Z = goal_xyz_thetas->z;
+		point_to_send.Position.CartesianPosition.ThetaX = goal_xyz_thetas->theta_x;
+		point_to_send.Position.CartesianPosition.ThetaY = goal_xyz_thetas->theta_y;
+		point_to_send.Position.CartesianPosition.ThetaZ = goal_xyz_thetas->theta_z;
+		
+		cout << "desired: (" << goal_xyz_thetas->x << "," << goal_xyz_thetas->y << "," << goal_xyz_thetas->z << ") theta: (" << goal_xyz_thetas->theta_x << "," << goal_xyz_thetas->theta_y << "," << goal_xyz_thetas->theta_z << ")" << endl;
+		
+		cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ") theta: (" << cartesian_position.Coordinates.ThetaX << "," << cartesian_position.Coordinates.ThetaY << "," << cartesian_position.Coordinates.ThetaZ << ")" << endl;
+
+		//cout << "movement: (" << point_to_send.Position.CartesianPosition.X << "," << point_to_send.Position.CartesianPosition.Y << "," << point_to_send.Position.CartesianPosition.Z << ") theta: (" << point_to_send.Position.CartesianPosition.ThetaX << "," << point_to_send.Position.CartesianPosition.ThetaY << "," << point_to_send.Position.CartesianPosition.ThetaZ << ")" << endl;
+
+
+*/
+
+			point_to_send.Position.CartesianPosition.X = goal_xyz_thetas->x;
+			point_to_send.Position.CartesianPosition.Y = goal_xyz_thetas->y;
+			point_to_send.Position.CartesianPosition.Z = goal_xyz_thetas->z;
+			point_to_send.Position.CartesianPosition.ThetaX = goal_xyz_thetas->theta_x;
+			point_to_send.Position.CartesianPosition.ThetaY = goal_xyz_thetas->theta_y;
+			point_to_send.Position.CartesianPosition.ThetaZ = goal_xyz_thetas->theta_z;
+
+
+/*
+                        TrajectoryPoint pointToSend;
+                        pointToSend.InitStruct();
+
+                        //We specify that this point will be an angular(joint by joint) position.
+                        pointToSend.Position.Type = CARTESIAN_POSITION;
+
+                        //We get the actual angular command of the robot.
+                        MyGetCartesianCommand(currentCommand);
+
+                        pointToSend.Position.CartesianPosition.X = currentCommand.Coordinates.X;
+                        pointToSend.Position.CartesianPosition.Y = currentCommand.Coordinates.Y - 0.1f;
+                        pointToSend.Position.CartesianPosition.Z = currentCommand.Coordinates.Z;
+                        pointToSend.Position.CartesianPosition.ThetaX = currentCommand.Coordinates.ThetaX;
+                        pointToSend.Position.CartesianPosition.ThetaY = currentCommand.Coordinates.ThetaY;
+                        pointToSend.Position.CartesianPosition.ThetaZ = currentCommand.Coordinates.ThetaZ;
+                        MySendBasicTrajectory(pointToSend);
+
+*/
+cout << "*********************************" << endl;
+                        MySendBasicTrajectory(point_to_send);
+cout << "111111111111111111111111111111111" << endl;
+
+
+
+
+		//arrived = true;
+		
+	//}
 }
 
 void go_to_cartesian_position(struct xyz *xyz){
