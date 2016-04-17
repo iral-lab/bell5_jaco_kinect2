@@ -26,6 +26,7 @@ void do_cartesian_action(struct thread_args *args, bool blocking){
 		args->arm_has_moved = true;
 		MyInitFingers();
 		MyMoveHome();
+		cout << "done, continuing" << endl;
 	}
 	
 	args->completed_move = false;
@@ -156,29 +157,8 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 			point_to_send.Position.CartesianPosition.ThetaY = goal_xyz_thetas->theta_y;
 			point_to_send.Position.CartesianPosition.ThetaZ = goal_xyz_thetas->theta_z;
 
-
-/*
-                        TrajectoryPoint pointToSend;
-                        pointToSend.InitStruct();
-
-                        //We specify that this point will be an angular(joint by joint) position.
-                        pointToSend.Position.Type = CARTESIAN_POSITION;
-
-                        //We get the actual angular command of the robot.
-                        MyGetCartesianCommand(currentCommand);
-
-                        pointToSend.Position.CartesianPosition.X = currentCommand.Coordinates.X;
-                        pointToSend.Position.CartesianPosition.Y = currentCommand.Coordinates.Y - 0.1f;
-                        pointToSend.Position.CartesianPosition.Z = currentCommand.Coordinates.Z;
-                        pointToSend.Position.CartesianPosition.ThetaX = currentCommand.Coordinates.ThetaX;
-                        pointToSend.Position.CartesianPosition.ThetaY = currentCommand.Coordinates.ThetaY;
-                        pointToSend.Position.CartesianPosition.ThetaZ = currentCommand.Coordinates.ThetaZ;
-                        MySendBasicTrajectory(pointToSend);
-
-*/
-cout << "*********************************" << endl;
+			
                         MySendBasicTrajectory(point_to_send);
-cout << "111111111111111111111111111111111" << endl;
 
 
 
@@ -187,14 +167,6 @@ cout << "111111111111111111111111111111111" << endl;
 		
 	//}
 }
-
-void go_to_cartesian_position(struct xyz *xyz){
-	
-	
-}
-
-
-
 
 
 
