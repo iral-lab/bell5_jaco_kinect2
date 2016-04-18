@@ -43,7 +43,7 @@ void print_help(){
 
 	cout << "Cartesian space: " << endl;
 	cout << "\tcart home                      : send arm to home position using cartesian commands " << endl;
-	cout << "\tcart goto x y z <tx ty tz>     : send arm to x, y, z, (with optional thetax, thetay, thetaz) using cartesian commands " << endl;
+	cout << "\tcart goto x y z <tx ty tz>     : Kinect2 space: send arm to x, y, z, (with optional thetax, thetay, thetaz) using cartesian commands " << endl;
 
 	cout << "Throwing: " << endl;
 	cout << "\tload throw                     : put arm into loading position. " << endl;
@@ -206,7 +206,14 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 
 	translate_kinect_to_jaco(&(args->xyz_thetas), object_xyz, jaco_xyz);
 	
+	// Go to above the object, then lower down
+	double final_z = args->xyz_thetas.z;
+	double approach = 0.1;
+	args->xyz_thetas.z += approach;
 	cout << "moving to object" << endl;
+	do_cartesian_action(args, true);
+	
+	args->xyz_thetas.z -= approach;
 	do_cartesian_action(args, true);
 }
 
