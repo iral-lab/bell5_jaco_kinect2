@@ -61,7 +61,10 @@ struct rgb_set blue_tag = {3, {{36, 153, 188}, {96,255,254}, {63,205,227}} };
 struct rgb_set bottle = {1, {{69, 197, 210}} };
 
 // green cylinder color: #4cab6c
-struct rgb_set green_cylinder = {1, {{76,171,108}} };
+struct rgb_set green_cylinder = {1, {{76,171,108}, } };
+
+// orange cylinder color: #a23a1f
+struct rgb_set orange_bottle_cylinder = {1, {{162,58,31}, } };
 
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
@@ -520,8 +523,8 @@ class ImageConverter{
 		for (int y = 0; y < im_matrix.rows; y++) {
 			for (int x = 0; x < im_matrix.cols; x++) {
 				
-				// find green_cylinder
-				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &green_cylinder, verbose);
+				// find orange_bottle_cylinder
+				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &orange_bottle_cylinder, verbose);
 
 				// find jaco tag
 				match |= find_match_by_color(&im_matrix, &cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
