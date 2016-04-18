@@ -284,7 +284,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		cout << "Waiting " << COMMAND_DELAY << " seconds" << endl;
 		sleep(COMMAND_DELAY);
 	
-	}else if(!strcmp("print state", cmd)){
+	}else if(!strcmp("print state", cmd) || !strcmp("ps", cmd)){
 		print_state(viz_args);
 	
 	}else if(!strcmp("shutdown", cmd)){
