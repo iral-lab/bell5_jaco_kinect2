@@ -28,17 +28,7 @@ void go_home(struct thread_args *args){
 	cout << "Going home" << endl;
 	
 	straighten(args);
-	
-	args->angles[0] = -84;
-	do_action(args, true);
-	
-	args->angles[1] = 167;
-	args->angles[2] = 57;
-	args->angles[3] = 240;
-	args->angles[4] = 82;
-	args->angles[5] = 75;
-	
-	do_action(args, true);
+	MyMoveHome();
 }
 
 void open_fingers(struct thread_args *args, grasped_object_type object){
