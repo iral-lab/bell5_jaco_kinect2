@@ -74,6 +74,8 @@ void reset_cartesian_point_to_send(TrajectoryPoint *point_to_send){
 }
 
 void cartesian_home(struct thread_args *args){
+	MyMoveHome();
+	
 	cout << "Running cartesian go home" << endl;
 	args->xyz_thetas.x = 0.223358;
 	args->xyz_thetas.y = -0.203183;
@@ -115,7 +117,11 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 	
 	reset_cartesian_point_to_send(&point_to_send);
 	
+	struct cartesian_xyz last_xyz_thetas;
+	
 	bool point_sent = false;
+	int max_tries = 5;
+	int tries = 0;
 	while(!arrived && keepRunning){
 		arrived = true;
 		(*MyGetCartesianCommand)(cartesian_position);
@@ -144,7 +150,31 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 		
 		        MySendBasicTrajectory(point_to_send);
 			point_sent = true;
+		}else if(last_xyz_thetas.x == cartesian_position.Coordinates.X &&
+				last_xyz_thetas.y == cartesian_position.Coordinates.Y &&
+				last_xyz_thetas.z == cartesian_position.Coordinates.Z &&
+				last_xyz_thetas.theta_x == cartesian_position.Coordinates.ThetaX &&
+				last_xyz_thetas.theta_y == cartesian_position.Coordinates.ThetaY &&
+				last_xyz_thetas.theta_z == cartesian_position.Coordinates.ThetaZ){
+			cout << "Not moving, possibly stuck" << endl;
+			
+			tries++;
+		}else{
+			tries = 0;
 		}
+
+		if(tries >= max_tries){
+			cout << "Finished moving, stopping" << endl;
+			break;
+		}
+		last_xyz_thetas.x = cartesian_position.Coordinates.X;
+		last_xyz_thetas.y = cartesian_position.Coordinates.Y;
+		last_xyz_thetas.z = cartesian_position.Coordinates.Z;
+		last_xyz_thetas.theta_x = cartesian_position.Coordinates.ThetaX;
+		last_xyz_thetas.theta_y = cartesian_position.Coordinates.ThetaY;
+		last_xyz_thetas.theta_z = cartesian_position.Coordinates.ThetaZ;
+		
+		// half-second sleep
 		usleep(500000);
 	}
 }

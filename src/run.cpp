@@ -43,7 +43,7 @@ void print_help(){
 
 	cout << "Cartesian space: " << endl;
 	cout << "\tcart home                      : send arm to home position using cartesian commands " << endl;
-	cout << "\tcart goto x y z tx ty tz       : send arm to x, y, z, thetax, thetay, thetaz using cartesian commands " << endl;
+	cout << "\tcart goto x y z <tx ty tz>     : send arm to x, y, z, (with optional thetax, thetay, thetaz) using cartesian commands " << endl;
 
 	cout << "Throwing: " << endl;
 	cout << "\tload throw                     : put arm into loading position. " << endl;
@@ -82,6 +82,8 @@ void print_help(){
 
 
 void handle_cartesian_goto(struct thread_args *args, char *cmd){
+	MyMoveHome();
+	
 	string delim = " ";
 	char * save_ptr;
 	char * x;
@@ -94,17 +96,23 @@ void handle_cartesian_goto(struct thread_args *args, char *cmd){
 	x = strtok_r(cmd, delim.c_str(), &save_ptr);
 	y = strtok_r(NULL, delim.c_str(), &save_ptr);
 	z = strtok_r(NULL, delim.c_str(), &save_ptr);
-	theta_x = strtok_r(NULL, delim.c_str(), &save_ptr);
-	theta_y = strtok_r(NULL, delim.c_str(), &save_ptr);
-	theta_z = strtok_r(NULL, delim.c_str(), &save_ptr);
-
+	
 	args->xyz_thetas.x = atof(x);
 	args->xyz_thetas.y = atof(y);
 	args->xyz_thetas.z = atof(z);
-	args->xyz_thetas.theta_x = atof(theta_x);
-	args->xyz_thetas.theta_y = atof(theta_y);
-	args->xyz_thetas.theta_z = atof(theta_z);
+	
+	theta_x = strtok_r(NULL, delim.c_str(), &save_ptr);
+	if(theta_x){
+		theta_y = strtok_r(NULL, delim.c_str(), &save_ptr);
+		theta_z = strtok_r(NULL, delim.c_str(), &save_ptr);
 
+	
+		args->xyz_thetas.theta_x = atof(theta_x);
+		args->xyz_thetas.theta_y = atof(theta_y);
+		args->xyz_thetas.theta_z = atof(theta_z);
+	}else{
+		cout << "skipping goto thetas" << endl;
+	}
 
 	cout << args->xyz_thetas.x << "," << args->xyz_thetas.y << "," << args->xyz_thetas.z << "   theta: " << args->xyz_thetas.theta_x << "," << args->xyz_thetas.theta_y << "," << args->xyz_thetas.theta_z << endl;
 	
@@ -179,24 +187,8 @@ void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
 }
 
-void print_matrix(arma::mat *mat){
-	int i,j;
-	for(i = 0; i < mat->n_rows; i++){
-		for(j = 0; j < mat->n_cols; j++){
-			cout << mat->at(i,j) << ", ";
-		}
-		cout << endl;
-	}
 
-}
-void print_vector(arma::vec *vect){
-	int i,j;
-	for(i = 0; i < vect->n_elem; i++){
-		cout << vect->at(i) << ", ";
-	}
-	cout << endl;
 
-}
 void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	if(viz_args->num_jaco_tags < 1){
 		cout << "no arms to move" << endl;
@@ -206,50 +198,14 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 		return;
 	}
 	
+	MyMoveHome();
+	
+	int i;
 	struct xyz *jaco_xyz = &(viz_args->jaco_tag_xyz[0]);
 	struct xyz *object_xyz = &(viz_args->object_xyz[0]);
 
-	cout << "identity" << endl;
-	arma::mat translation(4, 4, arma::fill::eye);
-	print_matrix(&translation);
+	translate_kinect_to_jaco(&(args->xyz_thetas), object_xyz, jaco_xyz);
 	
-	
-	cout << "translate" << endl;
-	translation.at(0,3) = -1 * jaco_xyz->x;
-	translation.at(1,3) = -1 * jaco_xyz->y;
-	translation.at(2,3) = -1 * jaco_xyz->z;
-	print_matrix(&translation);
-	
-	cout << "scale" << endl;
-	arma::mat scale(4, 4, arma::fill::eye);
-	scale.at(0,0) = -1; // x -1 because x is flipped
-	scale.at(1,1) = -1; // y -1 because y is coming towards the kinect
-	scale.at(2,2) = 1; // z
-	print_matrix(&scale);
-	
-
-	arma::mat transformation(4, 4, arma::fill::eye);
-	transformation = transformation * translation * scale;
-	cout << "transform" << endl;
-	print_matrix(&transformation);
-	
-
-	cout << "Vector" << endl;
-	arma::vec obj_xyz = arma::ones<arma::vec>(4);
-	obj_xyz.at(0) = object_xyz->x;
-	obj_xyz.at(1) = object_xyz->y;
-	obj_xyz.at(2) = object_xyz->z;
-	print_matrix(&obj_xyz);
-
-	obj_xyz = transformation * obj_xyz;
-	
-	cout << "Final" << endl;
-	print_matrix(&obj_xyz);
-	
-	args->xyz_thetas.x = obj_xyz.at(0);
-	args->xyz_thetas.y = obj_xyz.at(1);
-	args->xyz_thetas.z = obj_xyz.at(2);
-
 	cout << "moving to object" << endl;
 	do_cartesian_action(args, true);
 }
@@ -293,7 +249,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("straighten", cmd)){
 		straighten(&args[0]);
 
-	}else if(!strcmp("goto object", cmd)){
+	}else if(!strcmp("goto object", cmd) || !strcmp("go", cmd)){
 		goto_object(&args[0], viz_args);
 
 	}else if(!strcmp("cart home", cmd)){

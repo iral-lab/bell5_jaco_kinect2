@@ -317,10 +317,15 @@ void print_state(struct viz_thread_args *viz_args){
 	for(int i = 0; i < viz_args->num_jaco_tags; i++){
 		cout << "\t" << i << " " << viz_args->jaco_tag_xyz[i].x << "\t" << viz_args->jaco_tag_xyz[i].y << "\t" << viz_args->jaco_tag_xyz[i].z << "\tDistance: " << viz_args->jaco_distances[i] << endl;
 	}
-
+	
 	cout << "Objects of interest:" << endl;
 	for(int i = 0; i < viz_args->num_objects; i++){
 		cout << "\t" << i << " " << viz_args->object_xyz[i].x << "\t" << viz_args->object_xyz[i].y << "\t" << viz_args->object_xyz[i].z << "\tDistance: " << viz_args->object_distances[i] << endl;
+		
+		if(viz_args->num_jaco_tags > 0){
+			translate_kinect_to_jaco(&xyz_thetas, &(viz_args->object_xyz[i]), &(viz_args->jaco_tag_xyz[0]));
+			cout << "\tcart goto " << xyz_thetas.x << " " << xyz_thetas.y << " " << xyz_thetas.z << " " << M_PI << " 0 0" << endl;
+		}
 	}
 }
 

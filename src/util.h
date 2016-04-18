@@ -6,6 +6,7 @@
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
 
+#include <mlpack/methods/kmeans/kmeans.hpp>
 
 #define NUM_ACTUATORS 6
 #define NUM_FINGERS 3
@@ -17,6 +18,8 @@
 
 #define DEFAULT_MAX_INTERESTED_DISTANCE 2.0
 #define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
+
+using namespace std;
 
 typedef enum {
 	KMEANS = 0,
@@ -154,6 +157,83 @@ struct thread_args{
 	// pass info to the visualizer
 	struct viz_thread_args *viz_args;
 };
+
+
+void print_matrix(arma::mat *mat){
+	int i,j;
+	for(i = 0; i < mat->n_rows; i++){
+		for(j = 0; j < mat->n_cols; j++){
+			cout << mat->at(i,j) << ", ";
+		}
+		cout << endl;
+	}
+
+}
+
+void translate_kinect_to_jaco(struct cartesian_xyz *xyz_thetas, struct xyz *object_xyz, struct xyz *jaco_xyz){
+	//cout << "identity" << endl;
+	arma::mat translation;
+	translation 	<< 1 << 0 << 0 << 0 << arma::endr
+			<< 0 << 1 << 0 << 0 << arma::endr
+			<< 0 << 0 << 1 << 0 << arma::endr
+			<< 0 << 0 << 0 << 1 << arma::endr;
+	//print_matrix(&translation);
+	
+	
+	//cout << "translate" << endl;
+	translation.at(0,3) = -1 * jaco_xyz->x;
+	translation.at(1,3) = -1 * jaco_xyz->y;
+	translation.at(2,3) = -1 * jaco_xyz->z;
+	//print_matrix(&translation);
+	
+	//cout << "scale" << endl;
+	arma::mat scale(4, 4, arma::fill::eye);
+	//scale.at(2,2) = -1; // y -1 because y is coming towards the kinect
+	//print_matrix(&scale);
+
+
+	//cout << "rotation around x" << endl;
+	double radians = M_PI_2;
+	arma::mat rotation;
+	rotation 	<< 1 << 0 		<< 0 			<< 0 << arma::endr
+			<< 0 << cos(radians)	<< -1*sin(radians)	<< 0 << arma::endr
+			<< 0 << sin(radians) 	<< cos(radians)		<< 0 << arma::endr
+			<< 0 << 0 		<< 0 			<< 1 << arma::endr;
+	
+	//print_matrix(&rotation);
+	
+
+	arma::mat transformation(4, 4, arma::fill::eye);
+	transformation = transformation * rotation * translation * scale;
+	//cout << "transform" << endl;
+	//print_matrix(&transformation);
+	
+
+	//cout << "Vector" << endl;
+	arma::vec obj_xyz = arma::ones<arma::vec>(4);
+	obj_xyz.at(0) = object_xyz->x;
+	obj_xyz.at(1) = object_xyz->y;
+	obj_xyz.at(2) = object_xyz->z;
+	//print_matrix(&obj_xyz);
+
+	obj_xyz = transformation * obj_xyz;
+	
+	//cout << "transformed" << endl;
+	//print_matrix(&obj_xyz);
+
+	//cout << "adjusted jaco Z for tag height offset" << endl;
+	obj_xyz.at(2) += 2 * 0.0906932; // measured by moving hand to tag level
+	//print_matrix(&obj_xyz);
+	
+	xyz_thetas->x = obj_xyz.at(0);
+	xyz_thetas->y = obj_xyz.at(1);
+	xyz_thetas->z = obj_xyz.at(2);
+
+	xyz_thetas->theta_x = M_PI;
+	xyz_thetas->theta_y = 0;
+	xyz_thetas->theta_z = 0;
+
+}
 
 #endif
 
