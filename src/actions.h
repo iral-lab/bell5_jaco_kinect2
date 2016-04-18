@@ -26,7 +26,7 @@ using namespace std;
 
 typedef enum {FINGER, ACTUATOR} component_type;
 
-typedef enum {UNDEF, ORANGE} grasped_object_type;
+typedef enum {UNDEF, ORANGE, BOTTLE} grasped_object_type;
 
 class invalid_exception: public exception{
 	virtual const char* what() const throw(){

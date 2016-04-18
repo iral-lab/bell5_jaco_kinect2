@@ -48,7 +48,29 @@ void open_fingers(struct thread_args *args, grasped_object_type object){
 	do_action(args, true);
 }
 
+void grab_bottle(struct thread_args *args){
+	MyInitFingers();
+	cout << "Closing fingers" << endl;
+	
+	load_current_angles(args->angles);
+	
+	args->angles[NUM_ACTUATORS + 2] = 0;
+	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = 5600;
+	do_action(args, true);
+}
+
+void full_finger_release(struct thread_args *args){
+	MyInitFingers();
+	cout << "Releasing fingers" << endl;
+	
+	load_current_angles(args->angles);
+	
+	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 1] = 0;
+	do_action(args, true);
+}
+
 void close_fingers(struct thread_args *args, grasped_object_type object){
+	MyInitFingers();
 	cout << "Closing fingers" << endl;
 	
 	load_current_angles(args->angles);
