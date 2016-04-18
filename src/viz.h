@@ -792,7 +792,7 @@ class ImageConverter{
 			cout << "done clustering" << endl << endl;
 			cout << "\tNum clusters: " << clusters_3d.size() << endl << endl;
 		}
-		int minimum_points_per_cluster = 100;
+		int minimum_points_per_cluster = 50;
 		
 		centroids_2d->clear();
 		centroids_3d->clear();
