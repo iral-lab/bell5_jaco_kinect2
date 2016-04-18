@@ -487,6 +487,22 @@ class ImageConverter{
 		}
 	}
 
+	/*
+	Adjustments to get coordinate space mapped correctly to Kinect according to https://msdn.microsoft.com/en-us/library/dn785530.aspx
+	
+	The origin (x=0, y=0, z=0) is located at the center of the IR sensor on Kinect
+	X grows to the sensor’s left
+	Y grows up (note that this direction is based on the sensor’s tilt)
+	Z grows out in the direction the sensor is facing
+	1 unit = 1 meter
+
+	Was receiving X growing to right, and y growing down
+	*/
+	void apply_kinect_space_flip(struct xyz *xyz){
+		xyz->x *= -1;
+		xyz->y *= -1;
+	}
+
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
 		if(args->terminate){
@@ -635,6 +651,8 @@ class ImageConverter{
 				args->object_xyz[i].y = object_centroids_3d[i].at(1);
 				args->object_xyz[i].z = object_centroids_3d[i].at(2);
 				
+				apply_kinect_space_flip(&(args->object_xyz[i]));
+				
 				args->object_distances[i] = vector_length_3d_struct(& args->object_xyz[i]);
 				
 				if(verbose){
@@ -670,6 +688,8 @@ class ImageConverter{
 				args->jaco_tag_xyz[i].x = jaco_tag_centroids_3d[i].at(0);
 				args->jaco_tag_xyz[i].y = jaco_tag_centroids_3d[i].at(1);
 				args->jaco_tag_xyz[i].z = jaco_tag_centroids_3d[i].at(2);
+
+				apply_kinect_space_flip(&(args->jaco_tag_xyz[i]));
 				
 				args->jaco_distances[i] = vector_length_3d_struct(& args->jaco_tag_xyz[i]);
 				
