@@ -281,7 +281,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("open fingers", cmd)){
 		open_fingers(&args[0], object);
 
-	}else if(!strcmp("release fingers", cmd)){
+	}else if(!strcmp("release fingers", cmd) || !strcmp("rf", cmd)){
 		full_finger_release(&args[0]);
 
 	}else if(!strcmp("prep throw", cmd)){
