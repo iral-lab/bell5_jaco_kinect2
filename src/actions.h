@@ -39,7 +39,8 @@ class invalid_exception: public exception{
 void do_action(struct thread_args *args, bool blocking){
 	if(!args->arm_has_moved){
 		args->arm_has_moved = true;
-		straighten(args);
+		// don't straighten here, overwrites what the prior move was
+		MyMoveHome();
 	}
 	
 	args->completed_move = false;
@@ -293,14 +294,14 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 void print_state(struct viz_thread_args *viz_args){
 	int angles[NUM_COMPONENTS];
 	load_current_angles(angles);
-	cout << "Actuators:" << endl;
+	cout << "Actuators (degrees):" << endl;
 	for(int i = 0; i < NUM_ACTUATORS; i++){
 		cout << "\t" << i << " " << angles[i] << endl;
 	}
 	
 	struct cartesian_xyz xyz_thetas;
 	load_current_cartesian_position(&xyz_thetas);
-	cout << "Cartesian Positions:" << endl;
+	cout << "Cartesian Positions (meters, degrees):" << endl;
 	cout << "\tX:      " << xyz_thetas.x << endl;
 	cout << "\tY:      " << xyz_thetas.y << endl;
 	cout << "\tZ:      " << xyz_thetas.z << endl;
