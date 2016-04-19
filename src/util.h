@@ -8,6 +8,8 @@
 
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
+#define COMMAND_DELAY 3
+
 #define NUM_ACTUATORS 6
 #define NUM_FINGERS 3
 #define NUM_COMPONENTS NUM_ACTUATORS+NUM_FINGERS
@@ -222,7 +224,7 @@ void translate_kinect_to_jaco(struct cartesian_xyz *xyz_thetas, struct xyz *obje
 	//print_matrix(&obj_xyz);
 
 	//cout << "adjusted jaco Z for tag height offset" << endl;
-	obj_xyz.at(2) += 2 * 0.0906932; // measured by moving hand to tag level
+	obj_xyz.at(2) += 0.2; //2 * 0.0906932; // measured by moving hand to tag level
 	//print_matrix(&obj_xyz);
 	
 	xyz_thetas->x = obj_xyz.at(0);

@@ -102,6 +102,10 @@ double vector_length_3d(double *xyz){
 	return (double) sqrtf(xyz[0]*xyz[0] + xyz[1]*xyz[1] + xyz[2]*xyz[2]);
 }
 
+double vector_length_2d(double *xy){
+	return (double) sqrtf(xy[0]*xy[0] + xy[1]*xy[1]);
+}
+
 double vector_length_3d_struct(struct xyz *xyz){
 	return (double) sqrtf(xyz->x*xyz->x + xyz->y*xyz->y + xyz->z*xyz->z);
 }

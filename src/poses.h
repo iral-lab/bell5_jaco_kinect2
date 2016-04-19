@@ -2,6 +2,7 @@
 #define _POSESH_
 
 #include <iostream>
+#include "util.h"
 #include "actions.h"
 
 using namespace std;
@@ -48,26 +49,50 @@ void open_fingers(struct thread_args *args, grasped_object_type object){
 	do_action(args, true);
 }
 
-void grab_bottle(struct thread_args *args){
-	MyInitFingers();
-	cout << "Closing fingers" << endl;
-	
-	load_current_angles(args->angles);
-	
-	args->angles[NUM_ACTUATORS + 2] = 0;
-	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = 5600;
-	do_action(args, true);
-}
-
 void full_finger_release(struct thread_args *args){
 	MyInitFingers();
 	cout << "Releasing fingers" << endl;
 	
 	load_current_angles(args->angles);
 	
-	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 1] = 0;
+	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 0;
 	do_action(args, true);
 }
+
+void do_grab_bottle(struct thread_args *args, int close_to){
+	MyInitFingers();
+	cout << "Closing fingers" << endl;
+	
+	load_current_angles(args->angles);
+	
+	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = close_to;
+	do_action(args, true);
+}
+
+void grab_bottle(struct thread_args *args){
+	
+	int max_tries = 3;
+	bool grab_fail = true;
+	int close_to = 5600;
+	double delta;
+	double epsilon = 100;
+	while(max_tries > 0 && grab_fail){		
+		do_grab_bottle(args, close_to);
+		max_tries--;
+		
+		load_current_angles(args->angles);
+		// grab failed if finger went all the way
+		delta = fabs(args->angles[NUM_ACTUATORS + 0] - close_to);
+		cout << "Finger delta " << delta << endl;
+		grab_fail = delta < epsilon; // too close to desired position
+		if(grab_fail){
+			cout << "Grab failed, trying again" << endl;
+			full_finger_release(args);
+			sleep(COMMAND_DELAY);
+		}
+	}	
+}
+
 
 void close_fingers(struct thread_args *args, grasped_object_type object){
 	MyInitFingers();

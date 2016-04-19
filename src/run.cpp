@@ -18,8 +18,6 @@
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
 
-#define COMMAND_DELAY 3
-
 #define JOINT_DELTA_DEGREES 10
 #define FINGER_DELTA_DEGREES 500
 
@@ -188,6 +186,42 @@ void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
 }
 
+void normalize_xy(double x, double y, double *norm_x, double *norm_y){
+	double v1[2] = {x,y};
+	double length = vector_length_2d(v1);
+	(*norm_x) = x / length;
+	(*norm_y) = y / length;
+}
+
+void jaco_face_object(struct thread_args *args, struct cartesian_xyz *object_jaco_space){
+	cout << "facing object" << endl;
+	//cout << "x,y: " << object_jaco_space->x << "," << object_jaco_space->y << endl;
+	// find rotation around a vector to (1,0), x axis 
+	double x1 = object_jaco_space->x;
+	double y1 = object_jaco_space->y;
+
+	double x2 = 1;
+	double y2 = 0;
+	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
+	double dot = x1*x2 + y1*y2;      // dot product
+	double det = x1*y2 - y1*x2;      // determinant
+	double radians = atan2(det, dot);  // atan2(y, x) or atan2(sin, cos)
+	double degrees = radians * 57.2958; // (180 / M_PI) = 57.2958
+	//cout << "radians: " << radians << " degrees: " << degrees << endl;
+	degrees += 180; // offset for jaco rotation
+	while(degrees > 0){
+		degrees -= 360;
+	}
+	while(degrees < 0){
+		degrees += 360;
+	}
+	
+	//cout << "radians: " << radians << " degrees: " << degrees << endl;
+	
+	load_current_angles(args->angles);
+	args->angles[0] = degrees;
+	do_action(args, true);
+}
 
 
 void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
@@ -204,8 +238,17 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	int i;
 	struct xyz *jaco_xyz = &(viz_args->jaco_tag_xyz[0]);
 	struct xyz *object_xyz = &(viz_args->object_xyz[0]);
+	
+	struct cartesian_xyz object_in_jaco_space;
 
-	translate_kinect_to_jaco(&(args->xyz_thetas), object_xyz, jaco_xyz);
+	// get object in jaco space
+	translate_kinect_to_jaco(&object_in_jaco_space, object_xyz, jaco_xyz);
+	
+	// rotate jaco arm to face object, assumes MyMoveHome() is current state.
+	jaco_face_object(args, &object_in_jaco_space);
+
+	// get object in jaco space again
+	translate_kinect_to_jaco(&(args->xyz_thetas), object_xyz, jaco_xyz);	
 	
 	// Go to above the object, then lower down
 	double final_z = args->xyz_thetas.z;

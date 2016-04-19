@@ -135,9 +135,9 @@ void layered_cartesian_move(struct cartesian_xyz *goal_xyz_thetas){
 		update_cartesian_movement(cartesian_position.Coordinates.ThetaZ, goal_xyz_thetas->theta_z, &arrived);
 		
 		
-		cout << "desired: (" << goal_xyz_thetas->x << "," << goal_xyz_thetas->y << "," << goal_xyz_thetas->z << ") theta: (" << goal_xyz_thetas->theta_x << "," << goal_xyz_thetas->theta_y << "," << goal_xyz_thetas->theta_z << ")" << endl;
+		//cout << "desired: (" << goal_xyz_thetas->x << "," << goal_xyz_thetas->y << "," << goal_xyz_thetas->z << ") theta: (" << goal_xyz_thetas->theta_x << "," << goal_xyz_thetas->theta_y << "," << goal_xyz_thetas->theta_z << ")" << endl;
 		
-		cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ") theta: (" << cartesian_position.Coordinates.ThetaX << "," << cartesian_position.Coordinates.ThetaY << "," << cartesian_position.Coordinates.ThetaZ << ")" << endl;
+		//cout << "position: (" << cartesian_position.Coordinates.X << "," << cartesian_position.Coordinates.Y << "," << cartesian_position.Coordinates.Z << ") theta: (" << cartesian_position.Coordinates.ThetaX << "," << cartesian_position.Coordinates.ThetaY << "," << cartesian_position.Coordinates.ThetaZ << ")" << endl;
 
 		if(!point_sent){
 			point_to_send.Position.CartesianPosition.X = goal_xyz_thetas->x;
