@@ -39,6 +39,7 @@ class invalid_exception: public exception{
 void do_action(struct thread_args *args, bool blocking){
 	if(!args->arm_has_moved){
 		args->arm_has_moved = true;
+		cout << "Moving home" << endl;
 		// don't straighten here, overwrites what the prior move was
 		MyMoveHome();
 	}

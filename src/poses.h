@@ -28,7 +28,8 @@ void straighten(struct thread_args *args){
 void go_home(struct thread_args *args){
 	cout << "Going home" << endl;
 	
-	straighten(args);
+	//straighten(args);
+	args->arm_has_moved = true;
 	MyMoveHome();
 }
 
@@ -59,38 +60,73 @@ void full_finger_release(struct thread_args *args){
 	do_action(args, true);
 }
 
-void do_grab_bottle(struct thread_args *args, int close_to){
-	MyInitFingers();
+bool do_grab_bottle(struct thread_args *args, int close_to){
 	cout << "Closing fingers" << endl;
 	
-	load_current_angles(args->angles);
+	int max_close_to = 7000;
+	int epsilon = 300;
+	int current_angles[NUM_COMPONENTS];
+	int move_past_threshold = close_to + 1000;
+	MyInitFingers();
 	
-	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = close_to;
-	do_action(args, true);
+	int current = current_angles[NUM_ACTUATORS + 0];
+	int next = 0;
+	bool first_run = true;
+	int delta = -1;
+	int last;
+	
+	load_current_angles(args->angles);
+	do{
+		last = delta;
+		cout << "Next: " << next << endl;
+		if(next > 0){
+			args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = next;
+			cout << "moving fingers" << endl;
+			do_action(args, true);
+		}
+		
+		load_current_angles(current_angles);
+		current = current_angles[NUM_ACTUATORS + 0];
+			
+		delta = fabs(current - max_close_to);
+		cout << "Delta: " << delta << endl;
+		
+		next = current + ((current > max_close_to) ? -1 : 1) * epsilon;
+		
+		if(delta == last && !first_run){
+			cout << "done moving, breaking" << endl;
+			return false;
+		}
+		
+		if(current > move_past_threshold){
+			cout << "closed past where it should have" << endl;
+			return false;
+		}
+		
+		first_run = false;
+		
+	}while(delta > epsilon && delta != last);
+	
+	return (current - close_to) < epsilon;
 }
 
 void grab_bottle(struct thread_args *args){
 	
-	int max_tries = 3;
-	bool grab_fail = true;
+	int max_tries = 2;
+	
 	int close_to = 5600;
-	double delta;
-	double epsilon = 100;
-	while(max_tries > 0 && grab_fail){		
-		do_grab_bottle(args, close_to);
+	
+	int current_angles[NUM_COMPONENTS];
+	bool success = false;
+	while(max_tries >= 0 && !success){
+		success = do_grab_bottle(args, close_to);
 		max_tries--;
-		
-		load_current_angles(args->angles);
-		// grab failed if finger went all the way
-		delta = fabs(args->angles[NUM_ACTUATORS + 0] - close_to);
-		cout << "Finger delta " << delta << endl;
-		grab_fail = delta < epsilon; // too close to desired position
-		if(grab_fail){
-			cout << "Grab failed, trying again" << endl;
+		cout << "Close success: " << (success ? "yes" : "no") << ", tries left: " << max_tries << endl;
+		if(!success){
 			full_finger_release(args);
-			sleep(COMMAND_DELAY);
 		}
-	}	
+	}
+	
 }
 
 
