@@ -25,12 +25,21 @@ void straighten(struct thread_args *args){
 	do_action(args, true);
 }
 
+void home_and_rotate(struct thread_args *args){
+	MyMoveHome();
+	cout << "Rotating" << endl;
+	load_current_angles(args->angles);
+	args->angles[0] = -188;
+	do_action(args, true);
+}
+
 void go_home(struct thread_args *args){
 	cout << "Going home" << endl;
 	
 	//straighten(args);
 	args->arm_has_moved = true;
-	MyMoveHome();
+	
+	home_and_rotate(args);
 }
 
 void open_fingers(struct thread_args *args, grasped_object_type object){
