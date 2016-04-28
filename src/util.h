@@ -139,6 +139,10 @@ struct thread_args{
 	// Track what the goal cartesian angles are for the arm/fingers
 	struct cartesian_xyz xyz_thetas;
 	
+	// Track what the cartesian angles for the arm/fingers were when object was grasped
+	bool object_grasped;
+	struct cartesian_xyz original_object_jaco_space_xyz_thetas;
+	
 	// Triggers that can be matched during move execution
 	int num_triggers;
 	struct actuator_trigger *triggers;
