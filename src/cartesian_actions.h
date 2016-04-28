@@ -60,9 +60,10 @@ void load_current_cartesian_coords(TrajectoryPoint *point_to_send){
 	point_to_send->Position.CartesianPosition.ThetaY = cartesian_position.Coordinates.ThetaY;
 	point_to_send->Position.CartesianPosition.ThetaZ = cartesian_position.Coordinates.ThetaZ;
 
-	point_to_send->Position.Fingers.Finger1 = 0;
-	point_to_send->Position.Fingers.Finger2 = 0;
-	point_to_send->Position.Fingers.Finger3 = 0;
+	(*MyGetCartesianCommand)(cartesian_position);
+	point_to_send->Position.Fingers.Finger1 = cartesian_position.Fingers.Finger1;
+	point_to_send->Position.Fingers.Finger2 = cartesian_position.Fingers.Finger2;
+	point_to_send->Position.Fingers.Finger3 = cartesian_position.Fingers.Finger3;
 }
 
 void reset_cartesian_point_to_send(TrajectoryPoint *point_to_send){
