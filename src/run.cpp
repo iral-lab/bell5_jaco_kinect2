@@ -304,7 +304,7 @@ void run_experiment(struct thread_args *args, struct viz_thread_args *viz_args){
 	
 	grab_bottle(args);
 	
-	go_home(args);
+	//go_home(args);
 	
 	return_object(args, viz_args);
 	
@@ -319,7 +319,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("quit", cmd)){
 		return false;
 
-	}else if(!strcmp("run experiment", cmd)){
+	}else if(!strcmp("run experiment", cmd) || !strcmp("re", cmd)){
 		run_experiment(&args[0], viz_args);
 
 	}else if(!strcmp("home", cmd)){
