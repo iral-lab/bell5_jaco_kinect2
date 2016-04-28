@@ -58,6 +58,9 @@ void print_help(){
 	cout << "\tUseful: home | go | gb | home | rb | home " << endl;
 
 
+	cout << "Experiment: " << endl;
+	cout << "\trun experiment                 : Begin user-study experiment, effectively running \"home | go | gb | home | rb | home\" " << endl;
+
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle>                : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
 	cout << "\tmv <id> <+/->                  : Increase/decrease a given actuator's angle (joints by " << JOINT_DELTA_DEGREES << " degrees, fingers by " << FINGER_DELTA_DEGREES << endl;
@@ -293,6 +296,21 @@ void return_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	full_finger_release(args);
 }
 
+void run_experiment(struct thread_args *args, struct viz_thread_args *viz_args){
+	// home | go | gb | home | rb | home
+	go_home(args);
+	
+	goto_object(args, viz_args);
+	
+	grab_bottle(args);
+	
+	go_home(args);
+	
+	return_object(args, viz_args);
+	
+	go_home(args);
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -300,6 +318,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("quit", cmd)){
 		return false;
+
+	}else if(!strcmp("run experiment", cmd)){
+		run_experiment(&args[0], viz_args);
 
 	}else if(!strcmp("home", cmd)){
 		go_home(&args[0]);
