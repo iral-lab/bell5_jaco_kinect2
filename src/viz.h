@@ -156,11 +156,15 @@ void apply_distance_filter(cv::Mat *im_matrix, int x, int y, pcl::PointCloud<pcl
 	im_matrix->at<cv::Vec3b>(y,x)[2] = color;
 }
 
+bool is_visible_angle(double x2, double y2, double z2, double angle){
+	return degrees_between_3d_vectors(0,0,1, x2,y2,z2) <= angle;
+}
+
 bool is_valid_xyz(double *xyz){
 	return !std::isnan(xyz[0]) && !std::isnan(xyz[1]) && !std::isnan(xyz[2]);
 }
 
-bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double max_distance){
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double max_distance, double visible_angle){
 	struct rgb test;
 	test.r = (*image).at<cv::Vec3b>(y,x)[2];
 	test.g = (*image).at<cv::Vec3b>(y,x)[1];
@@ -175,11 +179,8 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 		if(!is_valid_xyz(xyz) || vector_length_3d(xyz) > max_distance){
 			return false;
 		}
-		double z_vector_x1 = 0;
-		double z_vector_y1 = 0;
-		double z_vector_z1 = 1;
 
-		if(degrees_between_3d_vectors(z_vector_x1, z_vector_y1, z_vector_z1, xyz[0], xyz[1], xyz[2]) > 20){
+		if(!is_visible_angle(xyz[0], xyz[1], xyz[2], visible_angle)){
 			return false;
 		}
 		
@@ -271,7 +272,7 @@ class ImageConverter{
 		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
 		bool match = false;
 		for(int i = 0; !match && i < color_set->num_colors; i++){
-			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud, args->max_interested_distance);
+			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud, args->max_interested_distance, args->visible_angle);
 		}
 		
 		if(args->draw_depth_filter){
@@ -568,8 +569,8 @@ class ImageConverter{
 		
 
 		bool match;
-		for (int y = 0; y < im_matrix.rows; y++) {
-			for (int x = 0; x < im_matrix.cols; x++) {
+		for (y = 0; y < im_matrix.rows; y++) {
+			for (x = 0; x < im_matrix.cols; x++) {
 				
 				// find orange_bottle_cylinder
 				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &orange_bottle_cylinder, verbose);
@@ -596,6 +597,20 @@ class ImageConverter{
 		
 
 		// draw pixels on screen
+		if(args->highlight_visible_area){
+			double xyz[3];
+			for (y = 0; y < im_matrix.rows; y++) {
+				for (x = 0; x < im_matrix.cols; x++) {
+				
+					get_xyz_from_xyzrgb(x, y, &cloud, xyz);
+					if(is_valid_xyz(xyz) && !is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
+						// add a red tinge
+						im_matrix.at<cv::Vec3b>(y,x)[2] = MIN(im_matrix.at<cv::Vec3b>(y,x)[2] + 50, 255);
+					}
+				}
+			}
+		}
+		
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 

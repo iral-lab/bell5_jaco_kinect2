@@ -383,6 +383,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 
+	}else if(!strcmp("v highlight", cmd)){
+		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;
+
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "v cluster ", 10) == 0){
 		handle_detection_algorithm(viz_args, (char *) &(cmd[10]) );
 	
@@ -501,6 +504,8 @@ int main(int argc, char **argv){
 	viz_args.num_objects_in_scene = DEFAULT_NUM_OBJECTS_IN_SCENE;
 	viz_args.max_interested_distance = DEFAULT_MAX_INTERESTED_DISTANCE;
 	viz_args.detection_algorithm = DEFAULT_OBJECT_DETECTION_ALG;
+	viz_args.highlight_visible_area = DEFAULT_HIGHLIGHT_VISIBLE_AREA;
+	viz_args.visible_angle = DEFAULT_VISIBLE_ANGLE;
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);

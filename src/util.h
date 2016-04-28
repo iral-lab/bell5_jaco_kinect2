@@ -18,6 +18,10 @@
 #define DEFAULT_NUM_JACO_ARMS_IN_SCENE 1
 #define DEFAULT_NUM_OBJECTS_IN_SCENE 1
 
+#define DEFAULT_VISIBLE_ANGLE 20
+
+#define DEFAULT_HIGHLIGHT_VISIBLE_AREA true
+
 #define DEFAULT_MAX_INTERESTED_DISTANCE 2.0
 #define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
 
@@ -87,6 +91,9 @@ struct viz_thread_args{
 	double *object_distances;
 	int num_objects;
 	int additional_color_match_frames_to_combine;
+
+	bool highlight_visible_area;
+	int visible_angle;
 	
 	int num_objects_in_scene;
 	int num_jaco_arms_in_scene;
