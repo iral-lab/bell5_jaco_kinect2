@@ -53,7 +53,9 @@ void print_help(){
 	cout << "Handoff: " << endl;
 	cout << "\tgoto object                    : Move the JACO arm to the object. " << endl;
 	cout << "\tgrab bottle                    : Close two fingers around bottle. " << endl;
+	cout << "\treturn bottle                  : Go home, then return bottle to original grabbed location. " << endl;
 	cout << "\trelease fingers                : Release all fingers. " << endl;
+	cout << "\tUseful: home | go | gb | home | rb | home " << endl;
 
 
 	cout << "Specific motion: " << endl;
@@ -261,6 +263,36 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	do_cartesian_action(args, true);
 }
 
+
+void return_object(struct thread_args *args, struct viz_thread_args *viz_args){
+	if(viz_args->num_jaco_tags < 1){
+		cout << "no arms to move" << endl;
+		return;
+	}else if(!args->object_grasped){
+		cout << "not carrying an object" << endl;
+		return;
+	}
+	
+	MyMoveHome();
+	
+	// rotate jaco arm to face final destination
+	jaco_face_object(args, & args->original_object_jaco_space_xyz_thetas);
+	
+	memcpy(& args->xyz_thetas, & args->original_object_jaco_space_xyz_thetas, sizeof(struct cartesian_xyz));
+	
+	// Go to above the object, then lower down
+	double final_z = args->xyz_thetas.z;
+	double approach = 0.1;
+	args->xyz_thetas.z += approach;
+	cout << "moving to object" << endl;
+	do_cartesian_action(args, true);
+	
+	args->xyz_thetas.z -= approach;
+	do_cartesian_action(args, true);
+
+	full_finger_release(args);
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -308,6 +340,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("grab bottle", cmd) || !strcmp("gb", cmd)){
 		grab_bottle(&args[0]);
+
+	}else if(!strcmp("return bottle", cmd) || !strcmp("rb", cmd)){
+		return_object(&args[0], viz_args);
 
 	}else if(!strcmp("cart home", cmd)){
 		cartesian_home(&args[0]);

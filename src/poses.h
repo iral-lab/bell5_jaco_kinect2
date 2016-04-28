@@ -68,6 +68,7 @@ void full_finger_release(struct thread_args *args){
 	
 	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 0;
 	do_action(args, true);
+	args->object_grasped = false;
 }
 
 bool do_grab_bottle(struct thread_args *args, int close_to){
@@ -103,6 +104,11 @@ void grab_bottle(struct thread_args *args){
 		if(!success){
 			full_finger_release(args);
 		}
+	}
+	if(success){
+		args->object_grasped = true;
+		load_current_cartesian_position(& args->original_object_jaco_space_xyz_thetas);
+		cout << "Grasped object, remembering location" << endl;
 	}
 	
 }
