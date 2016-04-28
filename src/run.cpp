@@ -207,11 +207,8 @@ void jaco_face_object(struct thread_args *args, struct cartesian_xyz *object_jac
 
 	double x2 = 1;
 	double y2 = 0;
-	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
-	double dot = x1*x2 + y1*y2;      // dot product
-	double det = x1*y2 - y1*x2;      // determinant
-	double radians = atan2(det, dot);  // atan2(y, x) or atan2(sin, cos)
-	double degrees = radians * 57.2958; // (180 / M_PI) = 57.2958
+	
+	double degrees = degrees_between_2d_vectors(x1,y1,x2,y2);
 	//cout << "radians: " << radians << " degrees: " << degrees << endl;
 	degrees += 180; // offset for jaco rotation
 	while(degrees > 0){

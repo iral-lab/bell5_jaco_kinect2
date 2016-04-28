@@ -80,6 +80,27 @@ bool colors_are_similar(struct rgb *x, struct rgb *y){
 }
 
 
+double degrees_between_3d_vectors(double x1, double y1, double z1, double x2, double y2, double z2){
+	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
+	double dot = x1*x2 + y1*y2 + z1*z2;
+	double lenSq1 = x1*x1 + y1*y1 + z1*z1;
+	double lenSq2 = x2*x2 + y2*y2 + z2*z2;
+	double radians = acos(dot/sqrt(lenSq1 * lenSq2));
+	double degrees = radians * 57.2958; // (180 / M_PI) = 57.2958
+	return degrees;
+}
+
+
+double degrees_between_2d_vectors(double x1, double y1, double x2, double y2){
+	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
+	double dot = x1*x2 + y1*y2;      // dot product
+	double det = x1*y2 - y1*x2;      // determinant
+	double radians = atan2(det, dot);  // atan2(y, x) or atan2(sin, cos)
+	double degrees = radians * 57.2958; // (180 / M_PI) = 57.2958
+	return degrees;
+}
+
+
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
 
@@ -152,6 +173,13 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 		get_xyz_from_xyzrgb(x, y, cloud, xyz);
 		
 		if(!is_valid_xyz(xyz) || vector_length_3d(xyz) > max_distance){
+			return false;
+		}
+		double z_vector_x1 = 0;
+		double z_vector_y1 = 0;
+		double z_vector_z1 = 1;
+
+		if(degrees_between_3d_vectors(z_vector_x1, z_vector_y1, z_vector_z1, xyz[0], xyz[1], xyz[2]) > 20){
 			return false;
 		}
 		
