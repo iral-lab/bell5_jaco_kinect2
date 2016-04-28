@@ -236,6 +236,7 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	}
 	
 	MyMoveHome();
+	full_finger_release(args);
 	
 	int i;
 	struct xyz *jaco_xyz = &(viz_args->jaco_tag_xyz[0]);

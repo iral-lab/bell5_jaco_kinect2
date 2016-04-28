@@ -80,12 +80,19 @@ bool do_grab_bottle(struct thread_args *args, int close_to){
 	
 	load_current_angles(args->angles);
 	
+	// give the solo finger a head start
+	args->angles[NUM_ACTUATORS + 0] = 2000;
+	do_action(args, true);
 	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = close_to;
 	do_action(args, true);
 	
 	load_current_angles(args->angles);
-	bool grasped_object = (fabs(args->angles[NUM_ACTUATORS + 0] - close_to) > epsilon);
-	cout << "closed too much: " << (grasped_object ? "missed" : "got it") << endl;
+	int max_close = 7000;
+	int distance_between_primary_fingers = (max_close - args->angles[NUM_ACTUATORS + 0]) + (max_close - args->angles[NUM_ACTUATORS + 1]) + (max_close - args->angles[NUM_ACTUATORS + 2]);
+	int primary_fingers_should_be = (max_close - close_to) * 3;
+	bool grasped_object = distance_between_primary_fingers > primary_fingers_should_be;
+	
+	cout << "distance: " << distance_between_primary_fingers << ", should be " << primary_fingers_should_be << " therefore " << (grasped_object ? "got it" : "missed") << endl;
 	return grasped_object;
 }
 
