@@ -219,7 +219,13 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 	}
 	int offset;
 	
-	while(!arrived && keepRunning){
+	int num_points_sent = 0;
+	int max_ineffectual_tries = 10 * num_items;
+	int tries_without_change = 0;
+	double current_angles[num_items];
+	memset(current_angles, 0, num_items * sizeof(double));
+	
+	while(!arrived && keepRunning && tries_without_change < max_ineffectual_tries){
 		arrived = true;
 		(*MyGetAngularPosition)(data_position);
 		for(i = 0; i < num_items; i++){
@@ -229,7 +235,7 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 
 			bool is_actuator = i < NUM_ACTUATORS;
 			bool is_finger = !is_actuator;
-			epsilon = is_actuator ? 2 : 100;
+			epsilon = is_actuator ? 2 : 50;
 			speed = is_actuator ? 60 : 2000;
 			actuator_number = i;
 			finger_number = max(0, i - NUM_ACTUATORS);
@@ -283,9 +289,19 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 				set_actuator_movement(actuator_number, &point_to_send, to_move);
 			}else if(is_finger){
 				set_finger_movement(finger_number, &point_to_send, to_move);
+				//cout << "setting finger movement " << to_move << endl;
 			}
+
+			if(!finished[i] && current_angle == current_angles[i]){
+				tries_without_change++;
+			}else if(!finished[i] && current_angle != current_angles[i]){
+				tries_without_change = 0;
+				current_angles[i] = current_angle;
+			}
+			
 		}
-		
+		//cout << "sending point " << num_points_sent << ", ineffectual tries: " << tries_without_change << endl;
+		num_points_sent++;
 		MySendBasicTrajectory(point_to_send);
 		usleep(10000);
 	}
