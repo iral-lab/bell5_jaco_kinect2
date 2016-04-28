@@ -164,7 +164,7 @@ bool is_valid_xyz(double *xyz){
 	return !std::isnan(xyz[0]) && !std::isnan(xyz[1]) && !std::isnan(xyz[2]);
 }
 
-bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double max_distance, double visible_angle){
+bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< vector<double> > *matches_2d, vector< vector<double> > *matches_3d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double max_distance, double min_distance, double visible_angle){
 	struct rgb test;
 	test.r = (*image).at<cv::Vec3b>(y,x)[2];
 	test.g = (*image).at<cv::Vec3b>(y,x)[1];
@@ -176,7 +176,11 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 		double xyz[3];
 		get_xyz_from_xyzrgb(x, y, cloud, xyz);
 		
-		if(!is_valid_xyz(xyz) || vector_length_3d(xyz) > max_distance){
+		if(!is_valid_xyz(xyz)){
+			return false;
+		}
+		double v_length = vector_length_3d(xyz);
+		if(v_length < min_distance || max_distance < v_length){
 			return false;
 		}
 
@@ -272,7 +276,7 @@ class ImageConverter{
 		im_matrix->at<cv::Vec3b>(y,x)[2] = rgb[0];
 		bool match = false;
 		for(int i = 0; !match && i < color_set->num_colors; i++){
-			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud, args->max_interested_distance, args->visible_angle);
+			match |= do_pixel_test(x, y, im_matrix, &(color_set->colors[i]), matched_points_2d, matched_points_3d, cloud, args->max_interested_distance, DEFAULT_MIN_INTERESTED_DISTANCE, args->visible_angle);
 		}
 		
 		if(args->draw_depth_filter){
