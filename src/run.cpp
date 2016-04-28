@@ -281,7 +281,7 @@ void return_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	memcpy(& args->xyz_thetas, & args->original_object_jaco_space_xyz_thetas, sizeof(struct cartesian_xyz));
 	
 	// Go to above the object, then lower down
-	double final_z = args->xyz_thetas.z;
+	double final_z = args->xyz_thetas.z + 0.5 * HEIGHT_OFFSET_ADJUSTMENT;
 	double approach = 0.1;
 	args->xyz_thetas.z += approach;
 	cout << "moving to object" << endl;

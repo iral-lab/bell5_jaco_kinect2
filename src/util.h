@@ -21,6 +21,8 @@
 #define DEFAULT_MAX_INTERESTED_DISTANCE 2.0
 #define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
 
+#define HEIGHT_OFFSET_ADJUSTMENT 0.2
+
 using namespace std;
 
 typedef enum {
@@ -228,7 +230,7 @@ void translate_kinect_to_jaco(struct cartesian_xyz *xyz_thetas, struct xyz *obje
 	//print_matrix(&obj_xyz);
 
 	//cout << "adjusted jaco Z for tag height offset" << endl;
-	obj_xyz.at(2) += 0.2; //2 * 0.0906932; // measured by moving hand to tag level
+	obj_xyz.at(2) += HEIGHT_OFFSET_ADJUSTMENT; //2 * 0.0906932; // measured by moving hand to tag level
 	//print_matrix(&obj_xyz);
 	
 	xyz_thetas->x = obj_xyz.at(0);
