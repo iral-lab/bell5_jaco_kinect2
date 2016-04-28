@@ -27,6 +27,7 @@ void straighten(struct thread_args *args){
 
 void home_and_rotate(struct thread_args *args){
 	MyMoveHome();
+	return;
 	cout << "Rotating" << endl;
 	load_current_angles(args->angles);
 	args->angles[0] = -188;
