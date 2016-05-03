@@ -243,7 +243,7 @@ void translate_kinect_to_jaco(struct cartesian_xyz *xyz_thetas, struct xyz *obje
 	//print_matrix(&obj_xyz);
 	
 	xyz_thetas->x = obj_xyz.at(0);
-	xyz_thetas->y = obj_xyz.at(1);
+	xyz_thetas->y = obj_xyz.at(1) + 0.04; // adjustment to center opposing fingers over bottle.
 	xyz_thetas->z = obj_xyz.at(2);
 
 	xyz_thetas->theta_x = M_PI;
