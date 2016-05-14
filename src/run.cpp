@@ -209,14 +209,16 @@ void jaco_face_object(struct thread_args *args, struct cartesian_xyz *object_jac
 	double y2 = 0;
 	
 	double degrees = degrees_between_2d_vectors(x1,y1,x2,y2);
-	//cout << "radians: " << radians << " degrees: " << degrees << endl;
+	cout << " degrees: " << degrees << endl;
 	degrees += 180; // offset for jaco rotation
+	/*
 	while(degrees > 0){
 		degrees -= 360;
 	}
 	while(degrees < 0){
 		degrees += 360;
 	}
+	*/
 	
 	//cout << "radians: " << radians << " degrees: " << degrees << endl;
 	
@@ -243,6 +245,12 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	struct xyz *object_xyz = &(viz_args->object_xyz[0]);
 	
 	struct cartesian_xyz object_in_jaco_space;
+
+	// get object in jaco space
+	translate_kinect_to_jaco(&object_in_jaco_space, object_xyz, jaco_xyz);
+	
+	// rotate jaco arm to face object, assumes MyMoveHome() is current state.
+	jaco_face_object(args, &object_in_jaco_space);
 
 	// get object in jaco space
 	translate_kinect_to_jaco(&object_in_jaco_space, object_xyz, jaco_xyz);
