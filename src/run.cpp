@@ -540,9 +540,13 @@ class RosInputSubscriber{
 	ros::NodeHandle nh_;
 	ros::Subscriber sub_;
 	struct ros_input *args;
+	pthread_mutex_t completed_mutex;
+	pthread_cond_t completed_cond;
 	
 	public:
 	RosInputSubscriber(){
+		completed_mutex = PTHREAD_MUTEX_INITIALIZER;
+		completed_cond = PTHREAD_COND_INITIALIZER;
 		sub_ = nh_.subscribe (INPUT_TOPIC, 1, &RosInputSubscriber::parse_input, this);
 	}
 
@@ -559,8 +563,34 @@ class RosInputSubscriber{
 		if(args->terminate){
 			return;
 		}
-		cout << "HEARD: " << msg->data.c_str() << endl;
 		
+		//pthread_mutex_lock(&completed_mutex);
+
+		//pthread_cond_wait(&completed_cond, &completed_mutex);
+
+		if(!args->completed){
+			//pthread_mutex_unlock(&completed_mutex);
+			return;
+		}
+
+		char * cstr = new char [ msg->data.length()+1 ];
+		std::strcpy (cstr, msg->data.c_str());
+		cout << "ROS HEARD: " << cstr << endl;
+
+		char * msg_type = std::strtok(cstr,",");
+
+		args->msg = (ros_input_message_type) atoi(msg_type);
+		if(args->msg == HOVER_AT_THEN_RETURN){
+			args->move_to.x = atof(std::strtok(NULL,","));
+			args->move_to.y = atof(std::strtok(NULL,","));
+			args->move_to.z = atof(std::strtok(NULL,","));
+			cout << "move to: " << args->move_to.x << "," << args->move_to.y << "," << args->move_to.z << endl;
+		}
+		args->completed = true;
+		args->ready = true;
+		
+		//pthread_cond_signal(&completed_cond);
+		//pthread_mutex_unlock(&completed_mutex);
 	}
 	
 	
@@ -621,6 +651,7 @@ int main(int argc, char **argv){
 
 	struct ros_input ros_input;
 	memset(&ros_input, 0, sizeof(struct ros_input));
+	ros_input.completed = true;
 	pthread_t ros_input_thread;
 	build_fake_argv(&fake_argv, argv);
 	fake_argc = 1;

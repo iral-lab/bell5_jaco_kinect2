@@ -88,6 +88,7 @@ struct ros_input{
 	ros_input_message_type msg;
 	
 	struct xyz move_to;
+	bool ready;
 	bool completed;
 };
 
@@ -325,7 +326,7 @@ void get_onscreen_color(struct rgb *color){
 	char * cstr = new char [result.length()+1];
 	std::strcpy (cstr, result.c_str());
 	char * p = std::strtok (cstr,",");
-	color->r = atoi(p);	
+	color->r = atoi(p);
 	p = std::strtok(NULL,",");
 	color->g = atoi(p);	
 	p = std::strtok(NULL,",");
