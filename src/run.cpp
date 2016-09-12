@@ -207,20 +207,14 @@ void jaco_face_object(struct thread_args *args, struct cartesian_xyz *object_jac
 	double x1 = object_jaco_space->x;
 	double y1 = object_jaco_space->y;
 
-	double x2 = 1;
+	double x2 = -1;
 	double y2 = 0;
 	
 	double degrees = degrees_between_2d_vectors(x1,y1,x2,y2);
+	
+	degrees = (double) (((int)degrees) % 360);
 	cout << " degrees: " << degrees << endl;
-	degrees += 180; // offset for jaco rotation
-	/*
-	while(degrees > 0){
-		degrees -= 360;
-	}
-	while(degrees < 0){
-		degrees += 360;
-	}
-	*/
+	
 	
 	//cout << "radians: " << radians << " degrees: " << degrees << endl;
 	
