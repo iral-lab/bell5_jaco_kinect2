@@ -138,6 +138,16 @@ void close_fingers(struct thread_args *args, grasped_object_type object){
 
 }
 
+void close_fingers_entirely(struct thread_args *args){
+	MyInitFingers();
+	cout << "Closing fingers all the way" << endl;
+	
+	load_current_angles(args->angles);
+	
+	args->angles[NUM_ACTUATORS + 0] = args->angles[NUM_ACTUATORS + 1] = args->angles[NUM_ACTUATORS + 2] = 6000;
+	do_action(args, true);
+}
+
 void prep_throw(struct thread_args *args, grasped_object_type object){
 	cout << "Prepping throw" << endl;
 	close_fingers(args, object);
