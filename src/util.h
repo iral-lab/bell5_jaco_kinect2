@@ -11,6 +11,7 @@
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
 #define KINECT_TOPIC "/kinect2/qhd/points"
+#define INPUT_TOPIC "/iral/jaco/input"
 
 #define COMMAND_DELAY 3
 
@@ -64,6 +65,32 @@ int (*MyGetAngularPosition)(AngularPosition &);
 int (*MyGetCartesianCommand)(CartesianPosition &);
 
 
+struct xyz{
+	double x;
+	double y;
+	double z;
+};
+
+
+typedef enum {
+	KEEP_ALIVE = 0,
+	MOVE_TO,
+	HOVER_AT_THEN_RETURN,
+
+	NUMBER_OF_MESSAGE_TYPES
+} ros_input_message_type;
+
+struct ros_input{
+	int *argc;
+	char ***argv;
+	bool terminate;
+	
+	ros_input_message_type msg;
+	
+	struct xyz move_to;
+	bool completed;
+};
+
 struct rgb{
 	short r;
 	short g;
@@ -77,12 +104,6 @@ struct rgb_set{
 	struct rgb colors[MAX_COLORS_PER_ITEM];
 };
 
-
-struct xyz{
-	double x;
-	double y;
-	double z;
-};
 
 struct cartesian_xyz{
 	double x;
@@ -194,6 +215,9 @@ struct thread_args{
 
 	// pass info to the visualizer
 	struct viz_thread_args *viz_args;
+
+	// get input from ros action subscriber
+	struct ros_input *ros_input;
 };
 
 

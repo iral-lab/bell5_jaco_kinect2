@@ -15,6 +15,9 @@
 #include "cartesian_actions.h"
 #include "viz.h"
 
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
 
@@ -533,16 +536,71 @@ void *run_thread(void *thread_args){
 	result = (*MyCloseAPI)();
 }
 
+class RosInputSubscriber{
+	ros::NodeHandle nh_;
+	ros::Subscriber sub_;
+	struct ros_input *args;
+	
+	public:
+	RosInputSubscriber(){
+		sub_ = nh_.subscribe (INPUT_TOPIC, 1, &RosInputSubscriber::parse_input, this);
+	}
+
+	~RosInputSubscriber(){
+		cout << "Tearing down ros subscriber" << endl;
+	}
+
+	void set_args(struct ros_input *ros_input){
+		args = ros_input;
+	}
+
+	
+	void parse_input(const std_msgs::String::ConstPtr& msg){
+		if(args->terminate){
+			return;
+		}
+		cout << "HEARD: " << msg->data.c_str() << endl;
+		
+	}
+	
+	
+};
+
+void *handle_ros_input(void *thread_args){
+	struct ros_input *ros_input = (struct ros_input *) thread_args;
+	ros::init(*ros_input->argc, *ros_input->argv, "ros_input_subscriber");
+
+	RosInputSubscriber ros_sub;
+	ros_sub.set_args(ros_input);
+	ros::Rate r(10);
+	
+	while(!ros_input->terminate){
+		ros::spinOnce();
+		r.sleep();
+	}
+	
+	cout << endl << "Terminating ros input" << endl;
+}
+
+void build_fake_argv(char ***fake_argv, char **argv){
+	(*fake_argv) = (char **) malloc (1 * sizeof(char*));
+	(*fake_argv)[0] = (char *) malloc (strlen(argv[0]) * sizeof(char));
+}
 
 int main(int argc, char **argv){
 	signal(SIGINT, intHandler);
+
+	int fake_argc = 1;
+	char **fake_argv;
+	build_fake_argv(&fake_argv, argv);
 	
+
 	int result;
 	srand(time(NULL));
 	struct viz_thread_args viz_args;
 	memset(&viz_args, 0, sizeof(struct viz_thread_args));
-	viz_args.argc = &argc;
-	viz_args.argv = &argv;
+	viz_args.argc = &fake_argc;
+	viz_args.argv = &fake_argv;
 	viz_args.terminate = false;
 	viz_args.additional_color_match_frames_to_combine = DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE;
 	viz_args.draw_pixel_match_color = true;
@@ -559,6 +617,16 @@ int main(int argc, char **argv){
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
+	
+
+	struct ros_input ros_input;
+	memset(&ros_input, 0, sizeof(struct ros_input));
+	pthread_t ros_input_thread;
+	build_fake_argv(&fake_argv, argv);
+	fake_argc = 1;
+	ros_input.argc = &fake_argc;
+	ros_input.argv = &fake_argv;
+	pthread_create(&ros_input_thread, NULL, handle_ros_input, (void *) &ros_input);
 	
 	
 	//We load the handle for the library's command layer.
@@ -604,6 +672,7 @@ int main(int argc, char **argv){
 			args[i].id = i;
 			args[i].device = &list[i];
 			args[i].viz_args = &viz_args;
+			args[i].ros_input = &ros_input;
 			
 			pthread_create(&threads[i], NULL, run_thread, (void *) &(args[i]));
 		}
