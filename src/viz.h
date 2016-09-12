@@ -51,8 +51,8 @@ struct rgb_set bottle = {1, {{69, 197, 210}} };
 // green cylinder color: #4cab6c
 struct rgb_set green_cylinder = {1, {{76,171,108}, } };
 
-// orange cylinder color: #a23a1f
-struct rgb_set orange_bottle_cylinder = {1, {{249,126,66} } };
+// orange cylinder color: #d56438
+struct rgb_set orange_bottle_cylinder = {1, {{213,100,56} } };
 
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
