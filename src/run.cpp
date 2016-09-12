@@ -230,38 +230,28 @@ void jaco_face_object(struct thread_args *args, struct cartesian_xyz *object_jac
 }
 
 
-void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
-	if(viz_args->num_jaco_tags < 1){
-		cout << "no arms to move" << endl;
-		return;
-	}else if(viz_args->num_objects < 1){
-		cout << "no object in scene" << endl;
-		return;
-	}
-	
-	MyMoveHome();
-	full_finger_release(args);
+
+void goto_jaco_xyz(struct thread_args *args, struct viz_thread_args *viz_args, struct xyz *goal_xyz){
 	
 	int i;
 	struct xyz *jaco_xyz = &(viz_args->jaco_tag_xyz[0]);
-	struct xyz *object_xyz = &(viz_args->object_xyz[0]);
 	
 	struct cartesian_xyz object_in_jaco_space;
 
 	// get object in jaco space
-	translate_kinect_to_jaco(&object_in_jaco_space, object_xyz, jaco_xyz);
+	translate_kinect_to_jaco(&object_in_jaco_space, goal_xyz, jaco_xyz);
 	
 	// rotate jaco arm to face object, assumes MyMoveHome() is current state.
 	jaco_face_object(args, &object_in_jaco_space);
 
 	// get object in jaco space
-	translate_kinect_to_jaco(&object_in_jaco_space, object_xyz, jaco_xyz);
+	translate_kinect_to_jaco(&object_in_jaco_space, goal_xyz, jaco_xyz);
 	
 	// rotate jaco arm to face object, assumes MyMoveHome() is current state.
 	jaco_face_object(args, &object_in_jaco_space);
 
 	// get object in jaco space again
-	translate_kinect_to_jaco(&(args->xyz_thetas), object_xyz, jaco_xyz);	
+	translate_kinect_to_jaco(&(args->xyz_thetas), goal_xyz, jaco_xyz);	
 	
 	// Go to above the object, then lower down
 	double final_z = args->xyz_thetas.z;
@@ -274,6 +264,34 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	do_cartesian_action(args, true);
 }
 
+
+void hover_over_xyz(struct thread_args *args, struct viz_thread_args *viz_args, struct xyz *hover_at){
+
+	// hovers over xyz
+	struct xyz new_hover;
+	new_hover.x = hover_at->x;
+	new_hover.y = hover_at->y + 0.07;
+	new_hover.z = hover_at->z;
+
+	MyMoveHome();
+	close_fingers_entirely(args);
+
+	goto_jaco_xyz(args, viz_args, &new_hover);
+}
+
+void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
+	if(viz_args->num_jaco_tags < 1){
+		cout << "no arms to move" << endl;
+		return;
+	}else if(viz_args->num_objects < 1){
+		cout << "no object in scene" << endl;
+		return;
+	}
+	struct xyz *object_xyz = &(viz_args->object_xyz[0]);
+	MyMoveHome();
+	full_finger_release(args);
+	goto_jaco_xyz(args, viz_args, object_xyz);
+}
 
 void return_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	if(viz_args->num_jaco_tags < 1){
@@ -366,6 +384,13 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("goto object", cmd) || !strcmp("go", cmd)){
 		goto_object(&args[0], viz_args);
+
+	}else if(!strcmp("hover object", cmd) || !strcmp("hover", cmd)){
+		// passing in object's xyz, but could be any kinect-xyz
+		if(viz_args->num_objects == 0){
+			cout << "No object in scene" << endl;
+		}
+		hover_over_xyz(&args[0], viz_args, viz_args->object_xyz);
 
 	}else if(!strcmp("grab bottle", cmd) || !strcmp("gb", cmd)){
 		grab_bottle(&args[0]);
