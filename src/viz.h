@@ -561,6 +561,7 @@ class ImageConverter{
 		
 
 		double xyz[3];
+		double dist;
 		bool match;
 		for (y = 0; y < im_matrix.rows; y++) {
 			for (x = 0; x < im_matrix.cols; x++) {
@@ -574,9 +575,13 @@ class ImageConverter{
 
 				if(args->highlight_visible_area){
 					get_xyz_from_xyzrgb(x, y, &cloud, xyz);
+
+					dist = vector_length_3d(xyz);
 					if(is_valid_xyz(xyz) && !is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
 						// add a red tinge
-						im_matrix.at<cv::Vec3b>(y,x)[2] = MIN(im_matrix.at<cv::Vec3b>(y,x)[2] + 50, 255);
+						im_matrix.at<cv::Vec3b>(y,x)[1] = MIN(im_matrix.at<cv::Vec3b>(y,x)[1] + 100, 255);
+					}else if(dist > args->max_interested_distance){
+						im_matrix.at<cv::Vec3b>(y,x)[0] = MIN(im_matrix.at<cv::Vec3b>(y,x)[0] + 100, 255);
 					}
 				}
 			}
