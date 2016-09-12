@@ -311,14 +311,14 @@ void layered_move(int *angles, struct actuator_trigger *triggers, int num_trigge
 void print_state(struct viz_thread_args *viz_args){
 	int angles[NUM_COMPONENTS];
 	load_current_angles(angles);
-	cout << "Actuators (degrees):" << endl;
+	cout << "(JACO) Actuators (degrees):" << endl;
 	for(int i = 0; i < NUM_ACTUATORS; i++){
 		cout << "\t" << i << " " << angles[i] << endl;
 	}
 	
 	struct cartesian_xyz xyz_thetas;
 	load_current_cartesian_position(&xyz_thetas);
-	cout << "Cartesian Positions (meters, degrees):" << endl;
+	cout << "(JACO) Cartesian Positions (meters, degrees):" << endl;
 	cout << "\tX:      " << xyz_thetas.x << endl;
 	cout << "\tY:      " << xyz_thetas.y << endl;
 	cout << "\tZ:      " << xyz_thetas.z << endl;
@@ -326,17 +326,17 @@ void print_state(struct viz_thread_args *viz_args){
 	cout << "\tThetaY: " << xyz_thetas.theta_y << endl;
 	cout << "\tThetaZ: " << xyz_thetas.theta_z << endl;
 
-	cout << "Fingers:" << endl;
+	cout << "(JACO) Fingers:" << endl;
 	for(int i = NUM_ACTUATORS; i < NUM_ACTUATORS + NUM_FINGERS; i++){
 		cout << "\t" << i << " " << angles[i] << endl;
 	}
 
-	cout << "JACO Tags:" << endl;
+	cout << "(KINECT) JACO Tags:" << endl;
 	for(int i = 0; i < viz_args->num_jaco_tags; i++){
 		cout << "\t" << i << " " << viz_args->jaco_tag_xyz[i].x << "\t" << viz_args->jaco_tag_xyz[i].y << "\t" << viz_args->jaco_tag_xyz[i].z << "\tDistance: " << viz_args->jaco_distances[i] << endl;
 	}
 	
-	cout << "Objects of interest:" << endl;
+	cout << "(KINECT) Objects of interest:" << endl;
 	for(int i = 0; i < viz_args->num_objects; i++){
 		cout << "\t" << i << " " << viz_args->object_xyz[i].x << "\t" << viz_args->object_xyz[i].y << "\t" << viz_args->object_xyz[i].z << "\tDistance: " << viz_args->object_distances[i] << endl;
 		
