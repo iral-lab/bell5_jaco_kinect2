@@ -224,7 +224,7 @@ class ImageConverter{
 	it_(nh_){
 		frames = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
-		pcl_sub_ = nh_.subscribe ("/kinect2/qhd/points", 1, &ImageConverter::cloudCb, this);
+		pcl_sub_ = nh_.subscribe (KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
 	
 		object_centroids_2d.clear();
 		object_centroids_3d.clear();

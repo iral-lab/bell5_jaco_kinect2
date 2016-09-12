@@ -10,6 +10,8 @@
 
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
+#define KINECT_TOPIC "/kinect2/qhd/points"
+
 #define COMMAND_DELAY 3
 
 #define NUM_ACTUATORS 6
