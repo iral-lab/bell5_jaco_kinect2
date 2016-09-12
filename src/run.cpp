@@ -379,9 +379,11 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v verbose", cmd)){
 		viz_args->verbose = !viz_args->verbose;
+		cout << "verbose: " << (viz_args->verbose ? "On" : "Off") << endl;
 
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
+		cout << "depth shading: " << (viz_args->draw_depth_filter ? "On" : "Off") << endl;
 
 	}else if(strlen(cmd) == 8 && strncmp(cmd, "v dist ", 7) == 0){
 		handle_viz_distance(viz_args, (char *) &(cmd[7]) );
@@ -391,9 +393,11 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
+		cout << "pixel drawing: " << (viz_args->draw_pixel_match_color ? "On" : "Off") << endl;
 
 	}else if(!strcmp("v highlight", cmd)){
 		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;
+		cout << "highlight: " << (viz_args->highlight_visible_area ? "On" : "Off") << endl;
 
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "v cluster ", 10) == 0){
 		handle_detection_algorithm(viz_args, (char *) &(cmd[10]) );
