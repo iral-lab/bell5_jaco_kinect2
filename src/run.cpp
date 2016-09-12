@@ -445,7 +445,10 @@ void do_repl(int num_threads, struct thread_args *args, struct viz_thread_args *
 		is_first_command = true;
 		cout << prompt << " ";
 		
-		getline(cin, cmd);
+		active = getline(cin, cmd);
+		if(!active){
+			break;
+		}
 		memset(cmd_char, 0, cmd_size);
 		memcpy(cmd_char, cmd.c_str(), cmd.length());
 		
