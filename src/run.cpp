@@ -68,6 +68,7 @@ void print_help(){
 	cout << "\twait                           : Wait " << COMMAND_DELAY << " seconds" << endl;
 
 	cout << "Visualization: " << endl;
+	cout << "\tpixel color                    : run 'grabc' to get a pixel color on-screen. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
@@ -394,6 +395,14 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 		cout << "pixel drawing: " << (viz_args->draw_pixel_match_color ? "On" : "Off") << endl;
+
+	}else if(!strcmp("pixel color", cmd) || !strcmp("pc", cmd)){
+		cout << "Click a pixel on screen." << endl;
+		struct rgb color;
+		
+		get_onscreen_color(&color);
+	
+		cout << "color: " << color.r << "-" << color.g << "-" << color.b << endl;
 
 	}else if(!strcmp("v highlight", cmd)){
 		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;

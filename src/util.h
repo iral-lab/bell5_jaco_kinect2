@@ -2,6 +2,8 @@
 #define _UTILH_
 
 #include <string.h>
+#include <iostream>
+#include <stdexcept>
 
 #include "Kinova.API.CommLayerUbuntu.h"
 #include "KinovaTypes.h"
@@ -58,6 +60,13 @@ int (*MyInitFingers)();
 int (*MyGetAngularCommand)(AngularPosition &);
 int (*MyGetAngularPosition)(AngularPosition &);
 int (*MyGetCartesianCommand)(CartesianPosition &);
+
+
+struct rgb{
+	short r;
+	short g;
+	short b;
+};
 
 struct xyz{
 	double x;
@@ -250,6 +259,42 @@ void translate_kinect_to_jaco(struct cartesian_xyz *xyz_thetas, struct xyz *obje
 	xyz_thetas->theta_y = 0;
 	xyz_thetas->theta_z = 0;
 
+}
+
+
+
+
+
+std::string exec(const char* cmd) {
+	char buffer[128];
+	std::string result = "";
+	FILE* pipe = popen(cmd, "r");
+	if (!pipe) throw std::runtime_error("popen() failed!");
+	try {
+		while (!feof(pipe)) {
+			if (fgets(buffer, 128, pipe) != NULL)
+				result += buffer;
+		}
+	} catch (...) {
+		pclose(pipe);
+		throw;
+	}
+	pclose(pipe);
+	return result;
+}
+
+void get_onscreen_color(struct rgb *color){
+	std::string result = exec("grabc 2>&1 | grep -v \"#\"");
+	// from http://www.cplusplus.com/reference/string/string/c_str/
+	char * cstr = new char [result.length()+1];
+	std::strcpy (cstr, result.c_str());
+	char * p = std::strtok (cstr,",");
+	color->r = atoi(p);	
+	p = std::strtok(NULL,",");
+	color->g = atoi(p);	
+	p = std::strtok(NULL,",");
+	color->b = atoi(p);
+	
 }
 
 #endif

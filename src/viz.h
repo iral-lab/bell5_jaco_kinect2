@@ -38,11 +38,6 @@
 
 using namespace mlpack::kmeans;
 
-struct rgb{
-	short r;
-	short g;
-	short b;
-};
 
 #define MAX_COLORS_PER_ITEM 3
 struct rgb_set{
