@@ -39,13 +39,6 @@
 using namespace mlpack::kmeans;
 
 
-#define MAX_COLORS_PER_ITEM 3
-struct rgb_set{
-	int num_colors;
-	struct rgb colors[MAX_COLORS_PER_ITEM];
-};
-
-
 // orange color: #ef5e25
 struct rgb_set orange = {1, {{239, 94, 37}} };
 
@@ -59,7 +52,7 @@ struct rgb_set bottle = {1, {{69, 197, 210}} };
 struct rgb_set green_cylinder = {1, {{76,171,108}, } };
 
 // orange cylinder color: #a23a1f
-struct rgb_set orange_bottle_cylinder = {2, {{162,58,31},{249,126,66} } };
+struct rgb_set orange_bottle_cylinder = {1, {{249,126,66} } };
 
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
@@ -572,7 +565,7 @@ class ImageConverter{
 			for (x = 0; x < im_matrix.cols; x++) {
 				
 				// find orange_bottle_cylinder
-				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &orange_bottle_cylinder, verbose);
+				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &args->orange_bottle_colors, verbose);
 
 				// find jaco tag
 				match |= find_match_by_color(&im_matrix, &cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);

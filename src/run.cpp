@@ -68,6 +68,7 @@ void print_help(){
 	cout << "\twait                           : Wait " << COMMAND_DELAY << " seconds" << endl;
 
 	cout << "Visualization: " << endl;
+	cout << "\tbottle color                   : set the bottle color to the output of 'grabc'. " << endl;
 	cout << "\tpixel color                    : run 'grabc' to get a pixel color on-screen. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
@@ -401,8 +402,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		struct rgb color;
 		
 		get_onscreen_color(&color);
-	
-		cout << "color: " << color.r << "-" << color.g << "-" << color.b << endl;
+	}else if(!strcmp("bottle color", cmd) || !strcmp("bc", cmd)){
+		cout << "Click a pixel on screen to set item of interest color." << endl;
+		viz_args->orange_bottle_colors.num_colors = 1;
+		get_onscreen_color(& (viz_args->orange_bottle_colors.colors[0]));		
 
 	}else if(!strcmp("v highlight", cmd)){
 		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;
@@ -528,6 +531,9 @@ int main(int argc, char **argv){
 	viz_args.detection_algorithm = DEFAULT_OBJECT_DETECTION_ALG;
 	viz_args.highlight_visible_area = DEFAULT_HIGHLIGHT_VISIBLE_AREA;
 	viz_args.visible_angle = DEFAULT_VISIBLE_ANGLE;
+
+	// set default colors
+	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));
 
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);

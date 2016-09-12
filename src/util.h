@@ -68,6 +68,14 @@ struct rgb{
 	short b;
 };
 
+
+#define MAX_COLORS_PER_ITEM 3
+struct rgb_set{
+	int num_colors;
+	struct rgb colors[MAX_COLORS_PER_ITEM];
+};
+
+
 struct xyz{
 	double x;
 	double y;
@@ -111,6 +119,8 @@ struct viz_thread_args{
 
 	double max_interested_distance;
 	object_detection_algorithm detection_algorithm;
+
+	struct rgb_set orange_bottle_colors;
 };
 
 
@@ -295,6 +305,7 @@ void get_onscreen_color(struct rgb *color){
 	p = std::strtok(NULL,",");
 	color->b = atoi(p);
 	
+	cout << "color: " << color->r << "-" << color->g << "-" << color->b << endl;
 }
 
 #endif
