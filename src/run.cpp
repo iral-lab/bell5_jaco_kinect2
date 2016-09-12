@@ -63,6 +63,7 @@ void print_help(){
 
 	cout << "Experiment: " << endl;
 	cout << "\trun experiment                 : Begin user-study experiment, effectively running \"home | go | gb | home | rb | home\" " << endl;
+	cout << "\tros wait                       : Begin waiting for ROS-input via " << INPUT_TOPIC << endl;
 
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle>                : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
@@ -264,13 +265,14 @@ void goto_jaco_xyz(struct thread_args *args, struct viz_thread_args *viz_args, s
 
 void hover_over_xyz(struct thread_args *args, struct viz_thread_args *viz_args, struct xyz *hover_at){
 
+	MyMoveHome();
+
 	// hovers over xyz
 	struct xyz new_hover;
 	new_hover.x = hover_at->x;
-	new_hover.y = hover_at->y + 0.07;
+	new_hover.y = hover_at->y + 0.1;
 	new_hover.z = hover_at->z;
 
-	MyMoveHome();
 	close_fingers_entirely(args);
 
 	goto_jaco_xyz(args, viz_args, &new_hover);
@@ -334,6 +336,28 @@ void run_experiment(struct thread_args *args, struct viz_thread_args *viz_args){
 	go_home(args);
 }
 
+void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
+	go_home(args);
+	
+	while(1){
+		if(args->ros_input->ready){
+			cout << "ready :: " << args->ros_input->msg << endl;
+			args->ros_input->ready = false;
+		
+			if(args->ros_input->msg == HOVER_AT_THEN_RETURN){
+				cout << "Moving" << endl;
+				hover_over_xyz(args, viz_args, & args->ros_input->move_to);
+				sleep(5);
+				go_home(args);
+				cout << "done moving" << endl;
+			}
+
+			args->ros_input->completed = true;
+		}
+		usleep(1000);
+	}
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -394,6 +418,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("return bottle", cmd) || !strcmp("rb", cmd)){
 		return_object(&args[0], viz_args);
+
+	}else if(!strcmp("ros wait", cmd) || !strcmp("ros", cmd)){
+		cout << "waiting for ros input" << endl;
+		ros_wait(&args[0], viz_args);
 
 	}else if(!strcmp("cart home", cmd)){
 		cartesian_home(&args[0]);
