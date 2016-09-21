@@ -75,7 +75,8 @@ struct xyz{
 typedef enum {
 	KEEP_ALIVE = 0,
 	MOVE_TO,
-	HOVER_AT_THEN_RETURN,
+	HOVER_OVER,
+	GO_HOME,
 
 	NUMBER_OF_MESSAGE_TYPES
 } ros_input_message_type;

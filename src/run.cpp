@@ -63,7 +63,6 @@ void print_help(){
 
 	cout << "Experiment: " << endl;
 	cout << "\trun experiment                 : Begin user-study experiment, effectively running \"home | go | gb | home | rb | home\" " << endl;
-	cout << "\tros wait                       : Begin waiting for ROS-input via " << INPUT_TOPIC << endl;
 
 	cout << "Specific motion: " << endl;
 	cout << "\tmv <id> <angle>                : Move joint/finger to angle. IDs 0-5 are joints from base up, 6-8 are fingers." << endl;
@@ -87,6 +86,10 @@ void print_help(){
 		}
 	}
 	cout << ">\n\t\t\tChange object detection algorithm (default = " << detection_algorithm_names[DEFAULT_OBJECT_DETECTION_ALG] << "). " << endl;
+	cout << "ROS: " << endl;
+	cout << "\tros wait                       : Begin waiting for ROS-input via " << INPUT_TOPIC << endl;
+	cout << "\t(in ROS) rostopic pub " << INPUT_TOPIC << " --once std_msgs/String \"" << GO_HOME << ",\"        : Send arm home" << endl;
+	
 	
 }
 
@@ -344,10 +347,12 @@ void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 			cout << "ready :: " << args->ros_input->msg << endl;
 			args->ros_input->ready = false;
 		
-			if(args->ros_input->msg == HOVER_AT_THEN_RETURN){
+			if(args->ros_input->msg == HOVER_OVER){
 				cout << "Moving" << endl;
 				hover_over_xyz(args, viz_args, & args->ros_input->move_to);
-				sleep(5);
+				cout << "done moving" << endl;
+			}else if(args->ros_input->msg == GO_HOME){
+				cout << "Going home" << endl;
 				go_home(args);
 				cout << "done moving" << endl;
 			}
@@ -608,11 +613,13 @@ class RosInputSubscriber{
 		char * msg_type = std::strtok(cstr,",");
 
 		args->msg = (ros_input_message_type) atoi(msg_type);
-		if(args->msg == HOVER_AT_THEN_RETURN){
+		if(args->msg == HOVER_OVER){
 			args->move_to.x = atof(std::strtok(NULL,","));
 			args->move_to.y = atof(std::strtok(NULL,","));
 			args->move_to.z = atof(std::strtok(NULL,","));
 			cout << "move to: " << args->move_to.x << "," << args->move_to.y << "," << args->move_to.z << endl;
+		}else if(args->msg == GO_HOME){
+			// nothing additional
 		}
 		args->completed = true;
 		args->ready = true;
