@@ -659,6 +659,7 @@ int main(int argc, char **argv){
 	char **fake_argv;
 	build_fake_argv(&fake_argv, argv);
 	
+	pcl::PointCloud<pcl::PointXYZRGB> cloud;
 
 	int result;
 	srand(time(NULL));
@@ -676,6 +677,7 @@ int main(int argc, char **argv){
 	viz_args.detection_algorithm = DEFAULT_OBJECT_DETECTION_ALG;
 	viz_args.highlight_visible_area = DEFAULT_HIGHLIGHT_VISIBLE_AREA;
 	viz_args.visible_angle = DEFAULT_VISIBLE_ANGLE;
+	viz_args.cloud = &cloud;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));

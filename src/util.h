@@ -10,6 +10,11 @@
 
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 #define KINECT_TOPIC "/kinect2/qhd/points"
 #define INPUT_TOPIC "/iral/jaco/input"
 
@@ -146,6 +151,8 @@ struct viz_thread_args{
 	object_detection_algorithm detection_algorithm;
 
 	struct rgb_set orange_bottle_colors;
+
+	pcl::PointCloud<pcl::PointXYZRGB> *cloud;
 };
 
 

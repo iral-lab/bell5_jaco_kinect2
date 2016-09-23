@@ -24,10 +24,6 @@
 #include "opencv2/highgui/highgui_c.h"
 #include "opencv2/imgproc/imgproc_c.h"
 
-#include <sensor_msgs/PointCloud2.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -544,12 +540,11 @@ class ImageConverter{
 		}
 		
 		
-		pcl::PointCloud<pcl::PointXYZRGB> cloud;
-  		pcl::fromROSMsg (*input, cloud);
+  		pcl::fromROSMsg (*input, *(args->cloud));
 		
 		int i, j, x, y;
 
-		cv::Mat im_matrix(cloud.height, cloud.width, CV_8UC3);
+		cv::Mat im_matrix(args->cloud->height, args->cloud->width, CV_8UC3);
 		
 		// store 2d matches and 3d matches
 		vector< vector<double> > object_matched_points_2d;
@@ -567,14 +562,14 @@ class ImageConverter{
 			for (x = 0; x < im_matrix.cols; x++) {
 				
 				// find orange_bottle_cylinder
-				match = find_match_by_color(&im_matrix, &cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &args->orange_bottle_colors, verbose);
+				match = find_match_by_color(&im_matrix, args->cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &args->orange_bottle_colors, verbose);
 
 				// find jaco tag
-				match |= find_match_by_color(&im_matrix, &cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
+				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
 
 				if(args->highlight_visible_area){
-					get_xyz_from_xyzrgb(x, y, &cloud, xyz);
+					get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
 
 					dist = vector_length_3d(xyz);
 					if(is_valid_xyz(xyz) && !is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
@@ -641,14 +636,14 @@ class ImageConverter{
 		double x_2d,y_2d;
 		for(i = 0; i < object_centroids_3d.size(); i++){
 			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
-			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &object_centroids_3d.at(i));
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &object_centroids_3d.at(i));
 
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(match_color.r,match_color.g,match_color.b));
 		}
 		
 		for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
-			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, &cloud, &jaco_tag_centroids_3d.at(i));
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &jaco_tag_centroids_3d.at(i));
 			
 			// Draw an circle on the video stream around the 2d centroids
 			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(jaco_match_color.r,jaco_match_color.g,jaco_match_color.b));
