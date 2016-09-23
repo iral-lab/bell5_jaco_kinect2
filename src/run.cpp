@@ -78,6 +78,7 @@ void print_help(){
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
 	cout << "\tv dist <+/->                   : Increase or decrease max recognition window (default = " << DEFAULT_MAX_INTERESTED_DISTANCE << "). " << endl;
+	cout << "\txyxyz x,y                      : (KINECT) Map a 2-d point in the RGB to a 3-d coordinate." << endl;
 	cout << "\tv cluster <";
 	for(i = 0; i < NUMBER_OF_DETECTION_ALGORITHMS; i++){
 		cout << detection_algorithm_names[i];
@@ -363,6 +364,31 @@ void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 	}
 }
 
+bool do_xyxyz_mapping(char *str, struct viz_thread_args *viz_args, double *xyz){
+	char * result = std::strtok(str,",");
+
+	int x = result ? atoi(result) : -1;
+	result = std::strtok(NULL, ",");
+	int y = result ? atoi(result) : -1;
+	if(x >= 0 && y >= 0){
+		get_xyz_from_xyzrgb(x, y, viz_args->cloud, xyz);
+		return true;
+	}
+	return false;
+}
+
+void perform_xyxyz_mapping(struct viz_thread_args *viz_args, char *cmd){
+	cout << "checking " << cmd << endl;
+	double xyz[3];
+	bool success = do_xyxyz_mapping(cmd, viz_args, xyz);
+
+	if(success){
+		cout << xyz[0] << "," << xyz[1] << "," << xyz[2] << endl;
+	}else{
+		cout << "Invalid 2-d coordinate" << endl;
+	}
+}
+
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
 	if(!strcmp("begin", cmd)){
@@ -465,7 +491,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v highlight", cmd)){
 		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;
 		cout << "highlight: " << (viz_args->highlight_visible_area ? "On" : "Off") << endl;
-
+	}else if(strlen(cmd) > 6 && strncmp(cmd, "xyxyz ", 6) == 0){
+		cout << "Performing mapping, with epsilon due to Kinect errors" << endl;
+		perform_xyxyz_mapping(viz_args, (char *) &(cmd[6]));
+		
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "v cluster ", 10) == 0){
 		handle_detection_algorithm(viz_args, (char *) &(cmd[10]) );
 	
