@@ -8,6 +8,10 @@
 using namespace std;
 
 void straighten(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Straightening arm" << endl;
 	
 	load_current_angles(args->angles);
@@ -26,6 +30,10 @@ void straighten(struct thread_args *args){
 }
 
 void home_and_rotate(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	MyMoveHome();
 	return;
 	cout << "Rotating" << endl;
@@ -35,6 +43,10 @@ void home_and_rotate(struct thread_args *args){
 }
 
 void go_home(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Going home" << endl;
 	
 	//straighten(args);
@@ -44,6 +56,10 @@ void go_home(struct thread_args *args){
 }
 
 void open_fingers(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Opening fingers" << endl;
 	
 	//int angles[NUM_COMPONENTS];
@@ -61,6 +77,10 @@ void open_fingers(struct thread_args *args, grasped_object_type object){
 }
 
 void full_finger_release(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	MyInitFingers();
 	cout << "Releasing fingers" << endl;
 	
@@ -72,6 +92,10 @@ void full_finger_release(struct thread_args *args){
 }
 
 bool do_grab_bottle(struct thread_args *args, int close_to){
+	if(!args){
+		cout << "No arm found" << endl;
+		return false;
+	}
 	cout << "Closing fingers" << endl;
 	
 	int epsilon = 500;
@@ -97,6 +121,10 @@ bool do_grab_bottle(struct thread_args *args, int close_to){
 }
 
 void grab_bottle(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	
 	int max_tries = 2;
 	
@@ -122,6 +150,10 @@ void grab_bottle(struct thread_args *args){
 
 
 void close_fingers(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	MyInitFingers();
 	cout << "Closing fingers" << endl;
 	
@@ -139,6 +171,10 @@ void close_fingers(struct thread_args *args, grasped_object_type object){
 }
 
 void close_fingers_entirely(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	MyInitFingers();
 	cout << "Closing fingers all the way" << endl;
 	
@@ -149,6 +185,10 @@ void close_fingers_entirely(struct thread_args *args){
 }
 
 void prep_throw(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Prepping throw" << endl;
 	close_fingers(args, object);
 	
@@ -174,6 +214,10 @@ void prep_throw(struct thread_args *args, grasped_object_type object){
 }
 
 void elbow_first(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	args->angles[2] = 180;
 	args->angles[3] = -90;
 	
@@ -208,6 +252,10 @@ void elbow_first(struct thread_args *args, grasped_object_type object){
 
 
 void do_throw(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Throwing" << endl;
 	
 	load_current_angles(args->angles);
@@ -216,6 +264,10 @@ void do_throw(struct thread_args *args, grasped_object_type object){
 }
 
 void load_throw(struct thread_args *args, grasped_object_type object){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	cout << "Loading throw " << endl;
 	clear_triggers(args);
 	
@@ -236,6 +288,10 @@ void load_throw(struct thread_args *args, grasped_object_type object){
 
 
 void shutdown(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	if(!args->arm_has_moved){
 		cout << "Arm never moved" << endl;
 		return;

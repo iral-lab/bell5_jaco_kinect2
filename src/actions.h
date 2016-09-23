@@ -37,6 +37,10 @@ class invalid_exception: public exception{
 
 
 void do_action(struct thread_args *args, bool blocking){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	if(!args->arm_has_moved){
 		args->arm_has_moved = true;
 		cout << "Moving home" << endl;
@@ -52,6 +56,10 @@ void do_action(struct thread_args *args, bool blocking){
 }
 
 void clear_triggers(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}
 	args->num_triggers = 0;
 	if(args->triggers){
 		free(args->triggers);

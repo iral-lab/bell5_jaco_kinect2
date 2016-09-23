@@ -404,35 +404,37 @@ void perform_xyxyz_mapping(struct viz_thread_args *viz_args, char *cmd){
 
 bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_args *viz_args, const char *cmd, grasped_object_type object){
 	
+	struct thread_args *first_arm = num_threads > 0 ? &(args[0]) : NULL;
+
 	if(!strcmp("begin", cmd)){
-		straighten(&args[0]);
+		straighten(first_arm);
 
 	}else if(!strcmp("quit", cmd)){
 		return false;
 
 	}else if(!strcmp("run experiment", cmd) || !strcmp("re", cmd)){
-		run_experiment(&args[0], viz_args);
+		run_experiment(first_arm, viz_args);
 
 	}else if(!strcmp("home", cmd)){
-		go_home(&args[0]);
+		go_home(first_arm);
 
 	}else if(!strcmp("load throw", cmd)){
-		load_throw(&args[0], object);
+		load_throw(first_arm, object);
 
 	}else if(!strcmp("close fingers", cmd)){
-		close_fingers(&args[0], object);
+		close_fingers(first_arm, object);
 
 	}else if(!strcmp("open fingers", cmd)){
-		open_fingers(&args[0], object);
+		open_fingers(first_arm, object);
 
 	}else if(!strcmp("release fingers", cmd) || !strcmp("rf", cmd)){
-		full_finger_release(&args[0]);
+		full_finger_release(first_arm);
 
 	}else if(!strcmp("prep throw", cmd)){
-		prep_throw(&args[0], object);
+		prep_throw(first_arm, object);
 
 	}else if(!strcmp("throw", cmd)){
-		do_throw(&args[0], object);
+		do_throw(first_arm, object);
 
 	}else if(!strcmp("wait", cmd)){
 		cout << "Waiting " << COMMAND_DELAY << " seconds" << endl;
@@ -442,36 +444,36 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		print_state(viz_args);
 	
 	}else if(!strcmp("shutdown", cmd)){
-		shutdown(&args[0]);
+		shutdown(first_arm);
 	
 	}else if(!strcmp("straighten", cmd)){
-		straighten(&args[0]);
+		straighten(first_arm);
 
 	}else if(!strcmp("goto object", cmd) || !strcmp("go", cmd)){
-		goto_object(&args[0], viz_args);
+		goto_object(first_arm, viz_args);
 
 	}else if(!strcmp("hover object", cmd) || !strcmp("hover", cmd)){
 		// passing in object's xyz, but could be any kinect-xyz
 		if(viz_args->num_objects == 0){
 			cout << "No object in scene" << endl;
 		}
-		hover_over_xyz(&args[0], viz_args, viz_args->object_xyz);
+		hover_over_xyz(first_arm, viz_args, viz_args->object_xyz);
 
 	}else if(!strcmp("grab bottle", cmd) || !strcmp("gb", cmd)){
-		grab_bottle(&args[0]);
+		grab_bottle(first_arm);
 
 	}else if(!strcmp("return bottle", cmd) || !strcmp("rb", cmd)){
-		return_object(&args[0], viz_args);
+		return_object(first_arm, viz_args);
 
 	}else if(!strcmp("ros wait", cmd) || !strcmp("ros", cmd)){
 		cout << "waiting for ros input" << endl;
-		ros_wait(&args[0], viz_args);
+		ros_wait(first_arm, viz_args);
 
 	}else if(!strcmp("cart home", cmd)){
-		cartesian_home(&args[0]);
+		cartesian_home(first_arm);
 
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "cart goto ", 10) == 0){
-		handle_cartesian_goto(&args[0], (char *) &(cmd[10]));
+		handle_cartesian_goto(first_arm, (char *) &(cmd[10]));
 
 	}else if(!strcmp("v verbose", cmd)){
 		viz_args->verbose = !viz_args->verbose;
@@ -512,7 +514,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		handle_detection_algorithm(viz_args, (char *) &(cmd[10]) );
 	
 	}else if(strlen(cmd) > 2 && strncmp(cmd, "mv ", 3) == 0){
-		handle_move_command(&args[0], (char *) cmd);
+		handle_move_command(first_arm, (char *) cmd);
 	
 	}else{
 		print_help();
@@ -780,9 +782,11 @@ int main(int argc, char **argv){
 	pthread_create(&ros_input_thread, NULL, handle_ros_input, (void *) &ros_input);
 	
 	
-	pthread_t *threads = (pthread_t *) malloc (devicesCount * sizeof(pthread_t));
-	struct thread_args *args = (struct thread_args *) malloc (devicesCount * sizeof(struct thread_args));
-	memset(args, 0, devicesCount * sizeof(struct thread_args));
+	pthread_t *threads = devicesCount > 0 ? (pthread_t *) malloc (devicesCount * sizeof(pthread_t)) : NULL;
+	struct thread_args *args = devicesCount > 0 ? (struct thread_args *) malloc (devicesCount * sizeof(struct thread_args)) : NULL;
+	if(devicesCount > 0){
+		memset(args, 0, devicesCount * sizeof(struct thread_args));
+	}
 	
 	for(int i = 0; i < devicesCount; i++){
 		cout << "Found a robot on the USB bus (" << list[i].SerialNumber << ")" << endl;
