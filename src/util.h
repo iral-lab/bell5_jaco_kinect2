@@ -91,17 +91,6 @@ typedef enum {
 	NUMBER_OF_MESSAGE_TYPES
 } ros_input_message_type;
 
-struct ros_input{
-	int *argc;
-	char ***argv;
-	bool terminate;
-	
-	ros_input_message_type msg;
-	
-	struct xyz move_to;
-	bool ready;
-	bool completed;
-};
 
 struct rgb{
 	short r;
@@ -160,6 +149,19 @@ struct viz_thread_args{
 	pcl::PointCloud<pcl::PointXYZRGB> *cloud;
 };
 
+struct ros_input{
+	int *argc;
+	char ***argv;
+	bool terminate;
+
+	struct viz_thread_args *viz_args;
+	
+	ros_input_message_type msg;
+	
+	struct xyz move_to;
+	bool ready;
+	bool completed;
+};
 
 // trim functions from http://stackoverflow.com/questions/122616/how-do-i-trim-leading-trailing-whitespace-in-a-standard-way
 char *trimwhitespace(char *str){

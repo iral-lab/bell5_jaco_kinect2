@@ -643,9 +643,15 @@ class RosInputSubscriber{
 
 		args->msg = (ros_input_message_type) atoi(msg_type);
 		if(args->msg == HOVER_OVER_XYZ){
+			// Kinect 3-d coordinate already
 			args->move_to.x = atof(std::strtok(NULL,","));
 			args->move_to.y = atof(std::strtok(NULL,","));
 			args->move_to.z = atof(std::strtok(NULL,","));
+			cout << "move to: " << args->move_to.x << "," << args->move_to.y << "," << args->move_to.z << endl;
+		}else if(args->msg == HOVER_OVER_XY){
+			// Kinect 2-d RGB image coordinate, need to do mapping
+			cout << "Trying " << &(cstr[2]) << endl;
+			do_xyxyz_mapping(&(cstr[2]), args->viz_args, (double *) &args->move_to);
 			cout << "move to: " << args->move_to.x << "," << args->move_to.y << "," << args->move_to.z << endl;
 		}else if(args->msg == GO_HOME){
 			// nothing additional
@@ -723,6 +729,7 @@ int main(int argc, char **argv){
 	fake_argc = 1;
 	ros_input.argc = &fake_argc;
 	ros_input.argv = &fake_argv;
+	ros_input.viz_args = &viz_args;
 	pthread_create(&ros_input_thread, NULL, handle_ros_input, (void *) &ros_input);
 	
 	
