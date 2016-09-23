@@ -343,6 +343,10 @@ void run_experiment(struct thread_args *args, struct viz_thread_args *viz_args){
 }
 
 void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
+	if(!args){
+		cout << "No arm attached, breaking ros loop" << endl;
+		return;
+	}
 	go_home(args);
 	
 	cout << "Press any key to break ROS listener and return." << endl;
@@ -354,7 +358,7 @@ void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 	// flag that we're ready to receive.	
 	args->ros_input->completed = true;
 
-	while(poll(&fds, 1, 0) != 0){
+	while(poll(&fds, 1, 0) == 0){
 		if(args->ros_input->ready){
 			cout << "ready :: " << args->ros_input->msg << endl;
 			args->ros_input->ready = false;
