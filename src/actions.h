@@ -339,7 +339,7 @@ void print_state(struct viz_thread_args *viz_args){
 	cout << "Objects of interest:" << endl;
 	for(int i = 0; i < viz_args->num_objects; i++){
 		cout << "(KINECT)\t" << i << " " << viz_args->object_xyz[i].x << "\t" << viz_args->object_xyz[i].y << "\t" << viz_args->object_xyz[i].z << "\tDistance: " << viz_args->object_distances[i] << endl;
-		cout << "rostopic pub " << INPUT_TOPIC << " --once std_msgs/String \"" << HOVER_OVER << "," << viz_args->object_xyz[i].x << "," << viz_args->object_xyz[i].y << "," << viz_args->object_xyz[i].z << "\"" << endl;
+		cout << "rostopic pub " << INPUT_TOPIC << " --once std_msgs/String \"" << HOVER_OVER_XYZ << "," << viz_args->object_xyz[i].x << "," << viz_args->object_xyz[i].y << "," << viz_args->object_xyz[i].z << "\"" << endl;
 		
 		if(viz_args->num_jaco_tags > 0){
 			translate_kinect_to_jaco(&xyz_thetas, &(viz_args->object_xyz[i]), &(viz_args->jaco_tag_xyz[0]));

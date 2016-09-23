@@ -348,7 +348,7 @@ void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 			cout << "ready :: " << args->ros_input->msg << endl;
 			args->ros_input->ready = false;
 		
-			if(args->ros_input->msg == HOVER_OVER){
+			if(args->ros_input->msg == HOVER_OVER_XYZ){
 				cout << "Moving" << endl;
 				hover_over_xyz(args, viz_args, & args->ros_input->move_to);
 				cout << "done moving" << endl;
@@ -642,7 +642,7 @@ class RosInputSubscriber{
 		char * msg_type = std::strtok(cstr,",");
 
 		args->msg = (ros_input_message_type) atoi(msg_type);
-		if(args->msg == HOVER_OVER){
+		if(args->msg == HOVER_OVER_XYZ){
 			args->move_to.x = atof(std::strtok(NULL,","));
 			args->move_to.y = atof(std::strtok(NULL,","));
 			args->move_to.z = atof(std::strtok(NULL,","));

@@ -79,9 +79,14 @@ struct xyz{
 
 typedef enum {
 	KEEP_ALIVE = 0,
-	MOVE_TO,
-	HOVER_OVER,
+
+	// receives just X,Y,Z in Kinect-point-cloud-space
+	MOVE_TO_XYZ,
+	HOVER_OVER_XYZ,
+
 	GO_HOME,
+	// receives just X,Y from kinect's 2d RGB image
+	HOVER_OVER_XY,
 
 	NUMBER_OF_MESSAGE_TYPES
 } ros_input_message_type;
