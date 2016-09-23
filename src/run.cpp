@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <sys/poll.h>
+
 #include <pthread.h>
 
 #include "util.h"
@@ -343,7 +345,16 @@ void run_experiment(struct thread_args *args, struct viz_thread_args *viz_args){
 void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 	go_home(args);
 	
-	while(1){
+	cout << "Press any key to break ROS listener and return." << endl;
+
+	struct pollfd fds;
+	fds.fd = 0; // STDIN
+	fds.events = POLLIN;
+
+	// flag that we're ready to receive.	
+	args->ros_input->completed = true;
+
+	while(poll(&fds, 1, 0) != 0){
 		if(args->ros_input->ready){
 			cout << "ready :: " << args->ros_input->msg << endl;
 			args->ros_input->ready = false;
@@ -362,6 +373,8 @@ void ros_wait(struct thread_args *args, struct viz_thread_args *viz_args){
 		}
 		usleep(1000);
 	}
+	// flag that we're ready to receive.	
+	args->ros_input->completed = false;
 }
 
 bool do_xyxyz_mapping(char *str, struct viz_thread_args *viz_args, double *xyz){
@@ -629,7 +642,8 @@ class RosInputSubscriber{
 		//pthread_mutex_lock(&completed_mutex);
 
 		//pthread_cond_wait(&completed_cond, &completed_mutex);
-
+		
+		// Throw away commands until we're ready and accepting.
 		if(!args->completed){
 			//pthread_mutex_unlock(&completed_mutex);
 			return;
@@ -695,8 +709,41 @@ int main(int argc, char **argv){
 	build_fake_argv(&fake_argv, argv);
 	
 	pcl::PointCloud<pcl::PointXYZRGB> cloud;
+	
+	KinovaDevice list[MAX_KINOVA_DEVICE];
+	int devicesCount = 0;
 
 	int result;
+
+	//We load the handle for the library's command layer.
+	void * commandLayer_handle = dlopen("Kinova.API.USBCommandLayerUbuntu.so",RTLD_NOW|RTLD_GLOBAL);
+
+	//We load the functions from the library
+	MyInitAPI = (int (*)()) dlsym(commandLayer_handle,"InitAPI");
+	MyCloseAPI = (int (*)()) dlsym(commandLayer_handle,"CloseAPI");
+	MyMoveHome = (int (*)()) dlsym(commandLayer_handle,"MoveHome");
+	MyInitFingers = (int (*)()) dlsym(commandLayer_handle,"InitFingers");
+	MyGetDevices = (int (*)(KinovaDevice devices[MAX_KINOVA_DEVICE], int &result)) dlsym(commandLayer_handle,"GetDevices");
+	MySetActiveDevice = (int (*)(KinovaDevice devices)) dlsym(commandLayer_handle,"SetActiveDevice");
+	MySendBasicTrajectory = (int (*)(TrajectoryPoint)) dlsym(commandLayer_handle,"SendBasicTrajectory");
+	MyGetAngularCommand = (int (*)(AngularPosition &)) dlsym(commandLayer_handle,"GetAngularCommand");
+	MyGetAngularPosition = (int (*)(AngularPosition &)) dlsym(commandLayer_handle,"GetAngularPosition");
+	MyGetCartesianCommand = (int (*)(CartesianPosition &)) dlsym(commandLayer_handle,"GetCartesianCommand");
+
+	if((MyInitAPI == NULL) || (MyCloseAPI == NULL) || (MySendBasicTrajectory == NULL) ||
+	   (MySendBasicTrajectory == NULL) || (MyMoveHome == NULL) || (MyInitFingers == NULL) || 
+		(MyGetCartesianCommand == NULL)){
+		cout << "* * *  E R R O R   D U R I N G   I N I T I A L I Z A T I O N  * * *" << endl;
+	}else{
+		cout << "I N I T I A L I Z A T I O N   C O M P L E T E D" << endl << endl;
+
+		result = (*MyInitAPI)();
+
+		cout << "Initialization's result :" << result << endl;
+
+		devicesCount = MyGetDevices(list, result);
+	}
+
 	srand(time(NULL));
 	struct viz_thread_args viz_args;
 	memset(&viz_args, 0, sizeof(struct viz_thread_args));
@@ -723,7 +770,7 @@ int main(int argc, char **argv){
 
 	struct ros_input ros_input;
 	memset(&ros_input, 0, sizeof(struct ros_input));
-	ros_input.completed = true;
+	ros_input.completed = false;
 	pthread_t ros_input_thread;
 	build_fake_argv(&fake_argv, argv);
 	fake_argc = 1;
@@ -733,62 +780,23 @@ int main(int argc, char **argv){
 	pthread_create(&ros_input_thread, NULL, handle_ros_input, (void *) &ros_input);
 	
 	
-	//We load the handle for the library's command layer.
-	void * commandLayer_handle = dlopen("Kinova.API.USBCommandLayerUbuntu.so",RTLD_NOW|RTLD_GLOBAL);
-
-	//We load the functions from the library
-	MyInitAPI = (int (*)()) dlsym(commandLayer_handle,"InitAPI");
-	MyCloseAPI = (int (*)()) dlsym(commandLayer_handle,"CloseAPI");
-	MyMoveHome = (int (*)()) dlsym(commandLayer_handle,"MoveHome");
-	MyInitFingers = (int (*)()) dlsym(commandLayer_handle,"InitFingers");
-	MyGetDevices = (int (*)(KinovaDevice devices[MAX_KINOVA_DEVICE], int &result)) dlsym(commandLayer_handle,"GetDevices");
-	MySetActiveDevice = (int (*)(KinovaDevice devices)) dlsym(commandLayer_handle,"SetActiveDevice");
-	MySendBasicTrajectory = (int (*)(TrajectoryPoint)) dlsym(commandLayer_handle,"SendBasicTrajectory");
-	MyGetAngularCommand = (int (*)(AngularPosition &)) dlsym(commandLayer_handle,"GetAngularCommand");
-	MyGetAngularPosition = (int (*)(AngularPosition &)) dlsym(commandLayer_handle,"GetAngularPosition");
-	MyGetCartesianCommand = (int (*)(CartesianPosition &)) dlsym(commandLayer_handle,"GetCartesianCommand");
-
-	if((MyInitAPI == NULL) || (MyCloseAPI == NULL) || (MySendBasicTrajectory == NULL) ||
-	   (MySendBasicTrajectory == NULL) || (MyMoveHome == NULL) || (MyInitFingers == NULL) || 
-		(MyGetCartesianCommand == NULL))
-	{
-		cout << "* * *  E R R O R   D U R I N G   I N I T I A L I Z A T I O N  * * *" << endl;
+	pthread_t *threads = (pthread_t *) malloc (devicesCount * sizeof(pthread_t));
+	struct thread_args *args = (struct thread_args *) malloc (devicesCount * sizeof(struct thread_args));
+	memset(args, 0, devicesCount * sizeof(struct thread_args));
+	
+	for(int i = 0; i < devicesCount; i++){
+		cout << "Found a robot on the USB bus (" << list[i].SerialNumber << ")" << endl;
+		
+		args[i].id = i;
+		args[i].device = &list[i];
+		args[i].viz_args = &viz_args;
+		args[i].ros_input = &ros_input;
+		
+		pthread_create(&threads[i], NULL, run_thread, (void *) &(args[i]));
 	}
-	else
-	{
-		cout << "I N I T I A L I Z A T I O N   C O M P L E T E D" << endl << endl;
+	
+	do_repl(devicesCount, args, &viz_args);
 
-		result = (*MyInitAPI)();
-
-		cout << "Initialization's result :" << result << endl;
-
-		KinovaDevice list[MAX_KINOVA_DEVICE];
-
-		int devicesCount = MyGetDevices(list, result);
-
-		pthread_t *threads = (pthread_t *) malloc (devicesCount * sizeof(pthread_t));
-		struct thread_args *args = (struct thread_args *) malloc (devicesCount * sizeof(struct thread_args));
-		memset(args, 0, devicesCount * sizeof(struct thread_args));
-		
-		for(int i = 0; i < devicesCount; i++){
-			cout << "Found a robot on the USB bus (" << list[i].SerialNumber << ")" << endl;
-			
-			args[i].id = i;
-			args[i].device = &list[i];
-			args[i].viz_args = &viz_args;
-			args[i].ros_input = &ros_input;
-			
-			pthread_create(&threads[i], NULL, run_thread, (void *) &(args[i]));
-		}
-		
-		
-		do_repl(devicesCount, args, &viz_args);
-		
-
-		//cout << endl << "WARNING: Your robot is now set to angular control. If you use the joystick, it will be a joint by joint movement." << endl;
-		cout << endl << "C L O S I N G   A P I" << endl;
-		// result = (*MyCloseAPI)();
-	}
 	dlclose(commandLayer_handle);
 	
 	viz_args.terminate = true;
