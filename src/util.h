@@ -115,6 +115,7 @@ struct point_pairs{
 	vector<double> parent;
 	vector<double> candidate;
 	point_type type;
+	int up_iterations;
 };
 
 struct cartesian_xyz{

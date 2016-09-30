@@ -197,7 +197,7 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 int get_key_from_coordinate(vector< double > xy, int rows){
 	return xy.at(0) + xy.at(1) * rows;
 }
-void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, int rows, int cols, point_type type){
+void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, int rows, int cols, point_type type, int iter_count){
 	if(xy.at(0) + diff_x >= cols || xy.at(0) + diff_x == -1 || xy.at(1) + diff_y >= rows || xy.at(1) + diff_y == -1){
 		return;
 	}
@@ -211,6 +211,7 @@ void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_m
 		pair.parent = xy;
 		pair.candidate = new_xy;
 		pair.type = type;
+		pair.up_iterations = iter_count;
 		(*map)[key] = true;
 
 		point_queue->push(pair);
@@ -773,8 +774,6 @@ class ImageConverter{
 			vector<double> xy;
 			vector<double> new_xy;
 			new_xy.resize(2, 0);
-
-			int pixel_jump = 1;
 			
 			queue< struct point_pairs > candidate_2d_queue_pairs;
 			struct point_pairs pair;
@@ -788,6 +787,7 @@ class ImageConverter{
 				pair.parent = xy;
 				pair.candidate = xy;
 				pair.type = STARTING;
+				pair.up_iterations = 0;
 				candidate_2d_queue_pairs.push( pair );
 			}
 			for(i = 0; i < jaco_tag_matched_points_3d.size(); i++){
@@ -801,9 +801,12 @@ class ImageConverter{
 			int rounds = 0;
 			int max_rounds = 99999;
 			
-			double closeness_3d = 0.05;
+			double closeness_3d = 0.1;
 			bool valid_point;
 			int x,y;
+
+			int pixel_jump = 5;
+			int jump = 0;
 			//cout << " ------------------------------ " << endl;
 			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
 			while(candidate_2d_queue_pairs.size() > 0 && rounds < max_rounds){
@@ -827,17 +830,27 @@ class ImageConverter{
 				if(valid_point){
 					jaco_tag_arm_2d.push_back(xy);
 					
-					// compute neighbor pixels, inheriting type.
-					// left
-					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -pixel_jump, 0, im_matrix.rows, im_matrix.cols, pair.type);
-					// right
-					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, pixel_jump, 0, im_matrix.rows, im_matrix.cols, pair.type);
-					// up
-					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -pixel_jump, im_matrix.rows, im_matrix.cols, NORMAL);
+					for(jump = 0; jump < pixel_jump; jump++){
+						// compute neighbor pixels, inheriting type.
+						// left
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, 0, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+						// right
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+						// up
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
+						// up-left
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
+						// up-right
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
 					
-					if(pair.type != STARTING){
-						// down, unless we're on the starting row. All on this row will have already been tried
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, pixel_jump, im_matrix.rows, im_matrix.cols, pair.type);
+						if(pair.type != STARTING && pair.up_iterations > pixel_jump){
+							// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc. All on this row will have already been tried
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+							// down-left
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+							// down-right
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+						}
 					}
 				}
 
