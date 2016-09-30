@@ -807,15 +807,15 @@ class ImageConverter{
 			int rounds = 0;
 			int max_rounds = 99999;
 			
-			double closeness_3d = 0.1;
+			double closeness_3d = 0.05;
 			bool valid_point;
 			int x,y;
 
-			int pixel_jump = 5;
+			int pixel_jump = 20;
 			int jump = 0;
 			//cout << " ------------------------------ " << endl;
 			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
-			while(candidate_2d_queue_pairs.size() > 0 && rounds < max_rounds){
+			while(candidate_2d_queue_pairs.size() > 0){
 				pair = candidate_2d_queue_pairs.front();
 				candidate_2d_queue_pairs.pop();
 				xy = pair.candidate;
@@ -843,14 +843,14 @@ class ImageConverter{
 						// right
 						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
 						// up
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
 						// up-left
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
 						// up-right
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + 1);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
 					
 						if(pair.type != STARTING && pair.up_iterations > pixel_jump){
-							// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc. All on this row will have already been tried
+							// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc.
 							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
 							// down-left
 							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
