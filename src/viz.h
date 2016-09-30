@@ -36,7 +36,6 @@
 
 using namespace mlpack::kmeans;
 
-
 // orange color: #ef5e25
 struct rgb_set orange = {1, {{239, 94, 37}} };
 
@@ -60,6 +59,9 @@ struct rgb jaco_match_color = {0xff, 0, 0};
 
 // pixel shading color for jaco arm, blue
 struct rgb jaco_arm_match_color = {0, 0, 0xff};
+
+// pixel shading color for trying to find jaco arm, lightblue
+struct rgb jaco_arm_tried_color = {0xAD, 0xD8, 0xE6};
 
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
@@ -202,26 +204,6 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 
 int get_key_from_coordinate(vector< double > xy, int rows){
 	return xy.at(0) + xy.at(1) * rows;
-}
-void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, int rows, int cols, point_type type, int iter_count){
-	if(xy.at(0) + diff_x >= cols || xy.at(0) + diff_x == -1 || xy.at(1) + diff_y >= rows || xy.at(1) + diff_y == -1){
-		return;
-	}
-	
-	vector<double> new_xy;
-	new_xy.push_back(xy.at(0) + diff_x);
-	new_xy.push_back(xy.at(1) + diff_y);
-	int key = get_key_from_coordinate(new_xy, rows);
-	if(map->find(key) == map->end()){
-		struct point_pairs pair;
-		pair.parent = xy;
-		pair.candidate = new_xy;
-		pair.type = type;
-		pair.up_iterations = iter_count;
-		(*map)[key] = true;
-
-		point_queue->push(pair);
-	}
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
@@ -547,6 +529,33 @@ class ImageConverter{
 		}
 	}
 
+	void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, cv::Mat *im_matrix, point_type type, int iter_count, bool draw_attempt){
+		if(xy.at(0) + diff_x >= im_matrix->cols || xy.at(0) + diff_x == -1 || xy.at(1) + diff_y >= im_matrix->rows || xy.at(1) + diff_y == -1){
+			return;
+		}
+	
+		vector<double> new_xy;
+		new_xy.push_back(xy.at(0) + diff_x);
+		new_xy.push_back(xy.at(1) + diff_y);
+		int key = get_key_from_coordinate(new_xy, im_matrix->rows);
+		if(map->find(key) == map->end()){
+			if(draw_attempt){
+				vector< vector<double> > tried;
+				tried.push_back(new_xy);
+				color_pixels(im_matrix, &tried, &jaco_arm_tried_color);
+			}
+			
+			struct point_pairs pair;
+			pair.parent = xy;
+			pair.candidate = new_xy;
+			pair.type = type;
+			pair.up_iterations = iter_count;
+			(*map)[key] = true;
+
+			point_queue->push(pair);
+		}
+	}
+
 	/*
 	Adjustments to get coordinate space mapped correctly to Kinect according to https://msdn.microsoft.com/en-us/library/dn785530.aspx
 	
@@ -805,17 +814,17 @@ class ImageConverter{
 			
 			int current_queue_size = 0;
 			int rounds = 0;
-			int max_rounds = 99999;
+			int max_rounds = 50000;
 			
-			double closeness_3d = 0.04;
+			double closeness_3d = 0.08;
 			bool valid_point;
 			int x,y;
 
-			int pixel_jump = 10;
+			int pixel_jump = 20;
 			int jump = 0;
 			//cout << " ------------------------------ " << endl;
 			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
-			while(candidate_2d_queue_pairs.size() > 0){
+			while(candidate_2d_queue_pairs.size() > 0 && max_rounds > rounds){
 				pair = candidate_2d_queue_pairs.front();
 				candidate_2d_queue_pairs.pop();
 				xy = pair.candidate;
@@ -839,23 +848,23 @@ class ImageConverter{
 					for(jump = 0; jump < pixel_jump; jump++){
 						// compute neighbor pixels, inheriting type.
 						// left
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, 0, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
 						// right
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
 						// up
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
 						// up-left
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
 						// up-right
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, im_matrix.rows, im_matrix.cols, NORMAL, pair.up_iterations + jump);
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
 					
 						if(pair.type != STARTING && pair.up_iterations > pixel_jump){
 							// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc.
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
 							// down-left
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
 							// down-right
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, jump, im_matrix.rows, im_matrix.cols, pair.type, pair.up_iterations);
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
 						}
 					}
 				}
