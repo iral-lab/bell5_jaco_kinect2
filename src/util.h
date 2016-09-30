@@ -99,7 +99,7 @@ struct rgb{
 };
 
 
-#define MAX_COLORS_PER_ITEM 3
+#define MAX_COLORS_PER_ITEM 4
 struct rgb_set{
 	int num_colors;
 	struct rgb colors[MAX_COLORS_PER_ITEM];

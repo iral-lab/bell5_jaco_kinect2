@@ -56,6 +56,9 @@ struct rgb match_color = {0xff, 0xd7, 0x00};
 // pixel shading color for jaco tag, red
 struct rgb jaco_match_color = {0xff, 0, 0};
 
+// red block color
+struct rgb_set red_block = {3, {{189,0,28}, {173,11,31}, {182,0,18}}}; 
+
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
@@ -213,6 +216,12 @@ class ImageConverter{
 	vector< vector< vector<double> > > jaco_tag_matched_points_2d_previous_rounds;
 	vector< vector< vector<double> > > jaco_tag_matched_points_3d_previous_rounds;
 	
+	vector< vector<double> > red_block_centroids_2d;
+	vector< vector<double> > red_block_centroids_3d;
+
+	vector< vector< vector<double> > > red_block_matched_points_2d_previous_rounds;
+	vector< vector< vector<double> > > red_block_matched_points_3d_previous_rounds;
+
 	pthread_mutex_t centroid_mutex;
 
 	public:
@@ -224,7 +233,6 @@ class ImageConverter{
 	
 		object_centroids_2d.clear();
 		object_centroids_3d.clear();
-	
 
 		object_matched_points_2d_previous_rounds.clear();
 		object_matched_points_3d_previous_rounds.clear();
@@ -234,7 +242,13 @@ class ImageConverter{
 
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
-		
+
+ 		red_block_centroids_2d.clear();
+		red_block_centroids_3d.clear();
+
+		red_block_matched_points_2d_previous_rounds.clear();
+		red_block_matched_points_3d_previous_rounds.clear();
+
 		cv::namedWindow(OPENCV_WINDOW);
 	}
 
@@ -555,6 +569,10 @@ class ImageConverter{
 		vector< vector<double> > jaco_tag_matched_points_3d;
 		
 
+		vector< vector<double> > red_block_matched_points_2d;
+		vector< vector<double> > red_block_matched_points_3d;
+
+
 		double xyz[3];
 		double dist;
 		bool match;
@@ -567,6 +585,8 @@ class ImageConverter{
 				// find jaco tag
 				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
+				// find red block
+				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &red_block_matched_points_2d, &red_block_matched_points_3d, &red_block, verbose);
 
 				if(args->highlight_visible_area){
 					get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
@@ -595,12 +615,21 @@ class ImageConverter{
 
 		perform_frame_combinations(&jaco_tag_matched_points_2d_combined, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_2d_previous_rounds);
 		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
+
 		
+		vector< vector<double> > red_block_matched_points_2d_combined;
+		vector< vector<double> > red_block_matched_points_3d_combined;
+		
+		perform_frame_combinations(&red_block_matched_points_2d_combined, &red_block_matched_points_2d, &red_block_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&red_block_matched_points_3d_combined, &red_block_matched_points_3d, &red_block_matched_points_3d_previous_rounds);
 		
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 
 			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
+
+			color_pixels(&im_matrix, &red_block_matched_points_2d_combined, &match_color);
+
 		}
 		
 		/*
@@ -622,12 +651,15 @@ class ImageConverter{
 			// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
 			int max_centroids_to_try = 5;
 			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
-		
 			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
+			//kmeans_cluster_and_centroid(&red_block_matched_points_3d_combined, &red_block_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
+
 		}else if(args->detection_algorithm == HISTOGRAM){
 		
 			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 			compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
+			compute_centroids(&red_block_matched_points_2d, &red_block_matched_points_3d, &red_block_centroids_2d, &red_block_centroids_3d, verbose);
+
 		}
 		
 		//pthread_mutex_unlock(&centroid_mutex);
