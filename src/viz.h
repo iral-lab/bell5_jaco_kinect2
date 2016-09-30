@@ -125,6 +125,12 @@ int color_normalize(double dist, double max, int span){
 }
 
 void get_xyz_from_xyzrgb(int x, int y, pcl::PointCloud<pcl::PointXYZRGB> *cloud, double *xyz){
+	if(x >= cloud->width || x == -1 || y >= cloud->height || y == -1){
+		xyz[0] = NAN;
+		xyz[1] = NAN;
+		xyz[2] = NAN;
+		return;
+	}
 	pcl::PointXYZRGB *point = &(cloud->at(x, y));
 	xyz[0] = point->x;
 	xyz[1] = point->y;
