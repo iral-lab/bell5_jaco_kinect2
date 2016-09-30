@@ -807,11 +807,11 @@ class ImageConverter{
 			int rounds = 0;
 			int max_rounds = 99999;
 			
-			double closeness_3d = 0.05;
+			double closeness_3d = 0.04;
 			bool valid_point;
 			int x,y;
 
-			int pixel_jump = 20;
+			int pixel_jump = 10;
 			int jump = 0;
 			//cout << " ------------------------------ " << endl;
 			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
