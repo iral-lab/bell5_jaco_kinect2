@@ -7,6 +7,8 @@
 #include <pthread.h>
 #include <cmath>
 #include <cfloat>
+#include <unordered_map>
+#include <queue>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/flann/miniflann.hpp"
@@ -55,6 +57,9 @@ struct rgb match_color = {0xff, 0xd7, 0x00};
 
 // pixel shading color for jaco tag, red
 struct rgb jaco_match_color = {0xff, 0, 0};
+
+// pixel shading color for jaco arm, blue
+struct rgb jaco_arm_match_color = {0, 0, 0xff};
 
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
@@ -189,6 +194,29 @@ bool do_pixel_test(int x, int y, cv::Mat *image, struct rgb *desired, vector< ve
 	return match;
 }
 
+int get_key_from_coordinate(vector< double > xy, int rows){
+	return xy.at(0) + xy.at(1) * rows;
+}
+void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, int rows, int cols, point_type type){
+	if(xy.at(0) + diff_x >= cols || xy.at(0) + diff_x == -1 || xy.at(1) + diff_y >= rows || xy.at(1) + diff_y == -1){
+		return;
+	}
+	
+	vector<double> new_xy;
+	new_xy.push_back(xy.at(0) + diff_x);
+	new_xy.push_back(xy.at(1) + diff_y);
+	int key = get_key_from_coordinate(new_xy, rows);
+	if(map->find(key) == map->end()){
+		struct point_pairs pair;
+		pair.parent = xy;
+		pair.candidate = new_xy;
+		pair.type = type;
+		(*map)[key] = true;
+
+		point_queue->push(pair);
+	}
+}
+
 // Function sorts vectors with (centroid id, number of members) pairs
 bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
 
@@ -212,6 +240,8 @@ class ImageConverter{
 
 	vector< vector< vector<double> > > jaco_tag_matched_points_2d_previous_rounds;
 	vector< vector< vector<double> > > jaco_tag_matched_points_3d_previous_rounds;
+
+	vector< vector< vector<double> > > jaco_arm_matched_points_2d_previous_rounds;
 	
 	pthread_mutex_t centroid_mutex;
 
@@ -231,6 +261,8 @@ class ImageConverter{
 
 		jaco_tag_matched_points_2d_previous_rounds.clear();
 		jaco_tag_matched_points_3d_previous_rounds.clear();
+
+		jaco_arm_matched_points_2d_previous_rounds.clear();
 
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
@@ -599,8 +631,6 @@ class ImageConverter{
 		
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
-
-			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 		}
 		
 		/*
@@ -734,6 +764,99 @@ class ImageConverter{
 
 				
 			}
+
+			// find/color the actual arm
+			vector< vector<double> > jaco_tag_arm_2d;
+			vector< vector<double> > jaco_tag_arm_3d;
+			
+			unordered_map<int, bool> jaco_2d_seen;
+			vector<double> xy;
+			vector<double> new_xy;
+			new_xy.resize(2, 0);
+
+			int pixel_jump = 1;
+			
+			queue< struct point_pairs > candidate_2d_queue_pairs;
+			struct point_pairs pair;
+			
+
+			// copy existing points, going to extend these new ones with neighbors
+			for(i = 0; i < jaco_tag_matched_points_2d.size(); i++){
+				xy = jaco_tag_matched_points_2d.at(i);
+				jaco_2d_seen[get_key_from_coordinate(xy, im_matrix.rows)] = true;
+				
+				pair.parent = xy;
+				pair.candidate = xy;
+				pair.type = STARTING;
+				candidate_2d_queue_pairs.push( pair );
+			}
+			for(i = 0; i < jaco_tag_matched_points_3d.size(); i++){
+				jaco_tag_arm_3d.push_back(jaco_tag_matched_points_3d.at(i));
+			}
+			
+			double candidate_3d[3];
+			double parent_3d[3];
+			
+			int current_queue_size = 0;
+			int rounds = 0;
+			int max_rounds = 99999;
+			
+			double closeness_3d = 0.05;
+			bool valid_point;
+			int x,y;
+			//cout << " ------------------------------ " << endl;
+			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
+			while(candidate_2d_queue_pairs.size() > 0 && rounds < max_rounds){
+				pair = candidate_2d_queue_pairs.front();
+				candidate_2d_queue_pairs.pop();
+				xy = pair.candidate;
+				x = (int)(xy.at(0) + 0.5);
+				y = (int)(xy.at(1) + 0.5);
+				get_xyz_from_xyzrgb( x, y, args->cloud, candidate_3d);
+				dist = 999999;
+				valid_point = is_valid_xyz(candidate_3d);
+				if(valid_point){
+					//cout << "> cand " << x << "," << y << "   ->    " << candidate_3d[0] << "," << candidate_3d[1] << "," << candidate_3d[2] << endl;
+					//cout << "> orig " << pair.parent.at(0) << "," << pair.parent.at(1) << "   ->    " << parent_3d[0] << "," << parent_3d[1] << "," << parent_3d[2] << endl;				
+					get_xyz_from_xyzrgb(pair.parent.at(0), pair.parent.at(1), args->cloud, parent_3d);
+					dist = euclid_distance_3d_not_vec_double(candidate_3d, parent_3d);
+					//cout << "> dist " << dist << endl;
+					valid_point = dist < closeness_3d;
+				}
+
+				if(valid_point){
+					jaco_tag_arm_2d.push_back(xy);
+					
+					// compute neighbor pixels, inheriting type.
+					// left
+					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -pixel_jump, 0, im_matrix.rows, im_matrix.cols, pair.type);
+					// right
+					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, pixel_jump, 0, im_matrix.rows, im_matrix.cols, pair.type);
+					// up
+					add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -pixel_jump, im_matrix.rows, im_matrix.cols, NORMAL);
+					
+					if(pair.type != STARTING){
+						// down, unless we're on the starting row. All on this row will have already been tried
+						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, pixel_jump, im_matrix.rows, im_matrix.cols, pair.type);
+					}
+				}
+
+				//cout << rounds << "  queue size: " << candidate_2d_queue_pairs.size() << "  , 2d points: " << jaco_tag_arm_2d.size() << endl;
+				rounds++;
+			}
+
+			// smooth arm memory across frames
+			vector< vector<double> > jaco_arm_matched_points_2d_combined;
+			perform_frame_combinations(&jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
+		
+
+		
+			if(args->draw_pixel_match_color){
+				color_pixels(&im_matrix, &jaco_arm_matched_points_2d_combined, &jaco_arm_match_color);
+
+				color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
+			}
+
 		}
 		
 		// Update GUI Window

@@ -105,6 +105,17 @@ struct rgb_set{
 	struct rgb colors[MAX_COLORS_PER_ITEM];
 };
 
+typedef enum{
+	STARTING = 0,
+	NORMAL,
+
+	NUMBER_OF_POINT_TYPES
+} point_type;
+struct point_pairs{
+	vector<double> parent;
+	vector<double> candidate;
+	point_type type;
+};
 
 struct cartesian_xyz{
 	double x;
