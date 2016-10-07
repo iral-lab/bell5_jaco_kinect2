@@ -76,6 +76,7 @@ void print_help(){
 	cout << "Visualization: " << endl;
 	cout << "\tbottle color                   : set the bottle color to the output of 'grabc'. " << endl;
 	cout << "\tpixel color                    : run 'grabc' to get a pixel color on-screen. " << endl;
+	cout << "\tselect block                   : select the block that you want to track" << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
@@ -470,6 +471,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(!strcmp("goto block", cmd)){
 		goto_block(first_arm, viz_args);
+		grab_bottle(first_arm);
 		
 	}else if(!strcmp("hover object", cmd) || !strcmp("hover", cmd)){
 		// passing in object's xyz, but could be any kinect-xyz
@@ -515,16 +517,24 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("pixel color", cmd) || !strcmp("pc", cmd)){
 		cout << "Click a pixel on screen." << endl;
 		struct rgb color;
-		
 		get_onscreen_color(&color);
+		
 	}else if(!strcmp("bottle color", cmd) || !strcmp("bc", cmd)){
 		cout << "Click a pixel on screen to set item of interest color." << endl;
 		viz_args->orange_bottle_colors.num_colors = 1;
 		get_onscreen_color(& (viz_args->orange_bottle_colors.colors[0]));		
 
-	}else if(!strcmp("v highlight", cmd)){
+	}
+	else if(!strcmp("select block",cmd)){
+		cout << "Select the block you want to track." << endl;
+		viz_args->block_colors.num_colors = 1;
+		get_onscreen_color(&(viz_args->block_colors.colors[0]));
+		
+	}
+	else if(!strcmp("v highlight", cmd)){
 		viz_args->highlight_visible_area = !viz_args->highlight_visible_area;
 		cout << "highlight: " << (viz_args->highlight_visible_area ? "On" : "Off") << endl;
+		
 	}else if(strlen(cmd) > 6 && strncmp(cmd, "xyxyz ", 6) == 0){
 		cout << "Performing mapping, with epsilon due to Kinect errors" << endl;
 		perform_xyxyz_mapping(viz_args, (char *) &(cmd[6]));
@@ -784,7 +794,8 @@ int main(int argc, char **argv){
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));
-
+	memcpy(&viz_args.block_colors, &red_block, sizeof(struct rgb_set));
+	
 	pthread_t viz_thread;
 	pthread_create(&viz_thread, NULL, handle_viz, (void *) &viz_args);
 	

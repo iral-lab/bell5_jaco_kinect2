@@ -148,6 +148,7 @@ struct viz_thread_args{
 	object_detection_algorithm detection_algorithm;
 
 	struct rgb_set orange_bottle_colors;
+	struct rgb_set block_colors;
 
 	pcl::PointCloud<pcl::PointXYZRGB> *cloud;
 };

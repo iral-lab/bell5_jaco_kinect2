@@ -59,12 +59,19 @@ struct rgb jaco_match_color = {0xff, 0, 0};
 // red block color
 struct rgb_set red_block = {3, {{189,0,28}, {173,11,31}, {182,0,18}}}; 
 
+// yellow block color
+struct rgb_set yellow_block = {1, {{235, 228, 15}}};
+
+// green block color
+struct rgb_set green_block = {1, {{94, 176, 127}, {59, 102, 64}, {72, 157, 98}}};
+
+// white color for pixels and circle around blocks
 struct rgb block_match_color = {0xff, 0xff, 0xff};
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
 	// epsilon subject to change here, was trial and error early on.
-	return distance < 50;
+	return distance < 50; //used to be 50
 }
 
 double degrees_between_3d_vectors(double x1, double y1, double z1, double x2, double y2, double z2){
@@ -214,11 +221,11 @@ class ImageConverter{
 	vector< vector< vector<double> > > jaco_tag_matched_points_2d_previous_rounds;
 	vector< vector< vector<double> > > jaco_tag_matched_points_3d_previous_rounds;
 	
-	vector< vector<double> > red_block_centroids_2d;
-	vector< vector<double> > red_block_centroids_3d;
+	vector< vector<double> > block_centroids_2d;
+	vector< vector<double> > block_centroids_3d;
 
-	vector< vector< vector<double> > > red_block_matched_points_2d_previous_rounds;
-	vector< vector< vector<double> > > red_block_matched_points_3d_previous_rounds;
+	vector< vector< vector<double> > > block_matched_points_2d_previous_rounds;
+	vector< vector< vector<double> > > block_matched_points_3d_previous_rounds;
 
 	pthread_mutex_t centroid_mutex;
 
@@ -241,11 +248,11 @@ class ImageConverter{
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
 
- 		red_block_centroids_2d.clear();
-		red_block_centroids_3d.clear();
+ 		block_centroids_2d.clear();
+		block_centroids_3d.clear();
 
-		red_block_matched_points_2d_previous_rounds.clear();
-		red_block_matched_points_3d_previous_rounds.clear();
+		block_matched_points_2d_previous_rounds.clear();
+		block_matched_points_3d_previous_rounds.clear();
 
 		cv::namedWindow(OPENCV_WINDOW);
 	}
@@ -567,8 +574,8 @@ class ImageConverter{
 		vector< vector<double> > jaco_tag_matched_points_3d;
 		
 
-		vector< vector<double> > red_block_matched_points_2d;
-		vector< vector<double> > red_block_matched_points_3d;
+		vector< vector<double> > block_matched_points_2d;
+		vector< vector<double> > block_matched_points_3d;
 
 
 		double xyz[3];
@@ -583,9 +590,9 @@ class ImageConverter{
 				// find jaco tag
 				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
-				// find red block
-				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &red_block_matched_points_2d, &red_block_matched_points_3d, &red_block, verbose);
-
+				// find a block (default color is red)
+				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &block_matched_points_2d, &block_matched_points_3d, &args->block_colors, verbose);
+				
 				if(args->highlight_visible_area){
 					get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
 
@@ -615,18 +622,18 @@ class ImageConverter{
 		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
 
 		
-		vector< vector<double> > red_block_matched_points_2d_combined;
-		vector< vector<double> > red_block_matched_points_3d_combined;
+		vector< vector<double> > block_matched_points_2d_combined;
+		vector< vector<double> > block_matched_points_3d_combined;
 		
-		perform_frame_combinations(&red_block_matched_points_2d_combined, &red_block_matched_points_2d, &red_block_matched_points_2d_previous_rounds);
-		perform_frame_combinations(&red_block_matched_points_3d_combined, &red_block_matched_points_3d, &red_block_matched_points_3d_previous_rounds);
+		perform_frame_combinations(&block_matched_points_2d_combined, &block_matched_points_2d, &block_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&block_matched_points_3d_combined, &block_matched_points_3d, &block_matched_points_3d_previous_rounds);
 		
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 
 			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 
-			color_pixels(&im_matrix, &red_block_matched_points_2d_combined, &block_match_color);
+			color_pixels(&im_matrix, &block_matched_points_2d_combined, &block_match_color);
 
 		}
 		
@@ -650,13 +657,13 @@ class ImageConverter{
 			int max_centroids_to_try = 5;
 			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
 			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
-			//kmeans_cluster_and_centroid(&red_block_matched_points_3d_combined, &red_block_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
+			//kmeans_cluster_and_centroid(&block_matched_points_3d_combined, &block_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
 
 		}else if(args->detection_algorithm == HISTOGRAM){
 		
 			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 			compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
-			compute_centroids(&red_block_matched_points_2d, &red_block_matched_points_3d, &red_block_centroids_2d, &red_block_centroids_3d, verbose);
+			compute_centroids(&block_matched_points_2d, &block_matched_points_3d, &block_centroids_2d, &block_centroids_3d, verbose);
 
 		}
 		
@@ -664,14 +671,13 @@ class ImageConverter{
 		
 		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
 		double x_2d,y_2d;
-		double xR_2d, yR_2d;
 
-		for(i = 0; i < red_block_centroids_3d.size(); i++){
+		for(i = 0; i < block_centroids_3d.size(); i++){
 			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
-			get_2d_coord_for_3d_depth_coord(&xR_2d, &yR_2d, args->cloud, &red_block_centroids_3d.at(i));
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &block_centroids_3d.at(i));
 
 			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(xR_2d, yR_2d), 20, CV_RGB(block_match_color.r,block_match_color.g,block_match_color.b));
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(block_match_color.r,block_match_color.g,block_match_color.b));
 		}
 
 		for(i = 0; i < object_centroids_3d.size(); i++){
@@ -774,30 +780,30 @@ class ImageConverter{
 			}
 		}
 		
-		int num_red_block_centroids_3d = red_block_centroids_3d.size();
-		if(num_red_block_centroids_3d > 0){
-			if(args->num_blocks != num_red_block_centroids_3d){
-				struct xyz *temp = (struct xyz *) malloc (num_red_block_centroids_3d * sizeof(struct xyz));
+		int num_block_centroids_3d = block_centroids_3d.size();
+		if(num_block_centroids_3d > 0){
+			if(args->num_blocks != num_block_centroids_3d){
+				struct xyz *temp = (struct xyz *) malloc (num_block_centroids_3d * sizeof(struct xyz));
 				if(args->block_xyz){
 					free(args->block_xyz);
 				}
 				args->block_xyz = temp;
 
 
-				double *temp_dist = (double *) malloc (num_red_block_centroids_3d * sizeof(double));
+				double *temp_dist = (double *) malloc (num_block_centroids_3d * sizeof(double));
 				if(args->block_distances){
 					free(args->block_distances);
 				}
 				args->block_distances = temp_dist;
 			}
 			
-			args->num_blocks = num_red_block_centroids_3d;
+			args->num_blocks = num_block_centroids_3d;
 			
-			for(i = 0; i < num_red_block_centroids_3d; i++){
+			for(i = 0; i < num_block_centroids_3d; i++){
 				
-				args->block_xyz[i].x = red_block_centroids_3d[i].at(0);
-				args->block_xyz[i].y = red_block_centroids_3d[i].at(1);
-				args->block_xyz[i].z = red_block_centroids_3d[i].at(2);
+				args->block_xyz[i].x = block_centroids_3d[i].at(0);
+				args->block_xyz[i].y = block_centroids_3d[i].at(1);
+				args->block_xyz[i].z = block_centroids_3d[i].at(2);
 				
 				apply_kinect_space_flip(&(args->block_xyz[i]));
 				
