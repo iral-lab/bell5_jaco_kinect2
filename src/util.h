@@ -131,8 +131,11 @@ struct viz_thread_args{
 	double *jaco_distances;
 	int num_jaco_tags;
 	struct xyz *object_xyz;
+	struct xyz *block_xyz;
 	double *object_distances;
+	double *block_distances;
 	int num_objects;
+	int num_blocks;
 	int additional_color_match_frames_to_combine;
 
 	bool highlight_visible_area;

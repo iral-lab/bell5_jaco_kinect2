@@ -56,7 +56,8 @@ void print_help(){
 	cout << "\tthrow                          : Throw. " << endl;
 
 	cout << "Handoff: " << endl;
-	cout << "\tgoto object                    : Move the JACO arm to the object. " << endl;
+	cout << "\tgoto block                     : Move the JACO arm to the block. " << endl;
+ 	cout << "\tgoto object                    : Move the JACO arm to the object. " << endl;
 	cout << "\tgrab bottle                    : Close two fingers around bottle. " << endl;
 	cout << "\treturn bottle                  : Go home, then return bottle to original grabbed location. " << endl;
 	cout << "\trelease fingers                : Release all fingers. " << endl;
@@ -298,6 +299,17 @@ void goto_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	goto_jaco_xyz(args, viz_args, object_xyz);
 }
 
+void goto_block(struct thread_args *args, struct viz_thread_args *viz_args){
+	if(viz_args->num_jaco_tags < 1){ cout << "No arms to move!" << endl; return;}
+	else if(viz_args->num_blocks < 1){ cout << "No blocks in scene!" << endl; return;}
+		
+	struct xyz *block_xyz = &(viz_args->block_xyz[0]);
+	MyMoveHome();
+	full_finger_release(args);
+	goto_jaco_xyz(args, viz_args, block_xyz);
+		
+}
+
 void return_object(struct thread_args *args, struct viz_thread_args *viz_args){
 	if(viz_args->num_jaco_tags < 1){
 		cout << "no arms to move" << endl;
@@ -456,6 +468,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("goto object", cmd) || !strcmp("go", cmd)){
 		goto_object(first_arm, viz_args);
 
+	}else if(!strcmp("goto block", cmd)){
+		goto_block(first_arm, viz_args);
+		
 	}else if(!strcmp("hover object", cmd) || !strcmp("hover", cmd)){
 		// passing in object's xyz, but could be any kinect-xyz
 		if(viz_args->num_objects == 0){

@@ -59,13 +59,13 @@ struct rgb jaco_match_color = {0xff, 0, 0};
 // red block color
 struct rgb_set red_block = {3, {{189,0,28}, {173,11,31}, {182,0,18}}}; 
 
+struct rgb block_match_color = {0xff, 0xff, 0xff};
 
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
 	// epsilon subject to change here, was trial and error early on.
 	return distance < 50;
 }
-
 
 double degrees_between_3d_vectors(double x1, double y1, double z1, double x2, double y2, double z2){
 	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
@@ -77,7 +77,6 @@ double degrees_between_3d_vectors(double x1, double y1, double z1, double x2, do
 	return degrees;
 }
 
-
 double degrees_between_2d_vectors(double x1, double y1, double x2, double y2){
 	// http://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors
 	double dot = x1*x2 + y1*y2;      // dot product
@@ -86,7 +85,6 @@ double degrees_between_2d_vectors(double x1, double y1, double x2, double y2){
 	double degrees = radians * 57.2958; // (180 / M_PI) = 57.2958
 	return degrees;
 }
-
 
 static const std::string OPENCV_WINDOW = "Image window";
 #define BATCH_SIZE 1000;
@@ -628,7 +626,7 @@ class ImageConverter{
 
 			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 
-			color_pixels(&im_matrix, &red_block_matched_points_2d_combined, &match_color);
+			color_pixels(&im_matrix, &red_block_matched_points_2d_combined, &block_match_color);
 
 		}
 		
@@ -666,6 +664,16 @@ class ImageConverter{
 		
 		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
 		double x_2d,y_2d;
+		double xR_2d, yR_2d;
+
+		for(i = 0; i < red_block_centroids_3d.size(); i++){
+			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
+			get_2d_coord_for_3d_depth_coord(&xR_2d, &yR_2d, args->cloud, &red_block_centroids_3d.at(i));
+
+			// Draw an circle on the video stream around the 2d centroids
+			cv::circle(im_matrix, cv::Point(xR_2d, yR_2d), 20, CV_RGB(block_match_color.r,block_match_color.g,block_match_color.b));
+		}
+
 		for(i = 0; i < object_centroids_3d.size(); i++){
 			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
 			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &object_centroids_3d.at(i));
@@ -709,7 +717,9 @@ class ImageConverter{
 				}
 				args->object_distances = temp_dist;
 			}
+			
 			args->num_objects = num_object_centroids_3d;
+			
 			for(i = 0; i < num_object_centroids_3d; i++){
 				
 				args->object_xyz[i].x = object_centroids_3d[i].at(0);
@@ -724,12 +734,8 @@ class ImageConverter{
 					cout << "Distance to Object (" << i << ") : " << args->object_distances[i] << endl;
 				}
 
-
-
-				
 			}
 		}
-		
 		
 		int num_jaco_tag_centroids_3d = jaco_tag_centroids_3d.size();
 		if(num_jaco_tag_centroids_3d > 0){
@@ -768,6 +774,41 @@ class ImageConverter{
 			}
 		}
 		
+		int num_red_block_centroids_3d = red_block_centroids_3d.size();
+		if(num_red_block_centroids_3d > 0){
+			if(args->num_blocks != num_red_block_centroids_3d){
+				struct xyz *temp = (struct xyz *) malloc (num_red_block_centroids_3d * sizeof(struct xyz));
+				if(args->block_xyz){
+					free(args->block_xyz);
+				}
+				args->block_xyz = temp;
+
+
+				double *temp_dist = (double *) malloc (num_red_block_centroids_3d * sizeof(double));
+				if(args->block_distances){
+					free(args->block_distances);
+				}
+				args->block_distances = temp_dist;
+			}
+			
+			args->num_blocks = num_red_block_centroids_3d;
+			
+			for(i = 0; i < num_red_block_centroids_3d; i++){
+				
+				args->block_xyz[i].x = red_block_centroids_3d[i].at(0);
+				args->block_xyz[i].y = red_block_centroids_3d[i].at(1);
+				args->block_xyz[i].z = red_block_centroids_3d[i].at(2);
+				
+				apply_kinect_space_flip(&(args->block_xyz[i]));
+				
+				args->block_distances[i] = vector_length_3d_struct(& args->block_xyz[i]);
+				
+				if(verbose){
+					cout << "Distance to Object (" << i << ") : " << args->block_distances[i] << endl;
+				}
+
+			}
+		}
 		// Update GUI Window
 		
 		cv::imshow(OPENCV_WINDOW, im_matrix);
@@ -959,9 +1000,6 @@ void *handle_viz(void *thread_args){
 	cout << endl << "Terminating viz" << endl;
 	cv::destroyWindow(OPENCV_WINDOW);
 }
-
-
-
 
 #endif
 
