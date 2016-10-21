@@ -19,7 +19,7 @@
 #define KINECT_QHD_TOPIC "/kinect2/qhd/points"
 #define KINECT_SD_TOPIC "/kinect2/sd/points"
 
-#define DEFAULT_KINECT_TOPIC KINECT_QHD_TOPIC
+#define DEFAULT_KINECT_TOPIC KINECT_SD_TOPIC
 
 #define INPUT_TOPIC "/iral/jaco/input"
 
