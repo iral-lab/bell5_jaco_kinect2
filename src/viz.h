@@ -536,6 +536,9 @@ class ImageConverter{
 		for(int i = 0; i < points->size(); i++){
 			x = points->at(i).at(0);
 			y = points->at(i).at(1);
+			if(x < 0 || y < 0 || x >= im_matrix->cols || y >= im_matrix->rows){
+				return;
+			}
 			im_matrix->at<cv::Vec3b>(y,x)[0] = color->b;
 			im_matrix->at<cv::Vec3b>(y,x)[1] = color->g;
 			im_matrix->at<cv::Vec3b>(y,x)[2] = color->r;
@@ -543,7 +546,7 @@ class ImageConverter{
 	}
 
 	void add_point_if_possible(queue< struct point_pairs > *point_queue, unordered_map<int, bool> *map, vector<double> xy, int diff_x, int diff_y, cv::Mat *im_matrix, point_type type, int iter_count, bool draw_attempt){
-		if(xy.at(0) + diff_x >= im_matrix->cols || xy.at(0) + diff_x == -1 || xy.at(1) + diff_y >= im_matrix->rows || xy.at(1) + diff_y == -1){
+		if(xy.at(0) + diff_x >= im_matrix->cols || xy.at(0) + diff_x < 0 || xy.at(1) + diff_y >= im_matrix->rows || xy.at(1) + diff_y < 0){
 			return;
 		}
 	
