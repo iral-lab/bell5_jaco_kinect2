@@ -235,6 +235,9 @@ class ImageConverter{
 	vector< vector< vector<double> > > jaco_tag_matched_points_3d_previous_rounds;
 
 	vector< vector< vector<double> > > jaco_arm_matched_points_2d_previous_rounds;
+
+	vector< vector< vector<double> > > all_3d_points_previous_rounds;
+	vector< vector< vector<double> > > map_2d_previous_rounds;
 	
 	pthread_mutex_t centroid_mutex;
 	pthread_mutex_t structures_mutex;
@@ -715,8 +718,7 @@ class ImageConverter{
 
 		cv::Mat im_matrix(args->cloud->height, args->cloud->width, CV_8UC3);
 		
-
-		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		vector< vector<double> > all_3d_points;
 		vector< vector<double> > map_back_to_2d;	
 		
 		// store 2d matches and 3d matches
@@ -731,7 +733,8 @@ class ImageConverter{
 		double xyz[3];
 		double dist;
 		bool match;
-		pcl::PointXYZ temp_point;
+		vector<double> temp_xyz;
+		temp_xyz.resize(3, 0);
 		vector<double> temp_xy;
 		temp_xy.resize(2, 0);
 		bool is_valid_point;
@@ -744,10 +747,10 @@ class ImageConverter{
 				dist = is_valid_point ? vector_length_3d(xyz) : -1;
 				// Grab all 3d points in cloud that are close enough (avoid back wall)
 				if(is_valid_point && dist < args->max_interested_distance){
-					temp_point.x = xyz[0];
-					temp_point.y = xyz[1];
-					temp_point.z = xyz[2];
-					all_3d_cloud->points.push_back(temp_point);
+					temp_xyz.at(0) = xyz[0];
+					temp_xyz.at(1) = xyz[1];
+					temp_xyz.at(2) = xyz[2];
+					all_3d_points.push_back(temp_xyz);
 					// Now indices are matched between the 3d and 2d points.
 					temp_xy.at(0) = x;
 					temp_xy.at(1) = y;
@@ -773,6 +776,44 @@ class ImageConverter{
 			}
 		}
 		
+		vector< vector<double> > all_3d_points_combined;
+		perform_frame_combinations(&all_3d_points_combined, &all_3d_points, &all_3d_points_previous_rounds);
+		vector< vector<double> > map_2d_combined;
+		perform_frame_combinations(&map_2d_combined, &map_back_to_2d, &map_2d_previous_rounds);
+
+		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+		vector< vector<double> > table_points;
+		if(args->remove_table){
+			//create cloud
+			pcl::PointXYZ temp_point;
+			pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+			for(i = 0; i < all_3d_points_combined.size(); i++){
+				temp_point.x = all_3d_points_combined.at(i)[0];
+				temp_point.y = all_3d_points_combined.at(i)[1];
+				temp_point.z = all_3d_points_combined.at(i)[2];
+				
+				all_3d_cloud->push_back(temp_point);
+			}
+			// cout << " combined " << all_3d_points_combined.size() << " , " << all_3d_cloud->points.size() << " this frame " << all_3d_points.size() << endl;
+			// Create the segmentation object
+			pcl::SACSegmentation<pcl::PointXYZ> seg;
+			// Optional
+			seg.setOptimizeCoefficients(true);
+			// Mandatory
+			seg.setModelType(pcl::SACMODEL_PLANE);
+			seg.setMethodType(pcl::SAC_RANSAC);
+			seg.setDistanceThreshold(0.03);
+			seg.setInputCloud(all_3d_cloud);
+			seg.segment(*inliers, *coefficients);
+			
+			for (i = 0; i < inliers->indices.size(); ++i){
+				temp_xy = map_2d_combined.at(inliers->indices[i]);
+				table_points.push_back(temp_xy);
+			}
+		}
+				
+
 		vector< vector<double> > object_matched_points_2d_combined;
 		vector< vector<double> > object_matched_points_3d_combined;
 
@@ -788,6 +829,7 @@ class ImageConverter{
 		
 		
 		if(args->draw_pixel_match_color){
+			color_pixels(&im_matrix, &table_points, &table_color);
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 		}
 		

@@ -78,6 +78,7 @@ void print_help(){
 	cout << "\tv <hd|qhd|sd>                     : change kinect ROS topic. " << endl;
 	cout << "\tfind arm                       : toggle JACO arm finding. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
+	cout << "\tv table                        : toggle table removal. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
@@ -500,6 +501,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
 		cout << "depth shading: " << (viz_args->draw_depth_filter ? "On" : "Off") << endl;
+
+	}else if(!strcmp("v table", cmd)){
+		viz_args->remove_table = !viz_args->remove_table;
+		cout << "remove_table: " << (viz_args->remove_table ? "On" : "Off") << endl;
 
 	}else if(strlen(cmd) == 8 && strncmp(cmd, "v dist ", 7) == 0){
 		handle_viz_distance(viz_args, (char *) &(cmd[7]) );
