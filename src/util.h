@@ -15,7 +15,12 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#define KINECT_TOPIC "/kinect2/qhd/points"
+#define KINECT_HD_TOPIC "/kinect2/hd/points"
+#define KINECT_QHD_TOPIC "/kinect2/qhd/points"
+#define KINECT_SD_TOPIC "/kinect2/sd/points"
+
+#define DEFAULT_KINECT_TOPIC KINECT_QHD_TOPIC
+
 #define INPUT_TOPIC "/iral/jaco/input"
 
 #define COMMAND_DELAY 3
@@ -152,6 +157,8 @@ struct viz_thread_args{
 	bool highlight_visible_area;
 	int visible_angle;
 	bool find_arm;
+
+	char *kinect_topic;
 	
 	int num_objects_in_scene;
 	int num_jaco_arms_in_scene;

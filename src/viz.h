@@ -239,7 +239,7 @@ class ImageConverter{
 	it_(nh_){
 		frames = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
-		pcl_sub_ = nh_.subscribe (KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
+		pcl_sub_ = nh_.subscribe (DEFAULT_KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
 	
 		object_centroids_2d.clear();
 		object_centroids_3d.clear();
@@ -265,6 +265,7 @@ class ImageConverter{
 
 	void set_args(struct viz_thread_args *viz_args){
 		args = viz_args;
+		pcl_sub_ = nh_.subscribe(args->kinect_topic, 1, &ImageConverter::cloudCb, this);
 	}
 
 	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<double> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb_set *color_set, bool verbose){
@@ -1072,8 +1073,14 @@ void *handle_viz(void *thread_args){
 	ImageConverter ic;
 	ic.set_args(viz_args);
 	ros::Rate r(10);
+
+	char *current_topic = viz_args->kinect_topic;
 	
 	while(!viz_args->terminate){
+		if(viz_args->kinect_topic != current_topic){
+			ic.set_args(viz_args);
+			current_topic = viz_args->kinect_topic;
+		}
 		ros::spinOnce();
 		r.sleep();
 	}

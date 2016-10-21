@@ -75,6 +75,8 @@ void print_help(){
 	cout << "Visualization: " << endl;
 	cout << "\tbottle color                   : set the bottle color to the output of 'grabc'. " << endl;
 	cout << "\tpixel color                    : run 'grabc' to get a pixel color on-screen. " << endl;
+	cout << "\tv <hd|qhd|sd>                     : change kinect ROS topic. " << endl;
+	cout << "\tfind arm                       : toggle JACO arm finding. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
@@ -483,6 +485,18 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		viz_args->verbose = !viz_args->verbose;
 		cout << "verbose: " << (viz_args->verbose ? "On" : "Off") << endl;
 
+	}else if(!strcmp("v hd", cmd)){
+		viz_args->kinect_topic = (char *) KINECT_HD_TOPIC;
+		cout << "Kinect topic: " << viz_args->kinect_topic << endl;
+
+	}else if(!strcmp("v qhd", cmd)){
+		viz_args->kinect_topic = (char *) KINECT_QHD_TOPIC;
+		cout << "Kinect topic: " << viz_args->kinect_topic << endl;
+
+	}else if(!strcmp("v sd", cmd)){
+		viz_args->kinect_topic = (char *) KINECT_SD_TOPIC;
+		cout << "Kinect topic: " << viz_args->kinect_topic << endl;
+
 	}else if(!strcmp("v depth", cmd)){
 		viz_args->draw_depth_filter = !viz_args->draw_depth_filter;
 		cout << "depth shading: " << (viz_args->draw_depth_filter ? "On" : "Off") << endl;
@@ -772,6 +786,7 @@ int main(int argc, char **argv){
 	viz_args.visible_angle = DEFAULT_VISIBLE_ANGLE;
 	viz_args.cloud = &cloud;
 	viz_args.find_arm = DEFAULT_FIND_ARM;
+	viz_args.kinect_topic = (char *) DEFAULT_KINECT_TOPIC;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));
