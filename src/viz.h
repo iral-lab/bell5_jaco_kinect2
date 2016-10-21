@@ -40,7 +40,7 @@ using namespace mlpack::kmeans;
 struct rgb_set orange = {1, {{239, 94, 37}} };
 
 // blue tag color: #2499bc, #60fffe, #3fcde3
-struct rgb_set blue_tag = {3, {{36, 153, 188}, {96,255,254}, {63,205,227}} };
+struct rgb_set blue_tag = {3, {{64, 166, 189}, {96,255,254}, {63,205,227}} };
 
 // bottle color: #45c5d2
 struct rgb_set bottle = {1, {{69, 197, 210}} };
