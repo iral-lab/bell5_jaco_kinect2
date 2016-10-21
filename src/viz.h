@@ -784,34 +784,33 @@ class ImageConverter{
 		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 		vector< vector<double> > table_points;
-		if(args->remove_table){
-			//create cloud
-			pcl::PointXYZ temp_point;
-			pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-			for(i = 0; i < all_3d_points_combined.size(); i++){
-				temp_point.x = all_3d_points_combined.at(i)[0];
-				temp_point.y = all_3d_points_combined.at(i)[1];
-				temp_point.z = all_3d_points_combined.at(i)[2];
-				
-				all_3d_cloud->push_back(temp_point);
-			}
-			// cout << " combined " << all_3d_points_combined.size() << " , " << all_3d_cloud->points.size() << " this frame " << all_3d_points.size() << endl;
-			// Create the segmentation object
-			pcl::SACSegmentation<pcl::PointXYZ> seg;
-			// Optional
-			seg.setOptimizeCoefficients(true);
-			// Mandatory
-			seg.setModelType(pcl::SACMODEL_PLANE);
-			seg.setMethodType(pcl::SAC_RANSAC);
-			seg.setDistanceThreshold(0.03);
-			seg.setInputCloud(all_3d_cloud);
-			seg.segment(*inliers, *coefficients);
+		//create cloud
+		pcl::PointXYZ temp_point;
+		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		for(i = 0; i < all_3d_points_combined.size(); i++){
+			temp_point.x = all_3d_points_combined.at(i)[0];
+			temp_point.y = all_3d_points_combined.at(i)[1];
+			temp_point.z = all_3d_points_combined.at(i)[2];
 			
-			for (i = 0; i < inliers->indices.size(); ++i){
-				temp_xy = map_2d_combined.at(inliers->indices[i]);
-				table_points.push_back(temp_xy);
-			}
+			all_3d_cloud->push_back(temp_point);
 		}
+		// cout << " combined " << all_3d_points_combined.size() << " , " << all_3d_cloud->points.size() << " this frame " << all_3d_points.size() << endl;
+		// Create the segmentation object
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+		// Optional
+		seg.setOptimizeCoefficients(true);
+		// Mandatory
+		seg.setModelType(pcl::SACMODEL_PLANE);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setDistanceThreshold(0.03);
+		seg.setInputCloud(all_3d_cloud);
+		seg.segment(*inliers, *coefficients);
+			
+		for (i = 0; i < inliers->indices.size(); ++i){
+			temp_xy = map_2d_combined.at(inliers->indices[i]);
+			table_points.push_back(temp_xy);
+		}
+		
 				
 
 		vector< vector<double> > object_matched_points_2d_combined;
@@ -828,8 +827,10 @@ class ImageConverter{
 		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
 		
 		
-		if(args->draw_pixel_match_color){
+		if(args->highlight_table){
 			color_pixels(&im_matrix, &table_points, &table_color);
+		}
+		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
 		}
 		

@@ -503,8 +503,8 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		cout << "depth shading: " << (viz_args->draw_depth_filter ? "On" : "Off") << endl;
 
 	}else if(!strcmp("v table", cmd)){
-		viz_args->remove_table = !viz_args->remove_table;
-		cout << "remove_table: " << (viz_args->remove_table ? "On" : "Off") << endl;
+		viz_args->highlight_table = !viz_args->highlight_table;
+		cout << "highlight_table: " << (viz_args->highlight_table ? "On" : "Off") << endl;
 
 	}else if(strlen(cmd) == 8 && strncmp(cmd, "v dist ", 7) == 0){
 		handle_viz_distance(viz_args, (char *) &(cmd[7]) );
@@ -783,7 +783,7 @@ int main(int argc, char **argv){
 	viz_args.cloud = &cloud;
 	viz_args.find_arm = DEFAULT_FIND_ARM;
 	viz_args.kinect_topic = (char *) DEFAULT_KINECT_TOPIC;
-	viz_args.remove_table = false;
+	viz_args.highlight_table = false;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));

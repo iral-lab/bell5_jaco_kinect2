@@ -158,7 +158,7 @@ struct viz_thread_args{
 	int visible_angle;
 	bool find_arm;
 
-	bool remove_table;
+	bool highlight_table;
 
 	char *kinect_topic;
 	
