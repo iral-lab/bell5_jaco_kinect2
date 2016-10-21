@@ -233,16 +233,20 @@ class ImageConverter{
 	vector< vector< vector<double> > > jaco_arm_matched_points_2d_previous_rounds;
 	
 	pthread_mutex_t centroid_mutex;
+	pthread_mutex_t structures_mutex;
 
 	public:
 	ImageConverter() : 
 	it_(nh_){
 		frames = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
-		pcl_sub_ = nh_.subscribe (DEFAULT_KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
-	
+		pthread_mutex_init(&structures_mutex, NULL);
+		pthread_mutex_lock(&structures_mutex);
+
 		reset();
+		pcl_sub_ = nh_.subscribe (DEFAULT_KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
 		
+		pthread_mutex_unlock(&structures_mutex);
 		cv::namedWindow(OPENCV_WINDOW);
 	}
 
@@ -268,9 +272,11 @@ class ImageConverter{
 	}
 
 	void set_args(struct viz_thread_args *viz_args){
+		pthread_mutex_lock(&structures_mutex);
 		args = viz_args;
 		reset();
 		pcl_sub_ = nh_.subscribe(args->kinect_topic, 1, &ImageConverter::cloudCb, this);
+		pthread_mutex_unlock(&structures_mutex);
 	}
 
 	bool find_match_by_color(cv::Mat *im_matrix, pcl::PointCloud<pcl::PointXYZRGB> *cloud, int x, int y, vector< vector<double> > *matched_points_2d, vector< vector<double> > *matched_points_3d, struct rgb_set *color_set, bool verbose){
