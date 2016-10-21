@@ -39,6 +39,8 @@
 
 #define HEIGHT_OFFSET_ADJUSTMENT 0.2
 
+#define DEFAULT_FIND_ARM false
+
 using namespace std;
 
 typedef enum {
@@ -149,6 +151,7 @@ struct viz_thread_args{
 
 	bool highlight_visible_area;
 	int visible_angle;
+	bool find_arm;
 	
 	int num_objects_in_scene;
 	int num_jaco_arms_in_scene;

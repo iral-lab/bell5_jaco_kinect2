@@ -497,6 +497,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 		cout << "pixel drawing: " << (viz_args->draw_pixel_match_color ? "On" : "Off") << endl;
 
+	}else if(!strcmp("find arm", cmd)){
+		viz_args->find_arm = !viz_args->find_arm;
+		cout << "arm finding: " << (viz_args->find_arm ? "On" : "Off") << endl;
+
 	}else if(!strcmp("pixel color", cmd) || !strcmp("pc", cmd)){
 		cout << "Click a pixel on screen." << endl;
 		struct rgb color;
@@ -748,6 +752,7 @@ int main(int argc, char **argv){
 		cout << "Initialization's result :" << result << endl;
 
 		devicesCount = MyGetDevices(list, result);
+		cout << "Found " << devicesCount << " JACO arms" << endl;
 	}
 
 	srand(time(NULL));
@@ -766,6 +771,7 @@ int main(int argc, char **argv){
 	viz_args.highlight_visible_area = DEFAULT_HIGHLIGHT_VISIBLE_AREA;
 	viz_args.visible_angle = DEFAULT_VISIBLE_ANGLE;
 	viz_args.cloud = &cloud;
+	viz_args.find_arm = DEFAULT_FIND_ARM;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));

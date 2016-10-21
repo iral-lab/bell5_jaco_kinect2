@@ -781,102 +781,104 @@ class ImageConverter{
 				
 			}
 
-			// find/color the actual arm
-			vector< vector<double> > jaco_tag_arm_2d;
-			vector< vector<double> > jaco_tag_arm_3d;
+			vector< vector<double> > jaco_arm_matched_points_2d_combined;
+
+			if(args->find_arm){
+				// find/color the actual arm
+				vector< vector<double> > jaco_tag_arm_2d;
+				vector< vector<double> > jaco_tag_arm_3d;
 			
-			unordered_map<int, bool> jaco_2d_seen;
-			vector<double> xy;
-			vector<double> new_xy;
-			new_xy.resize(2, 0);
+				unordered_map<int, bool> jaco_2d_seen;
+				vector<double> xy;
+				vector<double> new_xy;
+				new_xy.resize(2, 0);
 			
-			queue< struct point_pairs > candidate_2d_queue_pairs;
-			struct point_pairs pair;
+				queue< struct point_pairs > candidate_2d_queue_pairs;
+				struct point_pairs pair;
 			
 
-			// copy existing points, going to extend these new ones with neighbors
-			for(i = 0; i < jaco_tag_matched_points_2d.size(); i++){
-				xy = jaco_tag_matched_points_2d.at(i);
-				jaco_2d_seen[get_key_from_coordinate(xy, im_matrix.rows)] = true;
+				// copy existing points, going to extend these new ones with neighbors
+				for(i = 0; i < jaco_tag_matched_points_2d.size(); i++){
+					xy = jaco_tag_matched_points_2d.at(i);
+					jaco_2d_seen[get_key_from_coordinate(xy, im_matrix.rows)] = true;
 				
-				pair.parent = xy;
-				pair.candidate = xy;
-				pair.type = STARTING;
-				pair.up_iterations = 0;
-				candidate_2d_queue_pairs.push( pair );
-			}
-			for(i = 0; i < jaco_tag_matched_points_3d.size(); i++){
-				jaco_tag_arm_3d.push_back(jaco_tag_matched_points_3d.at(i));
-			}
-			
-			double candidate_3d[3];
-			double parent_3d[3];
-			
-			int current_queue_size = 0;
-			int rounds = 0;
-			int max_rounds = 50000;
-			
-			double closeness_3d = 0.08;
-			bool valid_point;
-			int x,y;
-
-			int pixel_jump = 20;
-			int jump = 0;
-			//cout << " ------------------------------ " << endl;
-			//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
-			while(candidate_2d_queue_pairs.size() > 0 && max_rounds > rounds){
-				pair = candidate_2d_queue_pairs.front();
-				candidate_2d_queue_pairs.pop();
-				xy = pair.candidate;
-				x = (int)(xy.at(0) + 0.5);
-				y = (int)(xy.at(1) + 0.5);
-				get_xyz_from_xyzrgb( x, y, args->cloud, candidate_3d);
-				dist = 999999;
-				valid_point = is_valid_xyz(candidate_3d);
-				if(valid_point){
-					//cout << "> cand " << x << "," << y << "   ->    " << candidate_3d[0] << "," << candidate_3d[1] << "," << candidate_3d[2] << endl;
-					//cout << "> orig " << pair.parent.at(0) << "," << pair.parent.at(1) << "   ->    " << parent_3d[0] << "," << parent_3d[1] << "," << parent_3d[2] << endl;				
-					get_xyz_from_xyzrgb(pair.parent.at(0), pair.parent.at(1), args->cloud, parent_3d);
-					dist = euclid_distance_3d_not_vec_double(candidate_3d, parent_3d);
-					//cout << "> dist " << dist << endl;
-					valid_point = dist < closeness_3d;
+					pair.parent = xy;
+					pair.candidate = xy;
+					pair.type = STARTING;
+					pair.up_iterations = 0;
+					candidate_2d_queue_pairs.push( pair );
 				}
+				for(i = 0; i < jaco_tag_matched_points_3d.size(); i++){
+					jaco_tag_arm_3d.push_back(jaco_tag_matched_points_3d.at(i));
+				}
+			
+				double candidate_3d[3];
+				double parent_3d[3];
+			
+				int current_queue_size = 0;
+				int rounds = 0;
+				int max_rounds = 50000;
+			
+				double closeness_3d = 0.08;
+				bool valid_point;
+				int x,y;
 
-				if(valid_point){
-					jaco_tag_arm_2d.push_back(xy);
+				int pixel_jump = 20;
+				int jump = 0;
+				//cout << " ------------------------------ " << endl;
+				//cout << "Original # " << jaco_tag_matched_points_2d.size() << endl;
+				while(candidate_2d_queue_pairs.size() > 0 && max_rounds > rounds){
+					pair = candidate_2d_queue_pairs.front();
+					candidate_2d_queue_pairs.pop();
+					xy = pair.candidate;
+					x = (int)(xy.at(0) + 0.5);
+					y = (int)(xy.at(1) + 0.5);
+					get_xyz_from_xyzrgb( x, y, args->cloud, candidate_3d);
+					dist = 999999;
+					valid_point = is_valid_xyz(candidate_3d);
+					if(valid_point){
+						//cout << "> cand " << x << "," << y << "   ->    " << candidate_3d[0] << "," << candidate_3d[1] << "," << candidate_3d[2] << endl;
+						//cout << "> orig " << pair.parent.at(0) << "," << pair.parent.at(1) << "   ->    " << parent_3d[0] << "," << parent_3d[1] << "," << parent_3d[2] << endl;				
+						get_xyz_from_xyzrgb(pair.parent.at(0), pair.parent.at(1), args->cloud, parent_3d);
+						dist = euclid_distance_3d_not_vec_double(candidate_3d, parent_3d);
+						//cout << "> dist " << dist << endl;
+						valid_point = dist < closeness_3d;
+					}
+
+					if(valid_point){
+						jaco_tag_arm_2d.push_back(xy);
 					
-					for(jump = 0; jump < pixel_jump; jump++){
-						// compute neighbor pixels, inheriting type.
-						// left
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
-						// right
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
-						// up
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
-						// up-left
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
-						// up-right
-						add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
+						for(jump = 0; jump < pixel_jump; jump++){
+							// compute neighbor pixels, inheriting type.
+							// left
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+							// right
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, 0, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+							// up
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
+							// up-left
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
+							// up-right
+							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, -jump, &im_matrix, NORMAL, pair.up_iterations + jump, args->draw_pixel_match_color);
 					
-						if(pair.type != STARTING && pair.up_iterations > pixel_jump){
-							// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc.
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
-							// down-left
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
-							// down-right
-							add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+							if(pair.type != STARTING && pair.up_iterations > pixel_jump){
+								// down, unless we've gone at least up enough to avoid jumping down below and matching the base/table/etc.
+								add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, 0, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+								// down-left
+								add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, -jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+								// down-right
+								add_point_if_possible(&candidate_2d_queue_pairs, &jaco_2d_seen, xy, jump, jump, &im_matrix, pair.type, pair.up_iterations, args->draw_pixel_match_color);
+							}
 						}
 					}
+
+					//cout << rounds << "  queue size: " << candidate_2d_queue_pairs.size() << "  , 2d points: " << jaco_tag_arm_2d.size() << endl;
+					rounds++;
 				}
 
-				//cout << rounds << "  queue size: " << candidate_2d_queue_pairs.size() << "  , 2d points: " << jaco_tag_arm_2d.size() << endl;
-				rounds++;
+				// smooth arm memory across frames
+				perform_frame_combinations(&jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
 			}
-
-			// smooth arm memory across frames
-			vector< vector<double> > jaco_arm_matched_points_2d_combined;
-			perform_frame_combinations(&jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
-		
 
 		
 			if(args->draw_pixel_match_color){
