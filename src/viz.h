@@ -58,7 +58,7 @@ struct rgb match_color = {0xff, 0xd7, 0x00};
 struct rgb table_color = {0xef, 0x28, 0xd1};
 
 // wall color
-struct rgb wall_color = {0xc6, 0xce, 0xff};
+struct rgb wall_color = {0x77, 0x89, 0xff};
 
 // misc color
 struct rgb misc_color = {0xff, 0xd8, 0xb5};
@@ -700,7 +700,7 @@ class ImageConverter{
 		perform_frame_combinations(jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
 	}
 
-	void do_plane_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, vector<vector<double>> *orig_2d, vector<vector<double>> *match_2d, pcl::PointCloud<pcl::PointXYZ>::Ptr non_match_3d, vector< vector<double> > *non_match_2d){
+	void attempt_plane_segmentation(int valid_surface_size, pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, vector<vector<double>> *orig_2d, vector<vector<double>> *match_2d, pcl::PointCloud<pcl::PointXYZ>::Ptr non_match_3d, vector< vector<double> > *non_match_2d){
 		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 		// Create the segmentation object, get the table
@@ -714,12 +714,15 @@ class ImageConverter{
 		seg.setInputCloud(input_cloud);
 		seg.segment(*inliers, *coefficients);
 		
-		int i = 0;
 		unordered_map<int, bool> valid_indices;
-		for(i = 0; i < inliers->indices.size(); i++){
-			match_2d->push_back( orig_2d->at(inliers->indices[i]) );
-			// add valid indices to lookup table
-			valid_indices[inliers->indices[i]] = true;
+		int i = 0;
+		if(inliers->indices.size() > valid_surface_size){
+			for(i = 0; i < inliers->indices.size(); i++){
+				match_2d->push_back( orig_2d->at(inliers->indices[i]) );
+				// add valid indices to lookup table
+				valid_indices[inliers->indices[i]] = true;
+			}
+			
 		}
 		for(i = 0; i < orig_2d->size(); i++){
 			if(valid_indices.find(i) == valid_indices.end()){
@@ -819,8 +822,9 @@ class ImageConverter{
 		
 
 		vector< vector<double> > table_points;
-		vector< vector<double> > wall_points;
 		vector< vector<double> > non_table_points;
+		vector< vector<double> > wall_points;
+		vector< vector<double> > non_table_or_wall_points;
 		//create cloud
 		pcl::PointXYZ temp_point;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -836,7 +840,14 @@ class ImageConverter{
 			all_3d_cloud->push_back(temp_point);
 		}
 
-		do_plane_segmentation(all_3d_cloud, &map_2d_combined, &table_points, non_table_3d_cloud, &non_table_points);
+		int valid_surface_size = 50000;
+		
+		// remove one surface (table?)
+		attempt_plane_segmentation(valid_surface_size, all_3d_cloud, &map_2d_combined, &table_points, non_table_3d_cloud, &non_table_points);
+		if(table_points.size() >= valid_surface_size){
+			// remove another surface (wall?)
+			attempt_plane_segmentation(valid_surface_size, non_table_3d_cloud, &non_table_points, &wall_points, non_table_or_wall_3d_cloud, &non_table_or_wall_points);
+		}
 		
 		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
 
@@ -856,8 +867,8 @@ class ImageConverter{
 		
 		if(args->highlight_table){
 			color_pixels(&im_matrix, &table_points, &table_color);
-			//color_pixels(&im_matrix, &wall_points, &wall_color);
-			color_pixels(&im_matrix, &non_table_points, &misc_color);
+			color_pixels(&im_matrix, &wall_points, &wall_color);
+			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
 		}
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
