@@ -705,11 +705,15 @@ class ImageConverter{
 		
 		pthread_mutex_lock(&structures_mutex);
 		
+		// ROS message to pcl::PointCloud<pcl::PointXYZRGB> *cloud;
   		pcl::fromROSMsg (*input, *(args->cloud));
 		
 		int i, j, x, y;
 
 		cv::Mat im_matrix(args->cloud->height, args->cloud->width, CV_8UC3);
+		
+
+		pcl::PointCloud<pcl::PointXYZ> all_3d_cloud;		
 		
 		// store 2d matches and 3d matches
 		vector< vector<double> > object_matched_points_2d;
@@ -723,8 +727,18 @@ class ImageConverter{
 		double xyz[3];
 		double dist;
 		bool match;
+		pcl::PointXYZ temp_point;
 		for (y = 0; y < im_matrix.rows; y++) {
 			for (x = 0; x < im_matrix.cols; x++) {
+				
+				get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
+				// Grab all 3d points in cloud
+				if(is_valid_xyz(xyz)){
+					temp_point.x = xyz[0];
+					temp_point.y = xyz[1];
+					temp_point.z = xyz[2];
+					all_3d_cloud.points.push_back(temp_point);
+				}
 				
 				// find orange_bottle_cylinder
 				match = find_match_by_color(&im_matrix, args->cloud, x, y, &object_matched_points_2d, &object_matched_points_3d, &args->orange_bottle_colors, verbose);
@@ -733,12 +747,10 @@ class ImageConverter{
 				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
 
-				if(args->highlight_visible_area){
-					get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
-
+				if(args->highlight_visible_area && is_valid_xyz(xyz)){
 					dist = vector_length_3d(xyz);
-					if(is_valid_xyz(xyz) && !is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
-						// add a red tinge
+					if(!is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
+						// add a green tinge
 						im_matrix.at<cv::Vec3b>(y,x)[1] = MIN(im_matrix.at<cv::Vec3b>(y,x)[1] + 100, 255);
 					}else if(dist > args->max_interested_distance){
 						im_matrix.at<cv::Vec3b>(y,x)[0] = MIN(im_matrix.at<cv::Vec3b>(y,x)[0] + 100, 255);
