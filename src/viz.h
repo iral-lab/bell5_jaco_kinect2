@@ -795,23 +795,7 @@ class ImageConverter{
 		
 		//pthread_mutex_unlock(&centroid_mutex);
 		
-		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
-		double x_2d,y_2d;
-		for(i = 0; i < object_centroids_3d.size(); i++){
-			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
-			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &object_centroids_3d.at(i));
-
-			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(match_color.r,match_color.g,match_color.b));
-		}
 		
-		for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
-			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &jaco_tag_centroids_3d.at(i));
-			
-			// Draw an circle on the video stream around the 2d centroids
-			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(jaco_match_color.r,jaco_match_color.g,jaco_match_color.b));
-			
-		}
 		
 		if(object_centroids_3d.size() == 2){
 			double c0_xyz[3];
@@ -911,6 +895,24 @@ class ImageConverter{
 				color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 			}
 
+		}
+		
+		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
+		double x_2d,y_2d;
+		for(i = 0; i < object_centroids_3d.size(); i++){
+			// http://stackoverflow.com/questions/6139451/how-can-i-convert-3d-space-coordinates-to-2d-space-coordinates
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &object_centroids_3d.at(i));
+
+			// Draw an circle on the video stream around the 2d centroids
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(match_color.r,match_color.g,match_color.b));
+		}
+		
+		for(i = 0; i < jaco_tag_centroids_3d.size(); i++){
+			get_2d_coord_for_3d_depth_coord(&x_2d, &y_2d, args->cloud, &jaco_tag_centroids_3d.at(i));
+			
+			// Draw an circle on the video stream around the 2d centroids
+			cv::circle(im_matrix, cv::Point(x_2d, y_2d), 20, CV_RGB(jaco_match_color.r,jaco_match_color.g,jaco_match_color.b));
+			
 		}
 		
 		// Update GUI Window
