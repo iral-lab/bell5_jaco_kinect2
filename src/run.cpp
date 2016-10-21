@@ -706,7 +706,6 @@ class RosInputSubscriber{
 
 void *handle_ros_input(void *thread_args){
 	struct ros_input *ros_input = (struct ros_input *) thread_args;
-	ros::init(*ros_input->argc, *ros_input->argv, "ros_input_subscriber");
 
 	RosInputSubscriber ros_sub;
 	ros_sub.set_args(ros_input);
@@ -720,17 +719,11 @@ void *handle_ros_input(void *thread_args){
 	cout << endl << "Terminating ros input" << endl;
 }
 
-void build_fake_argv(char ***fake_argv, char **argv){
-	(*fake_argv) = (char **) malloc (1 * sizeof(char*));
-	(*fake_argv)[0] = (char *) malloc (strlen(argv[0]) * sizeof(char));
-}
-
 int main(int argc, char **argv){
 	signal(SIGINT, intHandler);
 
-	int fake_argc = 1;
-	char **fake_argv;
-	build_fake_argv(&fake_argv, argv);
+	map<string, string> empty_mappings;
+	ros::init(empty_mappings, "ros_subscribers");
 	
 	pcl::PointCloud<pcl::PointXYZRGB> cloud;
 	
@@ -772,8 +765,6 @@ int main(int argc, char **argv){
 	srand(time(NULL));
 	struct viz_thread_args viz_args;
 	memset(&viz_args, 0, sizeof(struct viz_thread_args));
-	viz_args.argc = &fake_argc;
-	viz_args.argv = &fake_argv;
 	viz_args.terminate = false;
 	viz_args.additional_color_match_frames_to_combine = DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE;
 	viz_args.draw_pixel_match_color = true;
@@ -799,10 +790,6 @@ int main(int argc, char **argv){
 	memset(&ros_input, 0, sizeof(struct ros_input));
 	ros_input.completed = false;
 	pthread_t ros_input_thread;
-	build_fake_argv(&fake_argv, argv);
-	fake_argc = 1;
-	ros_input.argc = &fake_argc;
-	ros_input.argv = &fake_argv;
 	ros_input.viz_args = &viz_args;
 	pthread_create(&ros_input_thread, NULL, handle_ros_input, (void *) &ros_input);
 	

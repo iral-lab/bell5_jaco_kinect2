@@ -140,8 +140,6 @@ struct cartesian_xyz{
 };
 
 struct viz_thread_args{
-	int *argc;
-	char ***argv;
 	bool terminate;
 	bool draw_depth_filter;
 	bool draw_pixel_match_color;

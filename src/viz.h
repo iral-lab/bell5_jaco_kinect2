@@ -1069,7 +1069,6 @@ class ImageConverter{
 void *handle_viz(void *thread_args){
 	struct viz_thread_args *viz_args = (struct viz_thread_args *) thread_args;
 	
-	ros::init(*viz_args->argc, *viz_args->argv, "image_converter");
 	ImageConverter ic;
 	ic.set_args(viz_args);
 	ros::Rate r(10);
