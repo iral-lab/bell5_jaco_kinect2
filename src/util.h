@@ -16,6 +16,7 @@
 #include <pcl/point_types.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
 
 #define KINECT_HD_TOPIC "/kinect2/hd/points"
 #define KINECT_QHD_TOPIC "/kinect2/qhd/points"

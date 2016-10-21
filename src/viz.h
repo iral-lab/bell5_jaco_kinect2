@@ -57,6 +57,9 @@ struct rgb match_color = {0xff, 0xd7, 0x00};
 // table color
 struct rgb table_color = {0xef, 0x28, 0xd1};
 
+// misc color
+struct rgb misc_color = {0xff, 0xd8, 0xb5};
+
 // pixel shading color for jaco tag, red
 struct rgb jaco_match_color = {0xff, 0, 0};
 
@@ -780,13 +783,16 @@ class ImageConverter{
 		perform_frame_combinations(&all_3d_points_combined, &all_3d_points, &all_3d_points_previous_rounds);
 		vector< vector<double> > map_2d_combined;
 		perform_frame_combinations(&map_2d_combined, &map_back_to_2d, &map_2d_previous_rounds);
+		
 
 		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 		vector< vector<double> > table_points;
+		vector< vector<double> > non_table_points;
 		//create cloud
 		pcl::PointXYZ temp_point;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		for(i = 0; i < all_3d_points_combined.size(); i++){
 			temp_point.x = all_3d_points_combined.at(i)[0];
 			temp_point.y = all_3d_points_combined.at(i)[1];
@@ -794,8 +800,10 @@ class ImageConverter{
 			
 			all_3d_cloud->push_back(temp_point);
 		}
-		// cout << " combined " << all_3d_points_combined.size() << " , " << all_3d_cloud->points.size() << " this frame " << all_3d_points.size() << endl;
-		// Create the segmentation object
+
+
+
+		// Create the segmentation object, get the table
 		pcl::SACSegmentation<pcl::PointXYZ> seg;
 		// Optional
 		seg.setOptimizeCoefficients(true);
@@ -805,13 +813,21 @@ class ImageConverter{
 		seg.setDistanceThreshold(0.03);
 		seg.setInputCloud(all_3d_cloud);
 		seg.segment(*inliers, *coefficients);
-			
-		for (i = 0; i < inliers->indices.size(); ++i){
-			temp_xy = map_2d_combined.at(inliers->indices[i]);
-			table_points.push_back(temp_xy);
-		}
 		
-				
+		unordered_map<int, bool> valid_indices;
+		for(i = 0; i < inliers->indices.size(); i++){
+			table_points.push_back( map_2d_combined.at(inliers->indices[i]) );
+			// add valid indices to lookup table
+			valid_indices[inliers->indices[i]] = true;
+		}
+		for(i = 0; i < map_2d_combined.size(); i++){
+			if(valid_indices.find(i) == valid_indices.end()){
+				// if not in lookup table, they aren't part of the table
+				non_table_3d_cloud->push_back(all_3d_cloud->at(i));
+				non_table_points.push_back(map_2d_combined.at(i));
+			}
+		}
+		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
 
 		vector< vector<double> > object_matched_points_2d_combined;
 		vector< vector<double> > object_matched_points_3d_combined;
@@ -829,6 +845,7 @@ class ImageConverter{
 		
 		if(args->highlight_table){
 			color_pixels(&im_matrix, &table_points, &table_color);
+			color_pixels(&im_matrix, &non_table_points, &misc_color);
 		}
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
