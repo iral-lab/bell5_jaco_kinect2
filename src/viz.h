@@ -57,6 +57,9 @@ struct rgb match_color = {0xff, 0xd7, 0x00};
 // table color
 struct rgb table_color = {0xef, 0x28, 0xd1};
 
+// wall color
+struct rgb wall_color = {0xc6, 0xce, 0xff};
+
 // misc color
 struct rgb misc_color = {0xff, 0xd8, 0xb5};
 
@@ -697,6 +700,36 @@ class ImageConverter{
 		perform_frame_combinations(jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
 	}
 
+	void do_plane_segmentation(pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, vector<vector<double>> *orig_2d, vector<vector<double>> *match_2d, pcl::PointCloud<pcl::PointXYZ>::Ptr non_match_3d, vector< vector<double> > *non_match_2d){
+		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+		// Create the segmentation object, get the table
+		pcl::SACSegmentation<pcl::PointXYZ> seg;
+		// Optional
+		seg.setOptimizeCoefficients(true);
+		// Mandatory
+		seg.setModelType(pcl::SACMODEL_PLANE);
+		seg.setMethodType(pcl::SAC_RANSAC);
+		seg.setDistanceThreshold(0.03);
+		seg.setInputCloud(input_cloud);
+		seg.segment(*inliers, *coefficients);
+		
+		int i = 0;
+		unordered_map<int, bool> valid_indices;
+		for(i = 0; i < inliers->indices.size(); i++){
+			match_2d->push_back( orig_2d->at(inliers->indices[i]) );
+			// add valid indices to lookup table
+			valid_indices[inliers->indices[i]] = true;
+		}
+		for(i = 0; i < orig_2d->size(); i++){
+			if(valid_indices.find(i) == valid_indices.end()){
+				// if not in lookup table, they aren't part of the table
+				non_match_3d->push_back(input_cloud->at(i));
+				non_match_2d->push_back(orig_2d->at(i));
+			}
+		}
+	}
+
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
 		if(args->terminate){
@@ -785,14 +818,16 @@ class ImageConverter{
 		perform_frame_combinations(&map_2d_combined, &map_back_to_2d, &map_2d_previous_rounds);
 		
 
-		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
 		vector< vector<double> > table_points;
+		vector< vector<double> > wall_points;
 		vector< vector<double> > non_table_points;
 		//create cloud
 		pcl::PointXYZ temp_point;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_or_wall_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+
 		for(i = 0; i < all_3d_points_combined.size(); i++){
 			temp_point.x = all_3d_points_combined.at(i)[0];
 			temp_point.y = all_3d_points_combined.at(i)[1];
@@ -801,32 +836,8 @@ class ImageConverter{
 			all_3d_cloud->push_back(temp_point);
 		}
 
-
-
-		// Create the segmentation object, get the table
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-		// Optional
-		seg.setOptimizeCoefficients(true);
-		// Mandatory
-		seg.setModelType(pcl::SACMODEL_PLANE);
-		seg.setMethodType(pcl::SAC_RANSAC);
-		seg.setDistanceThreshold(0.03);
-		seg.setInputCloud(all_3d_cloud);
-		seg.segment(*inliers, *coefficients);
+		do_plane_segmentation(all_3d_cloud, &map_2d_combined, &table_points, non_table_3d_cloud, &non_table_points);
 		
-		unordered_map<int, bool> valid_indices;
-		for(i = 0; i < inliers->indices.size(); i++){
-			table_points.push_back( map_2d_combined.at(inliers->indices[i]) );
-			// add valid indices to lookup table
-			valid_indices[inliers->indices[i]] = true;
-		}
-		for(i = 0; i < map_2d_combined.size(); i++){
-			if(valid_indices.find(i) == valid_indices.end()){
-				// if not in lookup table, they aren't part of the table
-				non_table_3d_cloud->push_back(all_3d_cloud->at(i));
-				non_table_points.push_back(map_2d_combined.at(i));
-			}
-		}
 		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
 
 		vector< vector<double> > object_matched_points_2d_combined;
@@ -845,6 +856,7 @@ class ImageConverter{
 		
 		if(args->highlight_table){
 			color_pixels(&im_matrix, &table_points, &table_color);
+			//color_pixels(&im_matrix, &wall_points, &wall_color);
 			color_pixels(&im_matrix, &non_table_points, &misc_color);
 		}
 		if(args->draw_pixel_match_color){
