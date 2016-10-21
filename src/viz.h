@@ -241,10 +241,19 @@ class ImageConverter{
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pcl_sub_ = nh_.subscribe (DEFAULT_KINECT_TOPIC, 1, &ImageConverter::cloudCb, this);
 	
+		reset();
+		
+		cv::namedWindow(OPENCV_WINDOW);
+	}
+
+	~ImageConverter(){
+		cv::destroyWindow(OPENCV_WINDOW);
+	}
+
+	void reset(){
 		object_centroids_2d.clear();
 		object_centroids_3d.clear();
-	
-
+		
 		object_matched_points_2d_previous_rounds.clear();
 		object_matched_points_3d_previous_rounds.clear();
 
@@ -255,16 +264,12 @@ class ImageConverter{
 
 		jaco_tag_centroids_2d.clear();
 		jaco_tag_centroids_3d.clear();
-		
-		cv::namedWindow(OPENCV_WINDOW);
-	}
 
-	~ImageConverter(){
-		cv::destroyWindow(OPENCV_WINDOW);
 	}
 
 	void set_args(struct viz_thread_args *viz_args){
 		args = viz_args;
+		reset();
 		pcl_sub_ = nh_.subscribe(args->kinect_topic, 1, &ImageConverter::cloudCb, this);
 	}
 
