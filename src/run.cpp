@@ -778,6 +778,7 @@ int main(int argc, char **argv){
 	viz_args.cloud = &cloud;
 	viz_args.find_arm = DEFAULT_FIND_ARM;
 	viz_args.kinect_topic = (char *) DEFAULT_KINECT_TOPIC;
+	viz_args.remove_table = true;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));

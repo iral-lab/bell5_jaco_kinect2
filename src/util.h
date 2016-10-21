@@ -14,6 +14,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 #define KINECT_HD_TOPIC "/kinect2/hd/points"
 #define KINECT_QHD_TOPIC "/kinect2/qhd/points"
@@ -155,6 +157,8 @@ struct viz_thread_args{
 	bool highlight_visible_area;
 	int visible_angle;
 	bool find_arm;
+
+	bool remove_table;
 
 	char *kinect_topic;
 	

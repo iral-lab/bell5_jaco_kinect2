@@ -54,6 +54,9 @@ struct rgb_set orange_bottle_cylinder = {1, {{213,100,56} } };
 // pixel shading color for matches
 struct rgb match_color = {0xff, 0xd7, 0x00};
 
+// table color
+struct rgb table_color = {0xef, 0x28, 0xd1};
+
 // pixel shading color for jaco tag, red
 struct rgb jaco_match_color = {0xff, 0, 0};
 
@@ -713,7 +716,8 @@ class ImageConverter{
 		cv::Mat im_matrix(args->cloud->height, args->cloud->width, CV_8UC3);
 		
 
-		pcl::PointCloud<pcl::PointXYZ> all_3d_cloud;		
+		pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+		vector< vector<double> > map_back_to_2d;	
 		
 		// store 2d matches and 3d matches
 		vector< vector<double> > object_matched_points_2d;
@@ -728,16 +732,26 @@ class ImageConverter{
 		double dist;
 		bool match;
 		pcl::PointXYZ temp_point;
+		vector<double> temp_xy;
+		temp_xy.resize(2, 0);
+		bool is_valid_point;
 		for (y = 0; y < im_matrix.rows; y++) {
 			for (x = 0; x < im_matrix.cols; x++) {
 				
 				get_xyz_from_xyzrgb(x, y, args->cloud, xyz);
-				// Grab all 3d points in cloud
-				if(is_valid_xyz(xyz)){
+				is_valid_point = is_valid_xyz(xyz); 
+
+				dist = is_valid_point ? vector_length_3d(xyz) : -1;
+				// Grab all 3d points in cloud that are close enough (avoid back wall)
+				if(is_valid_point && dist < args->max_interested_distance){
 					temp_point.x = xyz[0];
 					temp_point.y = xyz[1];
 					temp_point.z = xyz[2];
-					all_3d_cloud.points.push_back(temp_point);
+					all_3d_cloud->points.push_back(temp_point);
+					// Now indices are matched between the 3d and 2d points.
+					temp_xy.at(0) = x;
+					temp_xy.at(1) = y;
+					map_back_to_2d.push_back(temp_xy);
 				}
 				
 				// find orange_bottle_cylinder
@@ -747,8 +761,8 @@ class ImageConverter{
 				match |= find_match_by_color(&im_matrix, args->cloud, x, y, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &blue_tag, verbose);
 				
 
-				if(args->highlight_visible_area && is_valid_xyz(xyz)){
-					dist = vector_length_3d(xyz);
+				if(args->highlight_visible_area && is_valid_point){
+					
 					if(!is_visible_angle(xyz[0], xyz[1], xyz[2], args->visible_angle)){
 						// add a green tinge
 						im_matrix.at<cv::Vec3b>(y,x)[1] = MIN(im_matrix.at<cv::Vec3b>(y,x)[1] + 100, 255);
@@ -758,7 +772,6 @@ class ImageConverter{
 				}
 			}
 		}
-
 		
 		vector< vector<double> > object_matched_points_2d_combined;
 		vector< vector<double> > object_matched_points_3d_combined;
