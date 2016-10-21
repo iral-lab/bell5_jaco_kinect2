@@ -599,6 +599,7 @@ class ImageConverter{
 			return;
 		}
 		
+		pthread_mutex_lock(&structures_mutex);
 		
   		pcl::fromROSMsg (*input, *(args->cloud));
 		
@@ -905,6 +906,7 @@ class ImageConverter{
 		
 		cv::imshow(OPENCV_WINDOW, im_matrix);
 		cv::waitKey(3);
+		pthread_mutex_unlock(&structures_mutex);
 	}
 	
 	
