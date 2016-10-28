@@ -270,11 +270,11 @@ void attempt_plane_segmentation(int valid_surface_size, pcl::PointCloud<pcl::Poi
 	}
 
 void *do_find_arm(void *thread_args){
+	struct find_arm_args *args = (struct find_arm_args *) thread_args;
+
 	if(args->verbose){
 		cout << "find arm start" << endl;
 	}
-	struct find_arm_args *args = (struct find_arm_args *) thread_args;
-
 	int i = 0, j = 0;
 
 	vector< vector<double> > non_table_points;
