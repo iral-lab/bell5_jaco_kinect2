@@ -40,7 +40,7 @@ using namespace mlpack::kmeans;
 struct rgb_set orange = {1, {{239, 94, 37}} };
 
 // blue tag color: #2499bc, #60fffe, #3fcde3
-struct rgb_set blue_tag = {3, {{64, 166, 189}, {96,255,254}, {63,205,227}} };
+struct rgb_set blue_tag = {3, {{64, 166, 189}, {96,255,254}, {71,167,191}} };
 
 // bottle color: #45c5d2
 struct rgb_set bottle = {1, {{69, 197, 210}} };
@@ -820,6 +820,18 @@ class ImageConverter{
 		vector< vector<double> > map_2d_combined;
 		perform_frame_combinations(&map_2d_combined, &map_back_to_2d, &map_2d_previous_rounds);
 		
+		vector< vector<double> > object_matched_points_2d_combined;
+		vector< vector<double> > object_matched_points_3d_combined;
+
+		perform_frame_combinations(&object_matched_points_2d_combined, &object_matched_points_2d, &object_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&object_matched_points_3d_combined, &object_matched_points_3d, &object_matched_points_3d_previous_rounds);
+		
+		vector< vector<double> > jaco_tag_matched_points_2d_combined;
+		vector< vector<double> > jaco_tag_matched_points_3d_combined;
+
+		perform_frame_combinations(&jaco_tag_matched_points_2d_combined, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_2d_previous_rounds);
+		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
+		
 
 		vector< vector<double> > table_points;
 		vector< vector<double> > non_table_points;
@@ -848,27 +860,79 @@ class ImageConverter{
 			// remove another surface (wall?)
 			attempt_plane_segmentation(valid_surface_size, non_table_3d_cloud, &non_table_points, &wall_points, non_table_or_wall_3d_cloud, &non_table_or_wall_points);
 		}
+
+		// Do the PCL blob search for the arm
+		// http://pointclouds.org/documentation/tutorials/cluster_extraction.php
+		pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+		tree->setInputCloud (non_table_or_wall_3d_cloud);
+		
+		std::vector<pcl::PointIndices> cluster_indices;
+		pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+		ec.setClusterTolerance (0.03); // 3cm
+		ec.setMinClusterSize (10000);
+		ec.setMaxClusterSize (50000);
+		ec.setSearchMethod (tree);
+		ec.setInputCloud (non_table_or_wall_3d_cloud);
+		ec.extract (cluster_indices);
+		j = 0;
+		
+		int validated_cluster = -1;
+		vector< vector< vector<double> > > arm_clusters_2d_points;
+		vector< pcl::PointCloud<pcl::PointXYZ>::Ptr > arm_clusters_3d_points;
+		bool found_jaco_tag = jaco_tag_matched_points_3d_combined.size() > 0;
+		vector<double> sample_jaco_point;
+		if(found_jaco_tag){
+			sample_jaco_point = jaco_tag_matched_points_3d_combined.at(0);
+		}
+		for (vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end() && validated_cluster < 0; ++it){
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+			vector< vector<double> > cluster_points;
+
+			for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit){
+				pcl::PointXYZ sample_point = non_table_or_wall_3d_cloud->points[*pit];
+				cloud_cluster->points.push_back(sample_point);
+				cluster_points.push_back(non_table_or_wall_points.at( *pit ));
+				
+				
+				if(validated_cluster == -1 && found_jaco_tag && sample_jaco_point.at(0) == sample_point.x && sample_jaco_point.at(1) == sample_point.y && sample_jaco_point.at(2) == sample_point.z){
+					validated_cluster = j;
+					if(verbose){
+						cout << "found valid cluster " << validated_cluster << endl;
+					}
+				}
+				
+			}
+			
+			arm_clusters_2d_points.push_back( cluster_points );
+			
+			cloud_cluster->width = cloud_cluster->points.size ();
+			cloud_cluster->height = 1;
+			cloud_cluster->is_dense = true;
+			arm_clusters_3d_points.push_back( cloud_cluster );
+			
+			if(verbose){
+				cout << "PointCloud representing the Cluster (" << j << "): " << cloud_cluster->points.size () << " data points." << endl;
+			}
+			j++;
+		}
+
 		
 		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
 
-		vector< vector<double> > object_matched_points_2d_combined;
-		vector< vector<double> > object_matched_points_3d_combined;
-
-		perform_frame_combinations(&object_matched_points_2d_combined, &object_matched_points_2d, &object_matched_points_2d_previous_rounds);
-		perform_frame_combinations(&object_matched_points_3d_combined, &object_matched_points_3d, &object_matched_points_3d_previous_rounds);
-		
-
-		vector< vector<double> > jaco_tag_matched_points_2d_combined;
-		vector< vector<double> > jaco_tag_matched_points_3d_combined;
-
-		perform_frame_combinations(&jaco_tag_matched_points_2d_combined, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_2d_previous_rounds);
-		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
-		
 		
 		if(args->highlight_table){
 			color_pixels(&im_matrix, &table_points, &table_color);
 			color_pixels(&im_matrix, &wall_points, &wall_color);
 			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
+		}
+		if(args->find_arm){
+			if(validated_cluster >= 0){
+				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
+			}else{
+				for(i = 0; i < arm_clusters_2d_points.size(); i++){
+					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
+				}
+			}
 		}
 		if(args->draw_pixel_match_color){
 			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
@@ -992,9 +1056,11 @@ class ImageConverter{
 
 			vector< vector<double> > jaco_arm_matched_points_2d_combined;
 
+			/*
 			if(args->find_arm){
 				find_jaco_arm_2d_to_3d(&jaco_arm_matched_points_2d_combined, &im_matrix, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d);
 			}
+			*/
 
 		
 			if(args->draw_pixel_match_color){
