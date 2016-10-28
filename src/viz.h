@@ -920,23 +920,7 @@ class ImageConverter{
 		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
 
 		
-		if(args->highlight_table){
-			color_pixels(&im_matrix, &table_points, &table_color);
-			color_pixels(&im_matrix, &wall_points, &wall_color);
-			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
-		}
-		if(args->find_arm){
-			if(validated_cluster >= 0){
-				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
-			}else{
-				for(i = 0; i < arm_clusters_2d_points.size(); i++){
-					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
-				}
-			}
-		}
-		if(args->draw_pixel_match_color){
-			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
-		}
+		
 		
 		/*
 		cout << "2d Matched: " << object_matched_points_2d.size() << ", combined: " << object_matched_points_2d_combined.size() << endl;
@@ -1017,6 +1001,23 @@ class ImageConverter{
 			}
 		}
 		
+		if(args->highlight_table){
+			color_pixels(&im_matrix, &table_points, &table_color);
+			color_pixels(&im_matrix, &wall_points, &wall_color);
+			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
+		}
+		if(args->find_arm){
+			if(validated_cluster >= 0){
+				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
+			}else{
+				for(i = 0; i < arm_clusters_2d_points.size(); i++){
+					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
+				}
+			}
+		}
+		if(args->draw_pixel_match_color){
+			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
+		}
 		
 		int num_jaco_tag_centroids_3d = jaco_tag_centroids_3d.size();
 		if(num_jaco_tag_centroids_3d > 0){
