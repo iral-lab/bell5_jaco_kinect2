@@ -730,6 +730,9 @@ class ImageConverter{
 		xyz->y *= -1;
 	}
 
+/*
+
+	// Old-school way of finding the arm. finding valid 2d (xy, rgb) pixels and mapping them to 3d points.
 	void find_jaco_arm_2d_to_3d(vector< vector<double> > *jaco_arm_matched_points_2d_combined, cv::Mat *im_matrix, vector< vector<double> > *jaco_tag_matched_points_2d, vector< vector<double> > *jaco_tag_matched_points_3d){
 		// find/color the actual arm
 		vector< vector<double> > jaco_tag_arm_2d;
@@ -829,6 +832,8 @@ class ImageConverter{
 		// smooth arm memory across frames
 		perform_frame_combinations(jaco_arm_matched_points_2d_combined, &jaco_tag_arm_2d, &jaco_arm_matched_points_2d_previous_rounds);
 	}
+*/
+
 
 	//void cloudCb (pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& input){
 	void cloudCb (const sensor_msgs::PointCloud2ConstPtr& input){
@@ -955,26 +960,10 @@ class ImageConverter{
 		pthread_create(&do_find_arm_thread, NULL, do_find_arm, (void *) &find_arm_args);
 	
 		
-		
-		//cout << " all: " << map_2d_combined.size() << ", table 3d : " << inliers->indices.size() << ", non_table points " << non_table_points.size() << " (" << table_points.size() << ")" << endl;
-
-		
-		
-		
-		/*
-		cout << "2d Matched: " << object_matched_points_2d.size() << ", combined: " << object_matched_points_2d_combined.size() << endl;
-		cout << "3d Matched: " << object_matched_points_3d.size() << ", combined: " << object_matched_points_3d_combined.size() << endl;
-		cout << "new last round: " << object_matched_points_3d_combined.size() << ", current: " << object_matched_points_3d.size() << endl;
-		*/
-		if(verbose)
+		if(verbose){
 			cout << "post: " << object_matched_points_2d.size() << endl;
-		/*		
-		if(frames > 1){
-			return;
 		}
-		*/
-
-		//pthread_mutex_lock(&centroid_mutex);
+		
 
 		if(args->detection_algorithm == KMEANS){
 			// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
@@ -987,9 +976,6 @@ class ImageConverter{
 			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
 			compute_centroids(&jaco_tag_matched_points_2d, &jaco_tag_matched_points_3d, &jaco_tag_centroids_2d, &jaco_tag_centroids_3d, verbose);
 		}
-		
-		//pthread_mutex_unlock(&centroid_mutex);
-		
 		
 		
 		if(object_centroids_3d.size() == 2){
@@ -1033,35 +1019,11 @@ class ImageConverter{
 				if(verbose){
 					cout << "Distance to Object (" << i << ") : " << args->object_distances[i] << endl;
 				}
-
-
-
 				
 			}
 		}
 		
 
-		cout << "waiting on do find arm thread" << endl;
-		pthread_join(do_find_arm_thread,NULL); 
-
-		if(args->highlight_table){
-			color_pixels(&im_matrix, &table_points, &table_color);
-			color_pixels(&im_matrix, &wall_points, &wall_color);
-			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
-		}
-		if(args->find_arm){
-			if(validated_cluster >= 0){
-				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
-			}else{
-				for(i = 0; i < arm_clusters_2d_points.size(); i++){
-					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
-				}
-			}
-		}
-		if(args->draw_pixel_match_color){
-			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
-		}
-		
 		int num_jaco_tag_centroids_3d = jaco_tag_centroids_3d.size();
 		if(num_jaco_tag_centroids_3d > 0){
 			if(args->num_jaco_tags != num_jaco_tag_centroids_3d){
@@ -1097,15 +1059,30 @@ class ImageConverter{
 
 				
 			}
+		}
 
-			vector< vector<double> > jaco_arm_matched_points_2d_combined;
+		cout << "waiting on do find arm thread" << endl;
+		pthread_join(do_find_arm_thread,NULL); 
 
-			if(args->draw_pixel_match_color){
-				color_pixels(&im_matrix, &jaco_arm_matched_points_2d_combined, &jaco_arm_match_color);
 
-				color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
+		if(args->highlight_table){
+			color_pixels(&im_matrix, &table_points, &table_color);
+			color_pixels(&im_matrix, &wall_points, &wall_color);
+			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
+		}
+		if(args->find_arm){
+			if(validated_cluster >= 0){
+				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
+			}else{
+				for(i = 0; i < arm_clusters_2d_points.size(); i++){
+					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
+				}
 			}
-
+		}
+		
+		if(args->draw_pixel_match_color){
+			color_pixels(&im_matrix, &object_matched_points_2d_combined, &match_color);
+			color_pixels(&im_matrix, &jaco_tag_matched_points_2d_combined, &jaco_match_color);
 		}
 		
 		//cout << "Num centroids: " <<  object_centroids_3d.size() << ", " << im_matrix.rows << " by " << im_matrix.cols << endl;
