@@ -86,6 +86,13 @@ struct find_arm_args{
 	vector< vector<double> > *non_table_or_wall_points;
 };
 
+struct temporal_smoothing_args{
+	vector< vector<double> > *combined;
+	vector< vector<double> > *matches;
+	vector< vector< vector<double> > > *previous_frames;
+	int *additional_color_match_frames_to_combine;
+};
+
 bool colors_are_similar(struct rgb *x, struct rgb *y){
 	double distance = sqrt( (x->r - y->r)*(x->r - y->r) + (x->g - y->g)*(x->g - y->g) + (x->b - y->b)*(x->b - y->b) );
 	// epsilon subject to change here, was trial and error early on.
@@ -263,7 +270,9 @@ void attempt_plane_segmentation(int valid_surface_size, pcl::PointCloud<pcl::Poi
 	}
 
 void *do_find_arm(void *thread_args){
-	cout << "find arm start" << endl;
+	if(args->verbose){
+		cout << "find arm start" << endl;
+	}
 	struct find_arm_args *args = (struct find_arm_args *) thread_args;
 
 	int i = 0, j = 0;
@@ -343,7 +352,46 @@ void *do_find_arm(void *thread_args){
 		}
 		j++;
 	}
-	cout << "find arm done" << endl;
+	if(args->verbose){
+		cout << "find arm done" << endl;
+	}
+}
+
+
+void *perform_frame_combinations(void *thread_args){
+
+	struct temporal_smoothing_args *in_args = (struct temporal_smoothing_args *) thread_args;
+
+	int extra_frames = (*(in_args->additional_color_match_frames_to_combine));
+	
+	in_args->combined->clear();
+	// load this round into combined list
+	for(int i = 0; i < in_args->matches->size(); i++){
+		in_args->combined->push_back(in_args->matches->at(i));
+	}
+	// load points from previous rounds into combined list
+	for(int i = 0; i < extra_frames && i < in_args->previous_frames->size(); i++){
+		// load points from specific frame
+		for(int j = 0; j < in_args->previous_frames->at(i).size(); j++){
+			in_args->combined->push_back(in_args->previous_frames->at(i).at(j));
+		}
+	}
+	if(extra_frames > 0){
+		// update previous-frames to include this one. higher = newer, lower = older.
+
+		// if we're maxed out or over the limit (if it changes), delete the last one.
+		while(in_args->previous_frames->size() >= extra_frames){
+			in_args->previous_frames->erase(in_args->previous_frames->begin());
+		}
+		// add new frame's data to last slot
+		int new_frame_index = in_args->previous_frames->size();
+		
+		in_args->previous_frames->push_back(  vector< vector<double> >(0) );
+	
+		for(int i = 0; i < in_args->matches->size(); i++){
+			in_args->previous_frames->at(new_frame_index).push_back(in_args->matches->at(i));
+		}
+	}
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
@@ -642,36 +690,6 @@ class ImageConverter{
 		}
 	}
 	
-	void perform_frame_combinations(vector< vector<double> > *combined, vector< vector<double> > *matches, vector< vector< vector<double> > > *previous_frames){
-		combined->clear();
-		// load this round into combined list
-		for(int i = 0; i < matches->size(); i++){
-			combined->push_back(matches->at(i));
-		}
-		// load points from previous rounds into combined list
-		for(int i = 0; i < args->additional_color_match_frames_to_combine && i < previous_frames->size(); i++){
-			// load points from specific frame
-			for(int j = 0; j < previous_frames->at(i).size(); j++){
-				combined->push_back(previous_frames->at(i).at(j));
-			}
-		}
-		if(args->additional_color_match_frames_to_combine > 0){
-			// update previous-frames to include this one. higher = newer, lower = older.
-
-			// if we're maxed out or over the limit (if it changes), delete the last one.
-			while(previous_frames->size() >= args->additional_color_match_frames_to_combine){
-				previous_frames->erase(previous_frames->begin());
-			}
-			// add new frame's data to last slot
-			int new_frame_index = previous_frames->size();
-			
-			previous_frames->push_back(  vector< vector<double> >(0) );
-		
-			for(int i = 0; i < matches->size(); i++){
-				previous_frames->at(new_frame_index).push_back(matches->at(i));
-			}
-		}
-	}
 
 	void color_pixels(cv::Mat *im_matrix, vector< vector<double> > *points, struct rgb *color){
 		int x,y;
@@ -917,23 +935,84 @@ class ImageConverter{
 			}
 		}
 		
+
+		// merge frames, temporal smoothing
 		vector< vector<double> > all_3d_points_combined;
-		perform_frame_combinations(&all_3d_points_combined, &all_3d_points, &all_3d_points_previous_rounds);
+		struct temporal_smoothing_args merge_1;
+		merge_1.combined = &all_3d_points_combined;
+		merge_1.matches = &all_3d_points;
+		merge_1.previous_frames = &all_3d_points_previous_rounds;
+		merge_1.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_1_thread;
+		pthread_create(&merge_1_thread, NULL, perform_frame_combinations, (void *) &merge_1);
+		
+
 		vector< vector<double> > map_2d_combined;
-		perform_frame_combinations(&map_2d_combined, &map_back_to_2d, &map_2d_previous_rounds);
+		struct temporal_smoothing_args merge_2;
+		merge_2.combined = &map_2d_combined;
+		merge_2.matches = &map_back_to_2d;
+		merge_2.previous_frames = &map_2d_previous_rounds;
+		merge_2.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_2_thread;
+		pthread_create(&merge_2_thread, NULL, perform_frame_combinations, (void *) &merge_2);
 		
+
 		vector< vector<double> > object_matched_points_2d_combined;
+		struct temporal_smoothing_args merge_3;
+		merge_3.combined = &object_matched_points_2d_combined;
+		merge_3.matches = &object_matched_points_2d;
+		merge_3.previous_frames = &object_matched_points_2d_previous_rounds;
+		merge_3.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_3_thread;
+		pthread_create(&merge_3_thread, NULL, perform_frame_combinations, (void *) &merge_3);
+
+
 		vector< vector<double> > object_matched_points_3d_combined;
+		struct temporal_smoothing_args merge_4;
+		merge_4.combined = &object_matched_points_3d_combined;
+		merge_4.matches = &object_matched_points_3d;
+		merge_4.previous_frames = &object_matched_points_3d_previous_rounds;
+		merge_4.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_4_thread;
+		pthread_create(&merge_4_thread, NULL, perform_frame_combinations, (void *) &merge_4);
 
-		perform_frame_combinations(&object_matched_points_2d_combined, &object_matched_points_2d, &object_matched_points_2d_previous_rounds);
-		perform_frame_combinations(&object_matched_points_3d_combined, &object_matched_points_3d, &object_matched_points_3d_previous_rounds);
 		
+
+
 		vector< vector<double> > jaco_tag_matched_points_2d_combined;
-		vector< vector<double> > jaco_tag_matched_points_3d_combined;
+		struct temporal_smoothing_args merge_5;
+		merge_5.combined = &jaco_tag_matched_points_2d_combined;
+		merge_5.matches = &jaco_tag_matched_points_2d;
+		merge_5.previous_frames = &jaco_tag_matched_points_2d_previous_rounds;
+		merge_5.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_5_thread;
+		pthread_create(&merge_5_thread, NULL, perform_frame_combinations, (void *) &merge_5);
 
-		perform_frame_combinations(&jaco_tag_matched_points_2d_combined, &jaco_tag_matched_points_2d, &jaco_tag_matched_points_2d_previous_rounds);
-		perform_frame_combinations(&jaco_tag_matched_points_3d_combined, &jaco_tag_matched_points_3d, &jaco_tag_matched_points_3d_previous_rounds);
 		
+		vector< vector<double> > jaco_tag_matched_points_3d_combined;
+		struct temporal_smoothing_args merge_6;
+		merge_6.combined = &jaco_tag_matched_points_3d_combined;
+		merge_6.matches = &jaco_tag_matched_points_3d;
+		merge_6.previous_frames = &jaco_tag_matched_points_3d_previous_rounds;
+		merge_6.additional_color_match_frames_to_combine = &(args->additional_color_match_frames_to_combine);
+		pthread_t merge_6_thread;
+		pthread_create(&merge_6_thread, NULL, perform_frame_combinations, (void *) &merge_6);
+
+		
+		if(verbose){
+			cout << "waiting on temporal smoothing threads" << endl;
+		}
+		pthread_join(merge_1_thread, NULL);
+		pthread_join(merge_2_thread, NULL);
+		pthread_join(merge_3_thread, NULL);
+		pthread_join(merge_4_thread, NULL);
+		pthread_join(merge_5_thread, NULL);
+		pthread_join(merge_6_thread, NULL);
+		if(verbose){
+			cout << "Done" << endl;
+		}
+
+
 		vector< vector< vector<double> > > arm_clusters_2d_points;
 		vector< pcl::PointCloud<pcl::PointXYZ>::Ptr > arm_clusters_3d_points;
 		int validated_cluster = -1;
@@ -1061,7 +1140,9 @@ class ImageConverter{
 			}
 		}
 
-		cout << "waiting on do find arm thread" << endl;
+		if(verbose){
+			cout << "waiting on do find arm thread" << endl;
+		}
 		pthread_join(do_find_arm_thread,NULL); 
 
 
