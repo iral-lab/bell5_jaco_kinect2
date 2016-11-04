@@ -81,6 +81,7 @@ void print_help(){
 	cout << "\tv table                        : toggle table removal. " << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
+	cout << "\tv skip <n>                     : Skip rendering frames (default = " << DEFAULT_SKIP_FRAMES << "). " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
 	cout << "\tv dist <+/->                   : Increase or decrease max recognition window (default = " << DEFAULT_MAX_INTERESTED_DISTANCE << "). " << endl;
 	cout << "\txyxyz x,y                      : (KINECT) Map a 2-d point in the RGB to a 3-d coordinate." << endl;
@@ -204,6 +205,11 @@ void handle_viz_distance(struct viz_thread_args *viz_args, char * num){
 
 void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
+}
+
+void handle_viz_frames_to_skip(struct viz_thread_args *viz_args, char * num){
+	viz_args->skip_frames = atoi(num);
+	cout << "Now skipping " << viz_args->skip_frames << " frames" << endl;
 }
 
 void normalize_xy(double x, double y, double *norm_x, double *norm_y){
@@ -512,6 +518,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(strlen(cmd) > 9 && strncmp(cmd, "v frames ", 9) == 0){
 		handle_viz_frames_to_combine(viz_args, (char *) &(cmd[9]) );
 
+	}else if(strlen(cmd) > 7 && strncmp(cmd, "v skip ", 7) == 0){
+		handle_viz_frames_to_skip(viz_args, (char *) &(cmd[7]) );
+
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 		cout << "pixel drawing: " << (viz_args->draw_pixel_match_color ? "On" : "Off") << endl;
@@ -784,6 +793,7 @@ int main(int argc, char **argv){
 	viz_args.find_arm = DEFAULT_FIND_ARM;
 	viz_args.kinect_topic = (char *) DEFAULT_KINECT_TOPIC;
 	viz_args.highlight_table = false;
+	viz_args.skip_frames = DEFAULT_SKIP_FRAMES;
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));

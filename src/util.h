@@ -40,6 +40,8 @@
 #define DEFAULT_NUM_JACO_ARMS_IN_SCENE 1
 #define DEFAULT_NUM_OBJECTS_IN_SCENE 1
 
+#define DEFAULT_SKIP_FRAMES 1
+
 #define DEFAULT_VISIBLE_ANGLE 30
 
 #define DEFAULT_HIGHLIGHT_VISIBLE_AREA false
@@ -164,6 +166,8 @@ struct viz_thread_args{
 	bool find_arm;
 
 	bool highlight_table;
+
+	int skip_frames;
 
 	char *kinect_topic;
 	

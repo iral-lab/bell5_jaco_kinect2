@@ -402,7 +402,7 @@ class ImageConverter{
 	image_transport::ImageTransport it_;
 	image_transport::Subscriber image_sub_;
 	ros::Subscriber pcl_sub_;
-	int frames;
+	int frames_to_skip;
 	struct viz_thread_args *args;
 
 	// store the centroids in both xyz and 2d image
@@ -429,7 +429,7 @@ class ImageConverter{
 	public:
 	ImageConverter() : 
 	it_(nh_){
-		frames = 0;
+		frames_to_skip = 0;
 		// Create a ROS subscriber for the input point cloud, contains XYZ, RGB
 		pthread_mutex_init(&structures_mutex, NULL);
 		pthread_mutex_lock(&structures_mutex);
@@ -863,10 +863,12 @@ class ImageConverter{
 		bool verbose = args->verbose;
 		
 		// skip every-other frame for faster rendering
-		if(++frames % 2 == 0){
-			//cout << "skipping " << frames << endl;
+		if(frames_to_skip > 0){
+			frames_to_skip--;
+			cout << "skipping " << frames_to_skip << endl;
 			return;
 		}
+		frames_to_skip = args->skip_frames;
 		
 		pthread_mutex_lock(&structures_mutex);
 		
