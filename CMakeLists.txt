@@ -185,5 +185,5 @@ target_link_libraries(run /usr/local/lib/libmlpack.so)
 target_link_libraries(run /usr/lib/libblas.a)
 target_link_libraries(run armadillo)
 
-
+target_link_libraries(run ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so )
 

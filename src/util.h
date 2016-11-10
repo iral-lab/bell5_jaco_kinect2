@@ -21,6 +21,7 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #define KINECT_HD_TOPIC "/kinect2/hd/points"
 #define KINECT_QHD_TOPIC "/kinect2/qhd/points"
@@ -152,6 +153,12 @@ struct cartesian_xyz{
 	int finger_3;
 };
 
+struct pcl_viz_args{
+	bool *terminated;
+	bool *pcl_viz_input_ready;
+	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+};
+
 struct viz_thread_args{
 	bool terminate;
 	bool draw_depth_filter;
@@ -186,6 +193,9 @@ struct viz_thread_args{
 	struct rgb_set orange_bottle_colors;
 
 	pcl::PointCloud<pcl::PointXYZRGB> *cloud;
+	
+	bool *pcl_viz_input_ready;
+	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
 };
 
 struct ros_input{

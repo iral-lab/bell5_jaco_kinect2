@@ -782,6 +782,19 @@ int main(int argc, char **argv){
 	}
 
 	srand(time(NULL));
+	
+	bool pcl_viz_input_ready = true;
+	pcl::PointCloud<pcl::PointXYZ> pcl_viz_cloud_input;
+	
+	struct pcl_viz_args pcl_viz_args;
+	memset(&pcl_viz_args, 0, sizeof(struct pcl_viz_args));
+	pcl_viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
+	pcl_viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
+	
+	pthread_t pcl_viz_thread;
+	pthread_create(&pcl_viz_thread, NULL, pcl_viz, (void *) &pcl_viz_args);
+	
+	
 	struct viz_thread_args viz_args;
 	memset(&viz_args, 0, sizeof(struct viz_thread_args));
 	viz_args.terminate = false;
@@ -800,6 +813,10 @@ int main(int argc, char **argv){
 	viz_args.highlight_table = false;
 	viz_args.skip_frames = DEFAULT_SKIP_FRAMES;
 	viz_args.use_dbscan = DEFAULT_USE_DBSCAN;
+	
+	viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
+	viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
+	
 
 	// set default colors
 	memcpy(&viz_args.orange_bottle_colors, &orange_bottle_cylinder, sizeof(struct rgb_set));
