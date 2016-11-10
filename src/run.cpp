@@ -543,6 +543,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	
 	}else if(strlen(cmd) > 7 && strncmp(cmd, "v live ", 7) == 0){
 		handle_live_viz(viz_args, (char *) &(cmd[7]) );
+		
+	}else if(!strcmp("v reset", cmd)){
+		cout << "resetting camera" << endl;
+		(*viz_args->reset_camera) = true;
 
 	}else if(!strcmp("find arm", cmd)){
 		viz_args->find_arm = !viz_args->find_arm;
@@ -797,6 +801,7 @@ int main(int argc, char **argv){
 
 	srand(time(NULL));
 	
+	bool reset_camera = false;
 	bool pcl_viz_input_ready = true;
 	pcl::PointCloud<pcl::PointXYZ> pcl_viz_cloud_input;
 	
@@ -804,6 +809,7 @@ int main(int argc, char **argv){
 	memset(&pcl_viz_args, 0, sizeof(struct pcl_viz_args));
 	pcl_viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
 	pcl_viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
+	pcl_viz_args.reset_camera = &reset_camera;
 	
 	pthread_t pcl_viz_thread;
 	pthread_create(&pcl_viz_thread, NULL, pcl_viz, (void *) &pcl_viz_args);
@@ -831,6 +837,7 @@ int main(int argc, char **argv){
 	viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
 	viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
 	viz_args.viz_selection = DEFAULT_PCL_VIZUALIZATION;
+	viz_args.reset_camera = &reset_camera;
 	
 
 	// set default colors

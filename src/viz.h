@@ -86,6 +86,8 @@ void *pcl_viz(void *thread_args){
 	// --------------------------------------------
 	bool ever_drawn_viewer = false;
 	
+	//pcl::visualization::Camera cam;
+	
 	pcl::PointCloud<pcl::PointXYZ> temp;
 	while(!pcl_viz_args->terminated && !viewer->wasStopped()){
 		while(!(*(pcl_viz_args->pcl_viz_input_ready)) && !viewer->wasStopped()){
@@ -100,17 +102,23 @@ void *pcl_viz(void *thread_args){
 		(*(pcl_viz_args->pcl_viz_input_ready)) = false;
 		
 		if(!ever_drawn_viewer){
-			ever_drawn_viewer = true;
-		
 			viewer->setBackgroundColor(0, 0, 0);
 			viewer->addPointCloud<pcl::PointXYZ> (currently_visualizing, "sample cloud");
 			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
-			//viewer->addCoordinateSystem(1.0, "global");
-			viewer->initCameraParameters();
+			
 			boost::this_thread::sleep (boost::posix_time::microseconds (10000000));
 		}else{
 			viewer->updatePointCloud<pcl::PointXYZ> (currently_visualizing, "sample cloud");
 		}
+		if(!ever_drawn_viewer || (*pcl_viz_args->reset_camera)){
+			viewer->setCameraPosition(-0.680567,0.0879865,-1.29801,0.552615,-0.16985,1.571,-0.0574351,-0.996241,-0.0648442);
+			
+			ever_drawn_viewer = true;
+			(*pcl_viz_args->reset_camera) = false;
+		}
+		//viewer->getCameraParameters(cam);
+		
+		//cout << "Cam settings: setCameraPosition(" << cam.pos[0] << "," << cam.pos[1] << "," << cam.pos[2] << "," << cam.focal[0] << "," << cam.focal[1] << "," << cam.focal[2] << "," << cam.view[0] << "," << cam.view[1] << "," << cam.view[2] << ")" << endl;
 		
 		while (!(*(pcl_viz_args->pcl_viz_input_ready)) && !viewer->wasStopped()){
 			viewer->spinOnce (100);
@@ -363,7 +371,7 @@ void *do_find_arm(void *thread_args){
 
 		if(found_jaco_tag && sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
 			sample_jaco_point_index = i;
-		}	
+		}
 
 		all_3d_cloud->push_back(temp_point);
 	}
