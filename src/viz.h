@@ -428,7 +428,7 @@ void *do_find_arm(void *thread_args){
 				cout << "PointCloud representing the Cluster " << cloud_cluster->points.size () << " data points." << endl;
 			}
 			// end dbscan version
-		}else{
+		}else if(non_table_or_wall_3d_cloud->size() > 0){
 			// Do the PCL blob search for the arm
 			// http://pointclouds.org/documentation/tutorials/cluster_extraction.php
 			std::vector<pcl::PointIndices> cluster_indices;
