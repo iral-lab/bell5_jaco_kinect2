@@ -353,13 +353,15 @@ void *do_find_arm(void *thread_args){
 	
 	
 	int sample_jaco_point_index = -1;
-	sample_jaco_point = args->jaco_tag_matched_points_3d_combined->at(0);
+	if(found_jaco_tag){
+		sample_jaco_point = args->jaco_tag_matched_points_3d_combined->at(0);
+	}
 	for(i = 0; i < args->all_3d_points_combined->size(); i++){
 		temp_point.x = args->all_3d_points_combined->at(i)[0];
 		temp_point.y = args->all_3d_points_combined->at(i)[1];
 		temp_point.z = args->all_3d_points_combined->at(i)[2];
 
-		if(sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
+		if(found_jaco_tag && sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
 			sample_jaco_point_index = i;
 		}	
 
