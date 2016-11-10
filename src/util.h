@@ -39,6 +39,7 @@
 // LEAVE THIS VALUE AT 0, TOO EXPENSIVE DURING THE DBSCAN, MEM ALLOC ERROR
 #define DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE 0
 
+#define DEFAULT_USE_DBSCAN true
 
 #define DEFAULT_NUM_JACO_ARMS_IN_SCENE 1
 #define DEFAULT_NUM_OBJECTS_IN_SCENE 1
@@ -167,6 +168,8 @@ struct viz_thread_args{
 	bool highlight_visible_area;
 	int visible_angle;
 	bool find_arm;
+
+	bool use_dbscan;
 
 	bool highlight_table;
 
