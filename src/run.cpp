@@ -79,7 +79,7 @@ void print_help(){
 	cout << "\tfind arm                       : toggle JACO arm finding. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv table                        : toggle table removal. " << endl;
-	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. " << endl;
+	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. (default = " << DEFAULT_USE_DBSCAN << ")" << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv skip <n>                     : Skip rendering frames (default = " << DEFAULT_SKIP_FRAMES << "). " << endl;
@@ -528,7 +528,7 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 		
 	}else if(!strcmp("v dbscan", cmd)){
 		viz_args->use_dbscan = !viz_args->use_dbscan;
-		cout << "use_dbscan: " << (viz_args->use_dbscan ? "On" : "Off") << endl;
+		cout << "Robot detection: use_dbscan: " << (viz_args->use_dbscan ? "On" : "Off, using ransac blob") << endl;
 
 	}else if(!strcmp("find arm", cmd)){
 		viz_args->find_arm = !viz_args->find_arm;
