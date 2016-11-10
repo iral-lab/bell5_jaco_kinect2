@@ -372,7 +372,7 @@ void *do_find_arm(void *thread_args){
 	
 			pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
 			ec.setClusterTolerance (eps);
-			ec.setMinClusterSize (5000);
+			ec.setMinClusterSize (1000);
 			ec.setMaxClusterSize (50000);
 			ec.setSearchMethod (tree);
 			ec.setInputCloud (non_table_or_wall_3d_cloud);
