@@ -34,6 +34,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "dbscan.h"
+
 using namespace mlpack::kmeans;
 
 // orange color: #ef5e25
@@ -284,7 +286,6 @@ void *do_find_arm(void *thread_args){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_or_wall_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-
 	for(i = 0; i < args->all_3d_points_combined->size(); i++){
 		temp_point.x = args->all_3d_points_combined->at(i)[0];
 		temp_point.y = args->all_3d_points_combined->at(i)[1];
@@ -297,6 +298,7 @@ void *do_find_arm(void *thread_args){
 	
 	// remove one surface (table?)
 	attempt_plane_segmentation(valid_surface_size, all_3d_cloud, args->map_2d_combined, args->table_points, non_table_3d_cloud, &non_table_points);
+	
 	if(args->table_points->size() >= valid_surface_size){
 		// remove another surface (wall?)
 		attempt_plane_segmentation(valid_surface_size, non_table_3d_cloud, &non_table_points, args->wall_points, non_table_or_wall_3d_cloud, args->non_table_or_wall_points);
