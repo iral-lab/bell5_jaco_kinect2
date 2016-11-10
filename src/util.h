@@ -57,7 +57,7 @@
 
 #define HEIGHT_OFFSET_ADJUSTMENT 0.2
 
-#define DEFAULT_FIND_ARM false
+#define DEFAULT_FIND_ARM true
 
 using namespace std;
 
