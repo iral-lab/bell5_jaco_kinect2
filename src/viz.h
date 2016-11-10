@@ -144,6 +144,10 @@ struct find_arm_args{
 	vector< vector<double> > *wall_points;
 	vector< vector<double> > *non_table_or_wall_points;
 	bool use_dbscan;
+	
+	bool *pcl_viz_input_ready;
+	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+	pcl_vizualizations viz_selection;
 };
 
 struct temporal_smoothing_args{
@@ -346,21 +350,26 @@ void *do_find_arm(void *thread_args){
 	
 	bool found_jaco_tag = args->jaco_tag_matched_points_3d_combined->size() > 0;
 	vector<double> sample_jaco_point;
+	
+	
+	int sample_jaco_point_index = -1;
+	sample_jaco_point = args->jaco_tag_matched_points_3d_combined->at(0);
+	for(i = 0; i < args->all_3d_points_combined->size(); i++){
+		temp_point.x = args->all_3d_points_combined->at(i)[0];
+		temp_point.y = args->all_3d_points_combined->at(i)[1];
+		temp_point.z = args->all_3d_points_combined->at(i)[2];
+
+		if(sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
+			sample_jaco_point_index = i;
+		}	
+
+		all_3d_cloud->push_back(temp_point);
+	}
+	if(args->viz_selection == PCL_ALL){
+		pcl_viz_this_cloud(args->pcl_viz_input_ready, all_3d_cloud, args->pcl_viz_cloud_input);
+	}
 	if(found_jaco_tag){
-		int sample_jaco_point_index = -2;
-		sample_jaco_point = args->jaco_tag_matched_points_3d_combined->at(0);
-		for(i = 0; i < args->all_3d_points_combined->size(); i++){
-			temp_point.x = args->all_3d_points_combined->at(i)[0];
-			temp_point.y = args->all_3d_points_combined->at(i)[1];
-			temp_point.z = args->all_3d_points_combined->at(i)[2];
-
-			if(sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
-				sample_jaco_point_index = i;
-			}	
-
-			all_3d_cloud->push_back(temp_point);
-		}
-			
+		
 		int valid_surface_size = 50000;
 	
 		// remove one surface (table?)
@@ -1058,6 +1067,11 @@ class ImageConverter{
 		find_arm_args.arm_clusters_3d_points = &arm_clusters_3d_points;
 		find_arm_args.validated_cluster = &validated_cluster;
 		find_arm_args.use_dbscan = args->use_dbscan;
+		
+		find_arm_args.viz_selection = args->viz_selection;
+		find_arm_args.pcl_viz_input_ready = args->pcl_viz_input_ready;
+		find_arm_args.pcl_viz_cloud_input = args->pcl_viz_cloud_input;
+		
 
 		pthread_t do_find_arm_thread;
 		pthread_create(&do_find_arm_thread, NULL, do_find_arm, (void *) &find_arm_args);
@@ -1169,7 +1183,7 @@ class ImageConverter{
 		}
 		pthread_join(do_find_arm_thread,NULL); 
 
-		if(validated_cluster >= 0){
+		if(args->viz_selection == PCL_JUST_ARM && validated_cluster >= 0){
 			pcl_viz_this_cloud(args->pcl_viz_input_ready, arm_clusters_3d_points.at(validated_cluster), args->pcl_viz_cloud_input);
 		}
 		

@@ -79,6 +79,7 @@ void print_help(){
 	cout << "\tfind arm                       : toggle JACO arm finding. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv table                        : toggle table removal. " << endl;
+	cout << "\tv live <all|arm>               : switch live PCL view. " << endl;
 	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. (default = " << DEFAULT_USE_DBSCAN << ")" << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
@@ -211,6 +212,16 @@ void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 void handle_viz_frames_to_skip(struct viz_thread_args *viz_args, char * num){
 	viz_args->skip_frames = atoi(num);
 	cout << "Now skipping " << viz_args->skip_frames << " frames" << endl;
+}
+
+void handle_live_viz(struct viz_thread_args *viz_args, char * word){
+	if(!strcmp("arm", word)){
+		viz_args->viz_selection = PCL_JUST_ARM;
+		cout << "live viz: 'arm'" << endl;
+	}else{
+		viz_args->viz_selection = PCL_ALL;
+		cout << "live viz: 'all'" << endl;
+	}
 }
 
 void normalize_xy(double x, double y, double *norm_x, double *norm_y){
@@ -529,6 +540,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v dbscan", cmd)){
 		viz_args->use_dbscan = !viz_args->use_dbscan;
 		cout << "Robot detection: use_dbscan: " << (viz_args->use_dbscan ? "On" : "Off, using ransac blob") << endl;
+	
+	}else if(strlen(cmd) > 7 && strncmp(cmd, "v live ", 7) == 0){
+		handle_live_viz(viz_args, (char *) &(cmd[7]) );
 
 	}else if(!strcmp("find arm", cmd)){
 		viz_args->find_arm = !viz_args->find_arm;
@@ -816,6 +830,7 @@ int main(int argc, char **argv){
 	
 	viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
 	viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
+	viz_args.viz_selection = DEFAULT_PCL_VIZUALIZATION;
 	
 
 	// set default colors

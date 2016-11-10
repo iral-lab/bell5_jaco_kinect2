@@ -63,6 +63,15 @@
 using namespace std;
 
 typedef enum {
+	PCL_ALL = 0,
+	PCL_JUST_ARM,
+	
+	NUMBER_OF_PCL_VIZUALIZATIONS
+} pcl_vizualizations;
+# define DEFAULT_PCL_VIZUALIZATION PCL_ALL
+
+
+typedef enum {
 	KMEANS = 0,
 	HISTOGRAM,
 
@@ -196,6 +205,7 @@ struct viz_thread_args{
 	
 	bool *pcl_viz_input_ready;
 	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+	pcl_vizualizations viz_selection;
 };
 
 struct ros_input{
