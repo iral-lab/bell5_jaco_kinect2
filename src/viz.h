@@ -86,6 +86,7 @@ struct find_arm_args{
 	vector< vector<double> > *table_points;
 	vector< vector<double> > *wall_points;
 	vector< vector<double> > *non_table_or_wall_points;
+	bool use_dbscan;
 };
 
 struct temporal_smoothing_args{
@@ -285,75 +286,139 @@ void *do_find_arm(void *thread_args){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr all_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr non_table_or_wall_3d_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-	for(i = 0; i < args->all_3d_points_combined->size(); i++){
-		temp_point.x = args->all_3d_points_combined->at(i)[0];
-		temp_point.y = args->all_3d_points_combined->at(i)[1];
-		temp_point.z = args->all_3d_points_combined->at(i)[2];
-		
-		all_3d_cloud->push_back(temp_point);
-	}
-
-	int valid_surface_size = 50000;
-	
-	// remove one surface (table?)
-	attempt_plane_segmentation(valid_surface_size, all_3d_cloud, args->map_2d_combined, args->table_points, non_table_3d_cloud, &non_table_points);
-	
-	if(args->table_points->size() >= valid_surface_size){
-		// remove another surface (wall?)
-		attempt_plane_segmentation(valid_surface_size, non_table_3d_cloud, &non_table_points, args->wall_points, non_table_or_wall_3d_cloud, args->non_table_or_wall_points);
-	}
-
-	// Do the PCL blob search for the arm
-	// http://pointclouds.org/documentation/tutorials/cluster_extraction.php
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
-	tree->setInputCloud (non_table_or_wall_3d_cloud);
-	
-	std::vector<pcl::PointIndices> cluster_indices;
-	pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-	ec.setClusterTolerance (0.03); // 3cm
-	ec.setMinClusterSize (10000);
-	ec.setMaxClusterSize (50000);
-	ec.setSearchMethod (tree);
-	ec.setInputCloud (non_table_or_wall_3d_cloud);
-	ec.extract (cluster_indices);
 	
 	bool found_jaco_tag = args->jaco_tag_matched_points_3d_combined->size() > 0;
 	vector<double> sample_jaco_point;
 	if(found_jaco_tag){
+		int sample_jaco_point_index = -2;
 		sample_jaco_point = args->jaco_tag_matched_points_3d_combined->at(0);
-	}
-	for (vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end() && (*(args->validated_cluster)) < 0; ++it){
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
-		vector< vector<double> > cluster_points;
+		for(i = 0; i < args->all_3d_points_combined->size(); i++){
+			temp_point.x = args->all_3d_points_combined->at(i)[0];
+			temp_point.y = args->all_3d_points_combined->at(i)[1];
+			temp_point.z = args->all_3d_points_combined->at(i)[2];
 
-		for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit){
-			pcl::PointXYZ sample_point = non_table_or_wall_3d_cloud->points[*pit];
-			cloud_cluster->points.push_back(sample_point);
-			cluster_points.push_back(args->non_table_or_wall_points->at( *pit ));
+			if(sample_jaco_point_index < 0 && temp_point.x == sample_jaco_point[0] && temp_point.y == sample_jaco_point[1] && temp_point.z == sample_jaco_point[2]){
+				sample_jaco_point_index = i;
+			}	
+
+			all_3d_cloud->push_back(temp_point);
+		}
+
+		int valid_surface_size = 50000;
+	
+		// remove one surface (table?)
+		attempt_plane_segmentation(valid_surface_size, all_3d_cloud, args->map_2d_combined, args->table_points, non_table_3d_cloud, &non_table_points);
+	
+		if(args->table_points->size() >= valid_surface_size){
+			// remove another surface (wall?)
+			attempt_plane_segmentation(valid_surface_size, non_table_3d_cloud, &non_table_points, args->wall_points, non_table_or_wall_3d_cloud, args->non_table_or_wall_points);
+		}
+		//cout << "start blob" << endl;
+
+
+		double eps = 0.03; // 3cm
+		if(args->use_dbscan){
+			int min_points = 100; // 3cm
+			clustering::DBSCAN dbscan( eps, min_points );
+			ublas::matrix< double > input_points(non_table_or_wall_3d_cloud->size(), 3);
+			//cout << "Attempting [" << input_points.size1() << "," << input_points.size2() << "] input, jaco sample: " << sample_jaco_point_index << endl;
+			pcl::PointXYZ point;
+			for(i = 0; i < non_table_or_wall_3d_cloud->size(); i++){
+				point = non_table_or_wall_3d_cloud->at(i);
+				input_points(i, 0) = point.x;
+				input_points(i, 1) = point.y;
+				input_points(i, 2) = point.z;
+			}
+	
+			dbscan.fit( input_points );
+			std::vector< int32_t > labels = dbscan.get_labels();
+			int num_labels = labels.size();
+			int jaco_tag_cluster_id = (sample_jaco_point_index >= 0 ? dbscan.get_labels().at(sample_jaco_point_index) : -9999);
+		
+			//cout << "found " << num_labels << " labels, with jaco tag at cluster (" << sample_jaco_point_index << ") " << jaco_tag_cluster_id << endl;
+		
+			vector< vector<double> > cluster_points;
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
 			
-			
-			if((*(args->validated_cluster)) == -1 && found_jaco_tag && sample_jaco_point.at(0) == sample_point.x && sample_jaco_point.at(1) == sample_point.y && sample_jaco_point.at(2) == sample_point.z){
-				(*(args->validated_cluster)) = j;
-				if(args->verbose){
-					cout << "found valid cluster " << (*(args->validated_cluster));
+			for(i = 0; i < num_labels; i++){
+				if(labels.at(i) != jaco_tag_cluster_id){
+					continue;
 				}
+				cloud_cluster->points.push_back(non_table_or_wall_3d_cloud->points[i]);
+			
+				cluster_points.push_back(args->non_table_or_wall_points->at( i ));
+				
+				//cout << "Pushing 2d " << index << ", " << args->non_table_or_wall_points->at( i ).at(0) << ", " << args->non_table_or_wall_points->at( i ).at(1) << endl;
 			}
 			
+			args->arm_clusters_2d_points->push_back( cluster_points );
+			
+			cloud_cluster->width = cloud_cluster->points.size ();
+			cloud_cluster->height = 1;
+			cloud_cluster->is_dense = true;
+			args->arm_clusters_3d_points->push_back( cloud_cluster );
+			(*(args->validated_cluster)) = 0;
+			if(args->verbose){
+				cout << "PointCloud representing the Cluster " << cloud_cluster->points.size () << " data points." << endl;
+			}
+			// end dbscan version
+		}else{
+			// Do the PCL blob search for the arm
+			// http://pointclouds.org/documentation/tutorials/cluster_extraction.php
+			std::vector<pcl::PointIndices> cluster_indices;
+		
+			pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+			tree->setInputCloud (non_table_or_wall_3d_cloud);
+	
+			pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+			ec.setClusterTolerance (eps);
+			ec.setMinClusterSize (5000);
+			ec.setMaxClusterSize (50000);
+			ec.setSearchMethod (tree);
+			ec.setInputCloud (non_table_or_wall_3d_cloud);
+			ec.extract (cluster_indices);
+	
+	
+			for (vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end() && (*(args->validated_cluster)) < 0; ++it){
+				pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+				vector< vector<double> > cluster_points;
+				
+				bool is_valid_cluster = false;
+				
+				for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit){
+					pcl::PointXYZ sample_point = non_table_or_wall_3d_cloud->points[*pit];
+					cloud_cluster->points.push_back(sample_point);
+					cluster_points.push_back(args->non_table_or_wall_points->at( *pit ));
+			
+			
+					if((*(args->validated_cluster)) == -1 && found_jaco_tag && sample_jaco_point.at(0) == sample_point.x && sample_jaco_point.at(1) == sample_point.y && sample_jaco_point.at(2) == sample_point.z){
+						is_valid_cluster = true;
+					}
+			
+				}
+				if(is_valid_cluster){
+					(*(args->validated_cluster)) = args->arm_clusters_2d_points->size();
+					args->arm_clusters_2d_points->push_back( cluster_points );
+		
+					cloud_cluster->width = cloud_cluster->points.size ();
+					cloud_cluster->height = 1;
+					cloud_cluster->is_dense = true;
+					args->arm_clusters_3d_points->push_back( cloud_cluster );
+		
+					if(args->verbose){
+						cout << "PointCloud representing the Cluster (" << j << "): " << cloud_cluster->points.size () << " data points." << endl;
+					}
+				}
+				j++;
+			}
+		
+			// end PCL ransac blob findarm
+		
 		}
-		
-		args->arm_clusters_2d_points->push_back( cluster_points );
-		
-		cloud_cluster->width = cloud_cluster->points.size ();
-		cloud_cluster->height = 1;
-		cloud_cluster->is_dense = true;
-		args->arm_clusters_3d_points->push_back( cloud_cluster );
-		
-		if(args->verbose){
-			cout << "PointCloud representing the Cluster (" << j << "): " << cloud_cluster->points.size () << " data points." << endl;
-		}
-		j++;
 	}
+	
+	
+
 	if(args->verbose){
 		cout << "find arm done" << endl;
 	}
@@ -935,6 +1000,7 @@ class ImageConverter{
 
 		find_arm_args.arm_clusters_3d_points = &arm_clusters_3d_points;
 		find_arm_args.validated_cluster = &validated_cluster;
+		find_arm_args.use_dbscan = args->use_dbscan;
 
 		pthread_t do_find_arm_thread;
 		pthread_create(&do_find_arm_thread, NULL, do_find_arm, (void *) &find_arm_args);
