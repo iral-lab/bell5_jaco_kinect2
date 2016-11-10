@@ -120,6 +120,18 @@ void *pcl_viz(void *thread_args){
 	
 }
 
+void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ> *input){
+	if(!(*is_ready)){
+		int i;
+		input->clear();
+		for(i = 0; i < source->size(); i++){
+			input->push_back(source->at(i));
+		}
+		(*(is_ready)) = true;
+	}
+}
+
+
 struct find_arm_args{
 	bool verbose;
 	vector< vector<double> > *map_2d_combined;
@@ -1157,13 +1169,8 @@ class ImageConverter{
 		}
 		pthread_join(do_find_arm_thread,NULL); 
 
-		if(validated_cluster >= 0 && !(*args->pcl_viz_input_ready)){
-			
-			args->pcl_viz_cloud_input->clear();
-			for(i = 0; i < arm_clusters_3d_points.at(validated_cluster)->size(); i++){
-				args->pcl_viz_cloud_input->push_back(arm_clusters_3d_points.at(validated_cluster)->at(i));
-			}
-			(*(args->pcl_viz_input_ready)) = true;
+		if(validated_cluster >= 0){
+			pcl_viz_this_cloud(args->pcl_viz_input_ready, arm_clusters_3d_points.at(validated_cluster), args->pcl_viz_cloud_input);
 		}
 		
 		if(args->highlight_table){
