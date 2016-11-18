@@ -309,37 +309,206 @@ int get_key_from_coordinate(vector< double > xy, int rows){
 }
 
 void attempt_plane_segmentation(int valid_surface_size, pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud, vector<vector<double>> *orig_2d, vector<vector<double>> *match_2d, pcl::PointCloud<pcl::PointXYZ>::Ptr non_match_3d, vector< vector<double> > *non_match_2d){
-		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-		// Create the segmentation object, get the table
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-		// Optional
-		seg.setOptimizeCoefficients(true);
-		// Mandatory
-		seg.setModelType(pcl::SACMODEL_PLANE);
-		seg.setMethodType(pcl::SAC_RANSAC);
-		seg.setDistanceThreshold(0.03);
-		seg.setInputCloud(input_cloud);
-		seg.segment(*inliers, *coefficients);
-		
-		unordered_map<int, bool> valid_indices;
-		int i = 0;
-		if(inliers->indices.size() > valid_surface_size){
-			for(i = 0; i < inliers->indices.size(); i++){
-				match_2d->push_back( orig_2d->at(inliers->indices[i]) );
-				// add valid indices to lookup table
-				valid_indices[inliers->indices[i]] = true;
-			}
-			
+	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+	// Create the segmentation object, get the table
+	pcl::SACSegmentation<pcl::PointXYZ> seg;
+	// Optional
+	seg.setOptimizeCoefficients(true);
+	// Mandatory
+	seg.setModelType(pcl::SACMODEL_PLANE);
+	seg.setMethodType(pcl::SAC_RANSAC);
+	seg.setDistanceThreshold(0.03);
+	seg.setInputCloud(input_cloud);
+	seg.segment(*inliers, *coefficients);
+	
+	unordered_map<int, bool> valid_indices;
+	int i = 0;
+	if(inliers->indices.size() > valid_surface_size){
+		for(i = 0; i < inliers->indices.size(); i++){
+			match_2d->push_back( orig_2d->at(inliers->indices[i]) );
+			// add valid indices to lookup table
+			valid_indices[inliers->indices[i]] = true;
 		}
-		for(i = 0; i < orig_2d->size(); i++){
-			if(valid_indices.find(i) == valid_indices.end()){
-				// if not in lookup table, they aren't part of the table
-				non_match_3d->push_back(input_cloud->at(i));
-				non_match_2d->push_back(orig_2d->at(i));
-			}
+		
+	}
+	for(i = 0; i < orig_2d->size(); i++){
+		if(valid_indices.find(i) == valid_indices.end()){
+			// if not in lookup table, they aren't part of the table
+			non_match_3d->push_back(input_cloud->at(i));
+			non_match_2d->push_back(orig_2d->at(i));
 		}
 	}
+}
+
+
+
+double compute_centroid_error(vector<double> *centroid, int centroid_number, arma::Row<size_t> *assignments, vector< vector<double> > *samples, int *num_assignments){
+	// find the samples in the cluster with the given centroid and compute mean distance to the centroid.
+	double distance_sum = 0;
+	(*num_assignments) = 0;
+	for(int i = 0; i < assignments->size(); i++){
+		if(assignments->at(i) != centroid_number){
+			continue;
+		}
+		(*num_assignments)++;
+		distance_sum += euclid_distance_3d(samples->at(i), *centroid);
+	}
+	if(distance_sum > 0){
+		distance_sum = distance_sum / *num_assignments;
+	}
+	
+	return distance_sum;
+	
+}
+
+void build_centroid(vector< vector<double> > *centroids, arma::mat *k_centroids, int num_elements){
+	int num_centroids = centroids->size();
+	centroids->push_back(vector<double>(num_elements));
+	for(int element_offset = 0; element_offset < num_elements; element_offset++){
+		centroids->at(num_centroids).at(element_offset) = (*k_centroids)[num_centroids * num_elements + element_offset];
+	}
+}
+
+bool too_many_clusters(double new_val, double old_val){
+	// TODO: figure out a good way to return true on elbow function
+	// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
+	
+	// naive way: return true if 2/3 of old_val is less than new_val, i.e. not a big enough drop in error.
+	//cout << "\ttesting new " << new_val << " vs old " << old_val << endl;
+	return (old_val * 0.66667) < new_val;
+}
+
+// Function sorts vectors with (centroid id, number of members) pairs
+bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
+
+void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, bool verbose){
+	// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
+	// http://arma.sourceforge.net/docs.html
+	centroids->clear();
+	if(samples->size() == 0){
+		return;
+	}
+	// The dataset we are clustering.
+	arma::mat data;
+	data.zeros(samples->at(0).size(), samples->size()); // Column major, number of elements in a match (2d = 2, 3d = 3, etc) rows for xyz, n columns
+	for(int i = 0; i < samples->size(); i++){
+		for(int j = 0; j < samples->at(i).size(); j++){
+			data.at(j, i) = samples->at(i).at(j);
+		}
+	}
+	
+	/*
+	data << 0 << 0 << 0 << 0 << 5 << 5 << 5 << 5 << arma::endr
+	     << 0 << 0 << 1 << 1 << 0 << 0 << 1 << 1 << arma::endr
+	     << 0 << 1 << 0 << 1 << 0 << 1 << 0 << 1 << arma::endr;
+	// results in (2.5,0.5,0.5) for a single centroid.
+	
+	*/
+	//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
+	
+	
+	
+	// The number of clusters we are getting.
+	
+	// The assignments will be stored in this vector.
+	arma::Row<size_t> assignments;
+	// The centroids will be stored in this matrix.
+	arma::mat k_centroids;
+	// Initialize with the default arguments.
+	KMeans<> k;
+	
+	double centroid_error;
+	int num_assignments;
+
+	int ideal_centroid_count = -1;
+	double error_sum_this_round, error_sum_last_round;
+	
+	for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
+		centroids->clear();
+		if(samples->size() < num_centroids){
+			continue;
+		}
+		
+		k.Cluster(data, num_centroids, assignments, k_centroids);
+		
+		error_sum_this_round = 0;
+		
+		for(int this_centroid = 0; this_centroid < num_centroids; this_centroid++){
+			build_centroid(centroids, &k_centroids, data.n_rows);
+
+			centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, &assignments, samples, &num_assignments);
+
+			error_sum_this_round += centroid_error;
+
+			if(verbose){
+				cout << "(" << num_centroids << ") centroid " << this_centroid << ": ";
+				for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
+					cout << centroids->at(this_centroid).at(element_offset) << " ";
+				}
+				cout << " has error: " << centroid_error << " and contains " << num_assignments << " samples" << " samples (running error: " << error_sum_this_round << endl;
+			}
+			
+
+		}
+		// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
+		if(num_centroids > 1 && too_many_clusters(error_sum_this_round, error_sum_last_round)){
+			ideal_centroid_count = num_centroids;
+			//cout << "FOUND TOO MANY" << endl;
+			break;
+		}
+		error_sum_last_round = error_sum_this_round;
+	}
+	if(ideal_centroid_count == -1){
+		ideal_centroid_count = max_centroids_to_try;
+	}
+	
+	vector< vector< double > > centroid_sizes;
+	int num_so_far = 0;
+	
+	if(samples->size() >= ideal_centroid_count){
+		k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
+		error_sum_this_round = 0;
+		centroids->clear();
+		int min_points_per_cluster = 100; // completely arbitrary value here, testing...
+		int num_centroids;
+		for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
+			build_centroid(centroids, &k_centroids, data.n_rows);
+			num_centroids = centroids->size();
+			centroid_error = compute_centroid_error(&(centroids->at(num_centroids - 1)), this_centroid, &assignments, samples, &num_assignments);
+			if(num_assignments < min_points_per_cluster){
+				centroids->erase(centroids->begin() + num_centroids - 1);
+				continue;
+			}
+			error_sum_this_round += centroid_error;
+			
+			centroid_sizes.push_back( vector< double >(2) );
+			centroid_sizes.at(num_so_far).at(0) = num_so_far;
+			centroid_sizes.at(num_so_far).at(1) = num_assignments;
+			num_so_far++;
+			
+			if(verbose){
+				cout << "\tcentroid " << num_centroids-1 << ": ";
+				for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
+					cout << centroids->at(num_centroids - 1).at(element_offset) << " ";
+				}
+				cout << " has error: " << centroid_error << " and contains " << num_assignments << endl;
+			}
+		}
+		if(verbose){
+			cout << "\tFinal error: " << error_sum_this_round << endl;
+		}
+	}
+	
+	// Leave only the absolute-max-centroid number of biggest matches
+	if(absolute_max_centroids > 0){
+		sort(centroid_sizes.begin(), centroid_sizes.end(), sort_centroid_members);
+	
+		for(int i = absolute_max_centroids; i < centroid_sizes.size(); i++){
+			centroids->erase(centroids->begin() + i);
+		}
+	}
+}
 
 void *do_find_arm(void *thread_args){
 	struct find_arm_args *args = (struct find_arm_args *) thread_args;
@@ -491,6 +660,13 @@ void *do_find_arm(void *thread_args){
 			// end PCL ransac blob findarm
 		
 		}
+		
+		// arm points found using some method, now let's decompose.
+		
+		
+		
+		
+		
 	}
 	
 	
@@ -537,8 +713,6 @@ void *perform_frame_combinations(void *thread_args){
 	}
 }
 
-// Function sorts vectors with (centroid id, number of members) pairs
-bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
 
 class ImageConverter{
 	ros::NodeHandle nh_;
@@ -634,170 +808,6 @@ class ImageConverter{
 			apply_distance_filter(im_matrix, x, y, cloud);
 		}
 		return match;
-	}
-
-	double compute_centroid_error(vector<double> *centroid, int centroid_number, arma::Row<size_t> *assignments, vector< vector<double> > *samples, int *num_assignments){
-		// find the samples in the cluster with the given centroid and compute mean distance to the centroid.
-		double distance_sum = 0;
-		(*num_assignments) = 0;
-		for(int i = 0; i < assignments->size(); i++){
-			if(assignments->at(i) != centroid_number){
-				continue;
-			}
-			(*num_assignments)++;
-			distance_sum += euclid_distance_3d(samples->at(i), *centroid);
-		}
-		if(distance_sum > 0){
-			distance_sum = distance_sum / *num_assignments;
-		}
-		
-		return distance_sum;
-		
-	}
-
-	void build_centroid(vector< vector<double> > *centroids, arma::mat *k_centroids, int num_elements){
-		int num_centroids = centroids->size();
-		centroids->push_back(vector<double>(num_elements));
-		for(int element_offset = 0; element_offset < num_elements; element_offset++){
-			centroids->at(num_centroids).at(element_offset) = (*k_centroids)[num_centroids * num_elements + element_offset];
-		}
-	}
-
-	bool too_many_clusters(double new_val, double old_val){
-		// TODO: figure out a good way to return true on elbow function
-		// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
-		
-		// naive way: return true if 2/3 of old_val is less than new_val, i.e. not a big enough drop in error.
-		//cout << "\ttesting new " << new_val << " vs old " << old_val << endl;
-		return (old_val * 0.66667) < new_val;
-	}
-
-	void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, bool verbose){
-		// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
-		// http://arma.sourceforge.net/docs.html
-		centroids->clear();
-		if(samples->size() == 0){
-			return;
-		}
-		// The dataset we are clustering.
-		arma::mat data;
-		data.zeros(samples->at(0).size(), samples->size()); // Column major, number of elements in a match (2d = 2, 3d = 3, etc) rows for xyz, n columns
-		for(int i = 0; i < samples->size(); i++){
-			for(int j = 0; j < samples->at(i).size(); j++){
-				data.at(j, i) = samples->at(i).at(j);
-			}
-		}
-		
-		/*
-		data << 0 << 0 << 0 << 0 << 5 << 5 << 5 << 5 << arma::endr
-		     << 0 << 0 << 1 << 1 << 0 << 0 << 1 << 1 << arma::endr
-		     << 0 << 1 << 0 << 1 << 0 << 1 << 0 << 1 << arma::endr;
-		// results in (2.5,0.5,0.5) for a single centroid.
-		
-		*/
-		//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
-		
-		
-		
-		// The number of clusters we are getting.
-		
-		// The assignments will be stored in this vector.
-		arma::Row<size_t> assignments;
-		// The centroids will be stored in this matrix.
-		arma::mat k_centroids;
-		// Initialize with the default arguments.
-		KMeans<> k;
-		
-		double centroid_error;
-		int num_assignments;
-
-		int ideal_centroid_count = -1;
-		double error_sum_this_round, error_sum_last_round;
-		
-		for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
-			centroids->clear();
-			if(samples->size() < num_centroids){
-				continue;
-			}
-			
-			k.Cluster(data, num_centroids, assignments, k_centroids);
-			
-			error_sum_this_round = 0;
-			
-			for(int this_centroid = 0; this_centroid < num_centroids; this_centroid++){
-				build_centroid(centroids, &k_centroids, data.n_rows);
-
-				centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, &assignments, samples, &num_assignments);
-
-				error_sum_this_round += centroid_error;
-
-				if(verbose){
-					cout << "(" << num_centroids << ") centroid " << this_centroid << ": ";
-					for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
-						cout << centroids->at(this_centroid).at(element_offset) << " ";
-					}
-					cout << " has error: " << centroid_error << " and contains " << num_assignments << " samples" << " samples (running error: " << error_sum_this_round << endl;
-				}
-				
-
-			}
-			// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
-			if(num_centroids > 1 && too_many_clusters(error_sum_this_round, error_sum_last_round)){
-				ideal_centroid_count = num_centroids;
-				//cout << "FOUND TOO MANY" << endl;
-				break;
-			}
-			error_sum_last_round = error_sum_this_round;
-		}
-		if(ideal_centroid_count == -1){
-			ideal_centroid_count = max_centroids_to_try;
-		}
-		
-		vector< vector< double > > centroid_sizes;
-		int num_so_far = 0;
-		
-		if(samples->size() >= ideal_centroid_count){
-			k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
-			error_sum_this_round = 0;
-			centroids->clear();
-			int min_points_per_cluster = 100; // completely arbitrary value here, testing...
-			int num_centroids;
-			for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
-				build_centroid(centroids, &k_centroids, data.n_rows);
-				num_centroids = centroids->size();
-				centroid_error = compute_centroid_error(&(centroids->at(num_centroids - 1)), this_centroid, &assignments, samples, &num_assignments);
-				if(num_assignments < min_points_per_cluster){
-					centroids->erase(centroids->begin() + num_centroids - 1);
-					continue;
-				}
-				error_sum_this_round += centroid_error;
-				
-				centroid_sizes.push_back( vector< double >(2) );
-				centroid_sizes.at(num_so_far).at(0) = num_so_far;
-				centroid_sizes.at(num_so_far).at(1) = num_assignments;
-				num_so_far++;
-				
-				if(verbose){
-					cout << "\tcentroid " << num_centroids-1 << ": ";
-					for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
-						cout << centroids->at(num_centroids - 1).at(element_offset) << " ";
-					}
-					cout << " has error: " << centroid_error << " and contains " << num_assignments << endl;
-				}
-			}
-			if(verbose){
-				cout << "\tFinal error: " << error_sum_this_round << endl;
-			}
-		}
-		
-		// Leave only the absolute-max-centroid number of biggest matches
-		if(absolute_max_centroids > 0){
-			sort(centroid_sizes.begin(), centroid_sizes.end(), sort_centroid_members);
-		
-			for(int i = absolute_max_centroids; i < centroid_sizes.size(); i++){
-				centroids->erase(centroids->begin() + i);
-			}
-		}
 	}
 
 	void get_2d_coord_for_3d_depth_coord(double *x_2d, double *y_2d, pcl::PointCloud<pcl::PointXYZRGB> *cloud, vector<double> *point_3d){
