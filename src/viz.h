@@ -385,7 +385,7 @@ bool too_many_clusters(double new_val, double old_val){
 	
 	// difference in readings must be less than 10% of the previous value.
 	//cout << old_val << "   " << new_val << "   " << (old_val - new_val) << "   " << (0.1 * old_val) << "   " << ((old_val - new_val) < 0.1 * old_val ? "break" : "continue") << endl;
-	return old_val > new_val && (old_val - new_val) < 0.1 * old_val;
+	return old_val > new_val && (old_val - new_val) < 0.05 * old_val;
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
@@ -414,7 +414,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	// results in (2.5,0.5,0.5) for a single centroid.
 	
 	*/
-	cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << samples->size() << " points" << endl;
+	//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << samples->size() << " points" << endl;
 	
 	
 	
