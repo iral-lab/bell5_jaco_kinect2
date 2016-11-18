@@ -75,6 +75,12 @@ struct rgb jaco_arm_match_color = {0, 0, 0xff};
 struct rgb jaco_arm_tried_color = {0xAD, 0xD8, 0xE6};
 
 
+void get_hex_color(int n, struct rgb *color){
+	color->r = (0xAD + n * 1000) % 256;
+	color->g = (0xD8 + n * 1000) % 256;
+	color->b = (0xE6 + n * 1000) % 256;
+}
+
 void *pcl_viz(void *thread_args){
 	struct pcl_viz_args *pcl_viz_args = (struct pcl_viz_args *) thread_args;
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
@@ -471,10 +477,10 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 		}
 		if(avg_error_history.size() > 1){
 			// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
-			cout << "trying " << avg_error_history.at(avg_error_history_size - 1) << " vs " << avg_error_history.at(avg_error_history_size - 2) << endl;
+			//cout << "trying " << avg_error_history.at(avg_error_history_size - 1) << " vs " << avg_error_history.at(avg_error_history_size - 2) << endl;
 			if(too_many_clusters(avg_error_history.at(avg_error_history_size - 1), avg_error_history.at(avg_error_history_size - 2))){
 				ideal_centroid_count = num_centroids+1;
-				cout << "FOUND ENOUGH " << ideal_centroid_count << endl;
+				//cout << "FOUND ENOUGH " << ideal_centroid_count << endl;
 				break;
 			}
 		}
@@ -487,6 +493,8 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	
 	// Leave only the absolute-max-centroid number of biggest matches
 	if(absolute_max_centroids > 0){
+		// Messes up mappings with assignments, though, so let's clear these out.
+		assignments->reset();
 		sort(centroid_sizes.begin(), centroid_sizes.end(), sort_centroid_members);
 	
 		for(int i = absolute_max_centroids; i < centroid_sizes.size(); i++){
@@ -664,8 +672,8 @@ void *do_find_arm(void *thread_args){
 			}
 			int initial_centroid_suggestion = 30;
 			
-			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, true);
-			cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
+			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, false);
+			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 		}
 		
 		
@@ -1229,6 +1237,24 @@ class ImageConverter{
 				for(i = 0; i < arm_clusters_2d_points.size(); i++){
 					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
 				}
+			}
+		}
+		
+		if(true && validated_cluster >= 0){
+			// arm_clusters_2d_points
+			// arma::Row<size_t> arm_skeleton_assignments;
+			// vector< vector<double> > arm_skeleton_centroids;
+			int assignment = 0, x = 0, y = 0;
+			//cout << "has " << arm_skeleton_assignments.n_elem << " elements" << endl;
+			struct rgb color;
+			for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
+				assignment = arm_skeleton_assignments.at(i);
+				get_hex_color(assignment, &color);
+				x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
+				y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
+				im_matrix.at<cv::Vec3b>(y,x)[0] = color.b;
+				im_matrix.at<cv::Vec3b>(y,x)[1] = color.g;
+				im_matrix.at<cv::Vec3b>(y,x)[2] = color.r;
 			}
 		}
 		
