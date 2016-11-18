@@ -362,7 +362,7 @@ double compute_centroid_error(vector<double> *centroid, int centroid_number, arm
 	
 }
 
-void build_centroid(vector< vector<double> > *centroids, arma::mat *k_centroids, int num_elements){
+void build_centroids(vector< vector<double> > *centroids, arma::mat *k_centroids, int num_elements){
 	int num_centroids = centroids->size();
 	centroids->push_back(vector<double>(num_elements));
 	for(int element_offset = 0; element_offset < num_elements; element_offset++){
@@ -374,9 +374,9 @@ bool too_many_clusters(double new_val, double old_val){
 	// TODO: figure out a good way to return true on elbow function
 	// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
 	
-	// naive way: return true if 2/3 of old_val is less than new_val, i.e. not a big enough drop in error.
-	//cout << "\ttesting new " << new_val << " vs old " << old_val << endl;
-	return (old_val * 0.66667) < new_val;
+	// difference in readings must be less than 10% of the previous value.
+	//cout << old_val << "   " << new_val << "   " << (old_val - new_val) << "   " << (0.1 * old_val) << "   " << ((old_val - new_val) < 0.1 * old_val ? "break" : "continue") << endl;
+	return old_val > new_val && (old_val - new_val) < 0.01 * old_val;
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
@@ -416,29 +416,40 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	// The centroids will be stored in this matrix.
 	arma::mat k_centroids;
 	// Initialize with the default arguments.
-	KMeans<> k;
+	KMeans<> k(1000);
 	
 	double centroid_error;
 	int num_assignments;
+	vector< vector< double > > centroid_sizes;
 
 	int ideal_centroid_count = -1;
 	double error_sum_this_round, error_sum_last_round;
-	
+	vector<double> avg_error_history;
+	int avg_error_history_size = avg_error_history.size();
 	for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
 		centroids->clear();
+		assignments.reset();
+		k_centroids.reset();
+		
 		if(samples->size() < num_centroids){
-			cout << "Skipping due to " << samples->size() << " < " << num_centroids << endl;
+			//cout << "Skipping due to " << samples->size() << " < " << num_centroids << endl;
 			continue;
 		}
 		
+	cout << "2222 " << data.n_rows << "," << data.n_cols << "," << num_centroids << "," << k_centroids << endl;
 		k.Cluster(data, num_centroids, assignments, k_centroids);
 		
+	cout << "3333" << endl;
 		error_sum_this_round = 0;
 		
+		centroid_sizes.clear();
 		for(int this_centroid = 0; this_centroid < num_centroids; this_centroid++){
-			build_centroid(centroids, &k_centroids, data.n_rows);
+			build_centroids(centroids, &k_centroids, data.n_rows);
 
 			centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, &assignments, samples, &num_assignments);
+			centroid_sizes.push_back( vector< double >(2) );
+			centroid_sizes.at(this_centroid).at(0) = this_centroid;
+			centroid_sizes.at(this_centroid).at(1) = num_assignments;
 
 			error_sum_this_round += centroid_error;
 
@@ -452,54 +463,31 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 			
 
 		}
-		// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
-		if(num_centroids > 1 && too_many_clusters(error_sum_this_round, error_sum_last_round)){
-			ideal_centroid_count = num_centroids;
-			cout << "FOUND TOO MANY" << endl;
-			break;
+	cout << "4444" << endl;
+		avg_error_history.push_back(error_sum_this_round / num_centroids);
+		avg_error_history_size = avg_error_history.size();
+		if(verbose){
+			for(int err = 0; err < avg_error_history.size(); err++){
+				cout << (err+1) << "," << avg_error_history.at(err) << endl;
+			}
 		}
+		if(avg_error_history.size() > 1){
+			// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
+			cout << "trying " << avg_error_history.at(avg_error_history_size - 1) << " vs " << avg_error_history.at(avg_error_history_size - 2) << endl;
+			if(too_many_clusters(avg_error_history.at(avg_error_history_size - 1), avg_error_history.at(avg_error_history_size - 2))){
+				ideal_centroid_count = num_centroids+1;
+				cout << "FOUND ENOUGH " << ideal_centroid_count << endl;
+				break;
+			}
+		}
+		cout << "here" << endl;
 		error_sum_last_round = error_sum_this_round;
 	}
+	cout << "1111" << endl;
 	if(ideal_centroid_count == -1){
 		ideal_centroid_count = max_centroids_to_try;
 	}
 	
-	vector< vector< double > > centroid_sizes;
-	int num_so_far = 0;
-	
-	if(samples->size() >= ideal_centroid_count){
-		k.Cluster(data, ideal_centroid_count, assignments, k_centroids);
-		error_sum_this_round = 0;
-		centroids->clear();
-		int min_points_per_cluster = 100; // completely arbitrary value here, testing...
-		int num_centroids;
-		for(int this_centroid = 0; this_centroid < ideal_centroid_count; this_centroid++){
-			build_centroid(centroids, &k_centroids, data.n_rows);
-			num_centroids = centroids->size();
-			centroid_error = compute_centroid_error(&(centroids->at(num_centroids - 1)), this_centroid, &assignments, samples, &num_assignments);
-			if(num_assignments < min_points_per_cluster){
-				centroids->erase(centroids->begin() + num_centroids - 1);
-				continue;
-			}
-			error_sum_this_round += centroid_error;
-			
-			centroid_sizes.push_back( vector< double >(2) );
-			centroid_sizes.at(num_so_far).at(0) = num_so_far;
-			centroid_sizes.at(num_so_far).at(1) = num_assignments;
-			num_so_far++;
-			
-			if(verbose){
-				cout << "\tcentroid " << num_centroids-1 << ": ";
-				for(int element_offset = 0; element_offset < data.n_rows; element_offset++){
-					cout << centroids->at(num_centroids - 1).at(element_offset) << " ";
-				}
-				cout << " has error: " << centroid_error << " and contains " << num_assignments << endl;
-			}
-		}
-		if(verbose){
-			cout << "\tFinal error: " << error_sum_this_round << endl;
-		}
-	}
 	
 	// Leave only the absolute-max-centroid number of biggest matches
 	if(absolute_max_centroids > 0){
@@ -679,7 +667,7 @@ void *do_find_arm(void *thread_args){
 				
 				input.push_back(point);
 			}
-			int initial_centroid_suggestion = 10;
+			int initial_centroid_suggestion = 30;
 			kmeans_cluster_and_centroid(&input, &centroids, initial_centroid_suggestion, 0, true);
 			cout << "Found " << centroids.size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 		}
