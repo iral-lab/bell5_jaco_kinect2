@@ -55,6 +55,25 @@ void go_home(struct thread_args *args){
 	home_and_rotate(args);
 }
 
+void contort(struct thread_args *args){
+	if(!args){
+		cout << "No arm found" << endl;
+		return;
+	}else if(!args->arm_has_moved){
+		go_home(args);
+	}
+	
+	
+	args->angles[0] = 189;
+	args->angles[1] = 100;
+	args->angles[2] = 54;
+	args->angles[3] = 296;
+	args->angles[4] = 82;
+	args->angles[5] = 103;
+
+	do_action(args, true);
+}
+
 void open_fingers(struct thread_args *args, grasped_object_type object){
 	if(!args){
 		cout << "No arm found" << endl;

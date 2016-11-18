@@ -506,6 +506,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("cart home", cmd)){
 		cartesian_home(first_arm);
 
+	}else if(!strcmp("contort", cmd)){
+		contort(first_arm);
+
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "cart goto ", 10) == 0){
 		handle_cartesian_goto(first_arm, (char *) &(cmd[10]));
 
