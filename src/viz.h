@@ -153,6 +153,9 @@ struct find_arm_args{
 	vector< vector<double> > *non_table_or_wall_points;
 	bool use_dbscan;
 	
+	arma::Row<size_t> *arm_skeleton_assignments;
+	vector< vector<double> > *arm_skeleton_centroids;
+	
 	bool *pcl_viz_input_ready;
 	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
 	pcl_vizualizations viz_selection;
@@ -376,13 +379,13 @@ bool too_many_clusters(double new_val, double old_val){
 	
 	// difference in readings must be less than 10% of the previous value.
 	//cout << old_val << "   " << new_val << "   " << (old_val - new_val) << "   " << (0.1 * old_val) << "   " << ((old_val - new_val) < 0.1 * old_val ? "break" : "continue") << endl;
-	return old_val > new_val && (old_val - new_val) < 0.01 * old_val;
+	return old_val > new_val && (old_val - new_val) < 0.1 * old_val;
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
 bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
 
-void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, bool verbose){
+void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, arma::Row<size_t> *assignments, bool verbose){
 	// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
 	// http://arma.sourceforge.net/docs.html
 	centroids->clear();
@@ -411,8 +414,6 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	
 	// The number of clusters we are getting.
 	
-	// The assignments will be stored in this vector.
-	arma::Row<size_t> assignments;
 	// The centroids will be stored in this matrix.
 	arma::mat k_centroids;
 	// Initialize with the default arguments.
@@ -428,7 +429,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	int avg_error_history_size = avg_error_history.size();
 	for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
 		centroids->clear();
-		assignments.reset();
+		assignments->reset();
 		k_centroids.reset();
 		
 		if(samples->size() < num_centroids){
@@ -436,17 +437,15 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 			continue;
 		}
 		
-	cout << "2222 " << data.n_rows << "," << data.n_cols << "," << num_centroids << "," << k_centroids << endl;
-		k.Cluster(data, num_centroids, assignments, k_centroids);
+		k.Cluster(data, num_centroids, *assignments, k_centroids);
 		
-	cout << "3333" << endl;
 		error_sum_this_round = 0;
 		
 		centroid_sizes.clear();
 		for(int this_centroid = 0; this_centroid < num_centroids; this_centroid++){
 			build_centroids(centroids, &k_centroids, data.n_rows);
 
-			centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, &assignments, samples, &num_assignments);
+			centroid_error = compute_centroid_error(&(centroids->at(this_centroid)), this_centroid, assignments, samples, &num_assignments);
 			centroid_sizes.push_back( vector< double >(2) );
 			centroid_sizes.at(this_centroid).at(0) = this_centroid;
 			centroid_sizes.at(this_centroid).at(1) = num_assignments;
@@ -463,7 +462,6 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 			
 
 		}
-	cout << "4444" << endl;
 		avg_error_history.push_back(error_sum_this_round / num_centroids);
 		avg_error_history_size = avg_error_history.size();
 		if(verbose){
@@ -480,10 +478,8 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 				break;
 			}
 		}
-		cout << "here" << endl;
 		error_sum_last_round = error_sum_this_round;
 	}
-	cout << "1111" << endl;
 	if(ideal_centroid_count == -1){
 		ideal_centroid_count = max_centroids_to_try;
 	}
@@ -653,7 +649,6 @@ void *do_find_arm(void *thread_args){
 		
 		// arm points found using some method, now let's decompose.
 		if((*(args->validated_cluster)) > -1){
-			vector< vector<double> > centroids;
 			
 			vector< vector<double> > input;
 			vector<double> point;
@@ -668,8 +663,9 @@ void *do_find_arm(void *thread_args){
 				input.push_back(point);
 			}
 			int initial_centroid_suggestion = 30;
-			kmeans_cluster_and_centroid(&input, &centroids, initial_centroid_suggestion, 0, true);
-			cout << "Found " << centroids.size() << " skeleton centroids for " << input.size() << " inputs" << endl;
+			
+			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, true);
+			cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 		}
 		
 		
@@ -1080,6 +1076,9 @@ class ImageConverter{
 		vector< vector<double> > wall_points;
 		vector< vector<double> > non_table_or_wall_points;
 
+		arma::Row<size_t> arm_skeleton_assignments;
+		vector< vector<double> > arm_skeleton_centroids;
+		
 		// do find-arm
 		struct find_arm_args find_arm_args;
 		find_arm_args.verbose = verbose;
@@ -1099,6 +1098,9 @@ class ImageConverter{
 		find_arm_args.pcl_viz_input_ready = args->pcl_viz_input_ready;
 		find_arm_args.pcl_viz_cloud_input = args->pcl_viz_cloud_input;
 		
+		find_arm_args.arm_skeleton_centroids = &arm_skeleton_centroids;
+		find_arm_args.arm_skeleton_assignments = &arm_skeleton_assignments;
+		
 
 		pthread_t do_find_arm_thread;
 		pthread_create(&do_find_arm_thread, NULL, do_find_arm, (void *) &find_arm_args);
@@ -1110,11 +1112,12 @@ class ImageConverter{
 		
 
 		if(args->detection_algorithm == KMEANS){
+			arma::Row<size_t> assignments;
 			// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
 			int max_centroids_to_try = 5;
-			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, verbose);
+			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, &assignments, verbose);
 		
-			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, verbose);
+			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, &assignments, verbose);
 		}else if(args->detection_algorithm == HISTOGRAM){
 		
 			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);
