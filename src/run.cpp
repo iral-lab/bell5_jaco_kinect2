@@ -212,7 +212,7 @@ void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 
 void handle_viz_error_cutoff(struct viz_thread_args *viz_args, char * num){
 	(*viz_args->cluster_error_cutoff) = atof(num);
-	cout << "Cluster error set to " << viz_args->cluster_error_cutoff << "" << endl;
+	cout << "Cluster error set to " << (*viz_args->cluster_error_cutoff) << "" << endl;
 }
 
 void handle_viz_frames_to_skip(struct viz_thread_args *viz_args, char * num){
