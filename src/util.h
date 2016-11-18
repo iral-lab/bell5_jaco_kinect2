@@ -72,7 +72,7 @@ typedef enum {
 	
 	NUMBER_OF_PCL_VIZUALIZATIONS
 } pcl_vizualizations;
-# define DEFAULT_PCL_VIZUALIZATION PCL_ALL
+# define DEFAULT_PCL_VIZUALIZATION PCL_JUST_ARM
 
 
 typedef enum {
