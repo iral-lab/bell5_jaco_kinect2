@@ -392,7 +392,7 @@ void *do_find_arm(void *thread_args){
 		//cout << "start blob" << endl;
 
 
-		double eps = 0.03; // 3cm
+		double eps = 0.02; // 2cm
 		if(args->use_dbscan){
 			int min_points = 100; // 3cm
 			clustering::DBSCAN dbscan( eps, min_points );
