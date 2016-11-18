@@ -57,6 +57,8 @@
 
 #define MAX_INTERESTED_DISTANCE_INTERVAL 0.25
 
+#define DEFAULT_CLUSTER_ERROR_CUTOFF 0.05
+
 #define HEIGHT_OFFSET_ADJUSTMENT 0.2
 
 #define DEFAULT_FIND_ARM true
@@ -198,6 +200,8 @@ struct viz_thread_args{
 	bool highlight_table;
 
 	int skip_frames;
+	
+	double *cluster_error_cutoff;
 
 	char *kinect_topic;
 	

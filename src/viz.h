@@ -166,6 +166,7 @@ struct find_arm_args{
 	
 	arma::Row<size_t> *arm_skeleton_assignments;
 	vector< vector<double> > *arm_skeleton_centroids;
+	double *cluster_error_cutoff;
 	
 	bool *pcl_viz_input_ready;
 	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
@@ -384,19 +385,19 @@ void build_centroids(vector< vector<double> > *centroids, arma::mat *k_centroids
 	}
 }
 
-bool too_many_clusters(double new_val, double old_val){
+bool too_many_clusters(double new_val, double old_val, double *error_cutoff){
 	// TODO: figure out a good way to return true on elbow function
 	// https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set
 	
 	// difference in readings must be less than 10% of the previous value.
 	//cout << old_val << "   " << new_val << "   " << (old_val - new_val) << "   " << (0.1 * old_val) << "   " << ((old_val - new_val) < 0.1 * old_val ? "break" : "continue") << endl;
-	return old_val > new_val && (old_val - new_val) < 0.05 * old_val;
+	return old_val > new_val && (old_val - new_val) < (*error_cutoff) * old_val;
 }
 
 // Function sorts vectors with (centroid id, number of members) pairs
 bool sort_centroid_members(vector< double > a, vector< double > b) { return a[1] > b[1]; }
 
-void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, arma::Row<size_t> *assignments, bool verbose){
+void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vector<double> > *centroids, int max_centroids_to_try, int absolute_max_centroids, arma::Row<size_t> *assignments, double *error_cutoff, bool verbose){
 	// Largely duped and modified from http://www.mlpack.org/docs/mlpack-2.0.1/doxygen.php?doc=kmtutorial.html#kmeans_kmtut
 	// http://arma.sourceforge.net/docs.html
 	centroids->clear();
@@ -486,7 +487,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 		if(avg_error_history.size() > 1){
 			// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
 			//cout << "trying " << avg_error_history.at(avg_error_history_size - 1) << " vs " << avg_error_history.at(avg_error_history_size - 2) << endl;
-			if(too_many_clusters(avg_error_history.at(avg_error_history_size - 1), avg_error_history.at(avg_error_history_size - 2))){
+			if(too_many_clusters(avg_error_history.at(avg_error_history_size - 1), avg_error_history.at(avg_error_history_size - 2), error_cutoff)){
 				ideal_centroid_count = num_centroids+1;
 				//cout << "FOUND ENOUGH " << ideal_centroid_count << endl;
 				break;
@@ -680,7 +681,7 @@ void *do_find_arm(void *thread_args){
 			}
 			int initial_centroid_suggestion = 30;
 			
-			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, false);
+			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, args->cluster_error_cutoff, false);
 			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 		}
 		
@@ -1116,6 +1117,7 @@ class ImageConverter{
 		
 		find_arm_args.arm_skeleton_centroids = &arm_skeleton_centroids;
 		find_arm_args.arm_skeleton_assignments = &arm_skeleton_assignments;
+		find_arm_args.cluster_error_cutoff = args->cluster_error_cutoff;
 		
 
 		pthread_t do_find_arm_thread;
@@ -1128,12 +1130,13 @@ class ImageConverter{
 		
 
 		if(args->detection_algorithm == KMEANS){
+			double cutoff = 0.1;
 			arma::Row<size_t> assignments;
 			// Arbitrary 5 initially, maybe we know we're looking for n of whatever.
 			int max_centroids_to_try = 5;
-			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, &assignments, verbose);
+			kmeans_cluster_and_centroid(&object_matched_points_3d_combined, &object_centroids_3d, max_centroids_to_try, args->num_objects_in_scene, &assignments, &cutoff, verbose);
 		
-			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, &assignments, verbose);
+			kmeans_cluster_and_centroid(&jaco_tag_matched_points_3d_combined, &jaco_tag_centroids_3d, max_centroids_to_try, args->num_jaco_arms_in_scene, &assignments, &cutoff, verbose);
 		}else if(args->detection_algorithm == HISTOGRAM){
 		
 			compute_centroids(&object_matched_points_2d, &object_matched_points_3d, &object_centroids_2d, &object_centroids_3d, verbose);

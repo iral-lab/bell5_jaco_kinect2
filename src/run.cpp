@@ -82,6 +82,7 @@ void print_help(){
 	cout << "\tv live <all|arm>               : switch live PCL view. " << endl;
 	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. (default = " << DEFAULT_USE_DBSCAN << ")" << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
+	cout << "\tv error <" << DEFAULT_CLUSTER_ERROR_CUTOFF << ">                  : update arm clustering error (in meters). " << endl;
 	cout << "\tv verbose                      : toggle verbosity. " << endl;
 	cout << "\tv skip <n>                     : Skip rendering frames (default = " << DEFAULT_SKIP_FRAMES << "). " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
@@ -207,6 +208,11 @@ void handle_viz_distance(struct viz_thread_args *viz_args, char * num){
 
 void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
+}
+
+void handle_viz_error_cutoff(struct viz_thread_args *viz_args, char * num){
+	(*viz_args->cluster_error_cutoff) = atof(num);
+	cout << "Cluster error set to " << viz_args->cluster_error_cutoff << "" << endl;
 }
 
 void handle_viz_frames_to_skip(struct viz_thread_args *viz_args, char * num){
@@ -533,6 +539,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(strlen(cmd) > 7 && strncmp(cmd, "v skip ", 7) == 0){
 		handle_viz_frames_to_skip(viz_args, (char *) &(cmd[7]) );
 
+	}else if(strlen(cmd) > 8 && strncmp(cmd, "v error ", 8) == 0){
+		handle_viz_error_cutoff(viz_args, (char *) &(cmd[8]) );
+
 	}else if(!strcmp("v pixels", cmd)){
 		viz_args->draw_pixel_match_color = !viz_args->draw_pixel_match_color;
 		cout << "pixel drawing: " << (viz_args->draw_pixel_match_color ? "On" : "Off") << endl;
@@ -814,6 +823,7 @@ int main(int argc, char **argv){
 	pthread_t pcl_viz_thread;
 	pthread_create(&pcl_viz_thread, NULL, pcl_viz, (void *) &pcl_viz_args);
 	
+	double cluster_error_cutoff = DEFAULT_CLUSTER_ERROR_CUTOFF;
 	
 	struct viz_thread_args viz_args;
 	memset(&viz_args, 0, sizeof(struct viz_thread_args));
@@ -838,6 +848,7 @@ int main(int argc, char **argv){
 	viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;
 	viz_args.viz_selection = DEFAULT_PCL_VIZUALIZATION;
 	viz_args.reset_camera = &reset_camera;
+	viz_args.cluster_error_cutoff = &cluster_error_cutoff;
 	
 
 	// set default colors
