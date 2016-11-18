@@ -1,6 +1,8 @@
 #ifndef _VIZH_
 #define _VIZH_
 
+#include <iostream>
+
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
 #include <vector>
@@ -445,8 +447,11 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 			//cout << "Skipping due to " << samples->size() << " < " << num_centroids << endl;
 			continue;
 		}
-		
-		k.Cluster(data, num_centroids, *assignments, k_centroids);
+		try{
+			k.Cluster(data, num_centroids, *assignments, k_centroids);
+		}catch(...){
+			cout << "caught error during kmeans cluster" << endl;
+		}
 		
 		error_sum_this_round = 0;
 		
