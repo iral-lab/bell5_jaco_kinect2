@@ -175,7 +175,7 @@ struct cartesian_xyz{
 struct pcl_viz_args{
 	bool *terminated;
 	bool *pcl_viz_input_ready;
-	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+	pcl::PointCloud<pcl::PointXYZRGB> *pcl_viz_cloud_input;
 	bool *reset_camera;
 };
 
@@ -217,7 +217,7 @@ struct viz_thread_args{
 	pcl::PointCloud<pcl::PointXYZRGB> *cloud;
 	
 	bool *pcl_viz_input_ready;
-	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+	pcl::PointCloud<pcl::PointXYZRGB> *pcl_viz_cloud_input;
 	pcl_vizualizations viz_selection;
 	bool *reset_camera;
 };

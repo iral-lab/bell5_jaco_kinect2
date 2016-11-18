@@ -818,7 +818,7 @@ int main(int argc, char **argv){
 	
 	bool reset_camera = false;
 	bool pcl_viz_input_ready = true;
-	pcl::PointCloud<pcl::PointXYZ> pcl_viz_cloud_input;
+	pcl::PointCloud<pcl::PointXYZRGB> pcl_viz_cloud_input;
 	
 	struct pcl_viz_args pcl_viz_args;
 	memset(&pcl_viz_args, 0, sizeof(struct pcl_viz_args));

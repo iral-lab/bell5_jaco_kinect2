@@ -89,7 +89,7 @@ void get_hex_color(int n, struct rgb *color){
 void *pcl_viz(void *thread_args){
 	struct pcl_viz_args *pcl_viz_args = (struct pcl_viz_args *) thread_args;
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-	pcl::PointCloud<pcl::PointXYZ>::Ptr currently_visualizing;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr currently_visualizing;
 	
 	// copied/tweaked from http://pointclouds.org/documentation/tutorials/random_sample_consensus.php
 	// --------------------------------------------
@@ -99,7 +99,7 @@ void *pcl_viz(void *thread_args){
 	
 	//pcl::visualization::Camera cam;
 	
-	pcl::PointCloud<pcl::PointXYZ> temp;
+	pcl::PointCloud<pcl::PointXYZRGB> temp;
 	while(!pcl_viz_args->terminated && !viewer->wasStopped()){
 		while(!(*(pcl_viz_args->pcl_viz_input_ready)) && !viewer->wasStopped()){
 			boost::this_thread::sleep (boost::posix_time::microseconds (100000));
@@ -114,12 +114,12 @@ void *pcl_viz(void *thread_args){
 		
 		if(!ever_drawn_viewer){
 			viewer->setBackgroundColor(0, 0, 0);
-			viewer->addPointCloud<pcl::PointXYZ> (currently_visualizing, "sample cloud");
+			viewer->addPointCloud<pcl::PointXYZRGB> (currently_visualizing, "sample cloud");
 			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
 			
 			boost::this_thread::sleep (boost::posix_time::microseconds (10000000));
 		}else{
-			viewer->updatePointCloud<pcl::PointXYZ> (currently_visualizing, "sample cloud");
+			viewer->updatePointCloud<pcl::PointXYZRGB> (currently_visualizing, "sample cloud");
 		}
 		if(!ever_drawn_viewer || (*pcl_viz_args->reset_camera)){
 			viewer->setCameraPosition(-0.680567,0.0879865,-1.29801,0.552615,-0.16985,1.571,-0.0574351,-0.996241,-0.0648442);
@@ -139,18 +139,36 @@ void *pcl_viz(void *thread_args){
 	
 }
 
-void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZ> *input){
+void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<double>> *colors){
 	if(!(*is_ready)){
 		int i;
 		input->clear();
+		pcl::PointXYZRGB point;
 		for(i = 0; i < source->size(); i++){
-			input->push_back(source->at(i));
+			point.x = source->at(i).x;
+			point.y = source->at(i).y;
+			point.z = source->at(i).z;
+			
+			point.r = colors->at(i).at(0);
+			point.g = colors->at(i).at(1);
+			point.b = colors->at(i).at(2);
+			input->push_back(point);
 		}
 		(*(is_ready)) = true;
 	}
 }
 
-void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZ> *input){
+void load_white(int n, vector<vector <double>> *colors){
+	vector<double> white;
+	white.push_back(0xff);
+	white.push_back(0xff);
+	white.push_back(0xff);
+	for(int i = 0; i < n; i++){
+		colors->push_back(white);
+	}
+}
+
+void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<double>> *colors){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointXYZ point;
 	for(int i = 0; i < source->size(); i++){
@@ -159,7 +177,7 @@ void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *sou
 		point.z = source->at(i).at(2);
 		new_cloud->push_back( point );
 	}
-	pcl_viz_this_cloud(is_ready, new_cloud, input);
+	pcl_viz_this_cloud(is_ready, new_cloud, input, colors);
 }
 
 
@@ -181,7 +199,7 @@ struct find_arm_args{
 	double *cluster_error_cutoff;
 	
 	bool *pcl_viz_input_ready;
-	pcl::PointCloud<pcl::PointXYZ> *pcl_viz_cloud_input;
+	pcl::PointCloud<pcl::PointXYZRGB> *pcl_viz_cloud_input;
 	pcl_vizualizations viz_selection;
 };
 
@@ -559,7 +577,9 @@ void *do_find_arm(void *thread_args){
 		all_3d_cloud->push_back(temp_point);
 	}
 	if(args->viz_selection == PCL_ALL){
-		pcl_viz_this_cloud(args->pcl_viz_input_ready, all_3d_cloud, args->pcl_viz_cloud_input);
+		vector<vector<double>> colors;
+		load_white(all_3d_cloud->size(), &colors);
+		pcl_viz_this_cloud(args->pcl_viz_input_ready, all_3d_cloud, args->pcl_viz_cloud_input, &colors);
 	}
 	if(found_jaco_tag){
 		
@@ -696,7 +716,9 @@ void *do_find_arm(void *thread_args){
 			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, args->cluster_error_cutoff, false);
 			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 			if(args->viz_selection == PCL_ARM_SKELETON){
-				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input);
+				vector<vector<double>> colors;
+				load_white(args->arm_skeleton_centroids->size(), &colors);
+				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
 		}
 		
@@ -1248,7 +1270,9 @@ class ImageConverter{
 		pthread_join(do_find_arm_thread,NULL); 
 
 		if(args->viz_selection == PCL_JUST_ARM && validated_cluster >= 0){
-			pcl_viz_this_cloud(args->pcl_viz_input_ready, arm_clusters_3d_points.at(validated_cluster), args->pcl_viz_cloud_input);
+			vector<vector<double>> colors;
+			load_white(arm_clusters_3d_points.at(validated_cluster)->size(), &colors);
+			pcl_viz_this_cloud(args->pcl_viz_input_ready, arm_clusters_3d_points.at(validated_cluster), args->pcl_viz_cloud_input, &colors);
 		}
 		
 		if(args->highlight_table){
