@@ -150,6 +150,18 @@ void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr sour
 	}
 }
 
+void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZ> *input){
+	pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointXYZ point;
+	for(int i = 0; i < source->size(); i++){
+		point.x = source->at(i).at(0);
+		point.y = source->at(i).at(1);
+		point.z = source->at(i).at(2);
+		new_cloud->push_back( point );
+	}
+	pcl_viz_this_cloud(is_ready, new_cloud, input);
+}
+
 
 struct find_arm_args{
 	bool verbose;
@@ -683,6 +695,9 @@ void *do_find_arm(void *thread_args){
 			
 			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, args->cluster_error_cutoff, false);
 			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
+			if(args->viz_selection == PCL_ARM_SKELETON){
+				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input);
+			}
 		}
 		
 		

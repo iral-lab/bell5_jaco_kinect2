@@ -79,7 +79,7 @@ void print_help(){
 	cout << "\tfind arm                       : toggle JACO arm finding. " << endl;
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv table                        : toggle table removal. " << endl;
-	cout << "\tv live <all|arm>               : switch live PCL view. " << endl;
+	cout << "\tv live <all|arm|skeleton>      : switch live PCL view. " << endl;
 	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. (default = " << DEFAULT_USE_DBSCAN << ")" << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv error <" << DEFAULT_CLUSTER_ERROR_CUTOFF << ">                  : update arm clustering error (in meters). " << endl;
@@ -224,6 +224,9 @@ void handle_live_viz(struct viz_thread_args *viz_args, char * word){
 	if(!strcmp("arm", word)){
 		viz_args->viz_selection = PCL_JUST_ARM;
 		cout << "live viz: 'arm'" << endl;
+	}else if(!strcmp("skeleton", word)){
+		viz_args->viz_selection = PCL_ARM_SKELETON;
+		cout << "live viz: 'skeleton'" << endl;
 	}else{
 		viz_args->viz_selection = PCL_ALL;
 		cout << "live viz: 'all'" << endl;

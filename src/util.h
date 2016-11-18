@@ -68,6 +68,7 @@ using namespace std;
 typedef enum {
 	PCL_ALL = 0,
 	PCL_JUST_ARM,
+	PCL_ARM_SKELETON,
 	
 	NUMBER_OF_PCL_VIZUALIZATIONS
 } pcl_vizualizations;
