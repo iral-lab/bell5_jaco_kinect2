@@ -451,7 +451,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 		try{
 			k.Cluster(data, num_centroids, *assignments, k_centroids);
 		}catch(...){
-			cout << "caught error during kmeans cluster" << endl;
+			//cout << "caught error during kmeans cluster" << endl;
 		}
 		
 		error_sum_this_round = 0;
