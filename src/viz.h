@@ -122,14 +122,17 @@ void *pcl_viz(void *thread_args){
 		currently_visualizing = temp.makeShared();
 		(*(pcl_viz_args->pcl_viz_input_ready)) = false;
 		
+		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb (currently_visualizing);
+		
 		if(!ever_drawn_viewer){
 			viewer->setBackgroundColor(0, 0, 0);
-			viewer->addPointCloud<pcl::PointXYZRGB> (currently_visualizing, "sample cloud");
+			
+			viewer->addPointCloud<pcl::PointXYZRGB> (currently_visualizing, rgb, "sample cloud");
 			viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
 			
 			boost::this_thread::sleep (boost::posix_time::microseconds (10000000));
 		}else{
-			viewer->updatePointCloud<pcl::PointXYZRGB> (currently_visualizing, "sample cloud");
+			viewer->updatePointCloud<pcl::PointXYZRGB> (currently_visualizing, rgb, "sample cloud");
 		}
 		if(!ever_drawn_viewer || (*pcl_viz_args->reset_camera)){
 			viewer->setCameraPosition(-0.680567,0.0879865,-1.29801,0.552615,-0.16985,1.571,-0.0574351,-0.996241,-0.0648442);
