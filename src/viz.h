@@ -405,7 +405,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	// results in (2.5,0.5,0.5) for a single centroid.
 	
 	*/
-	//cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << matches->size() << " points" << endl;
+	cout << "Data rows: " << data.n_rows << ", cols: " << data.n_cols << " from " << samples->size() << " points" << endl;
 	
 	
 	
@@ -427,6 +427,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 	for(int num_centroids = 1; num_centroids < max_centroids_to_try; num_centroids++){
 		centroids->clear();
 		if(samples->size() < num_centroids){
+			cout << "Skipping due to " << samples->size() << " < " << num_centroids << endl;
 			continue;
 		}
 		
@@ -454,7 +455,7 @@ void kmeans_cluster_and_centroid(vector< vector<double> > *samples, vector< vect
 		// Have to try at least 1 centroid before we could break for elbow, since not enough comparisons
 		if(num_centroids > 1 && too_many_clusters(error_sum_this_round, error_sum_last_round)){
 			ideal_centroid_count = num_centroids;
-			//cout << "FOUND TOO MANY" << endl;
+			cout << "FOUND TOO MANY" << endl;
 			break;
 		}
 		error_sum_last_round = error_sum_this_round;
@@ -653,6 +654,7 @@ void *do_find_arm(void *thread_args){
 					if(args->verbose){
 						cout << "PointCloud representing the Cluster (" << j << "): " << cloud_cluster->points.size () << " data points." << endl;
 					}
+					break;
 				}
 				j++;
 			}
@@ -662,8 +664,25 @@ void *do_find_arm(void *thread_args){
 		}
 		
 		// arm points found using some method, now let's decompose.
-		
-		
+		if((*(args->validated_cluster)) > -1){
+			vector< vector<double> > centroids;
+			
+			vector< vector<double> > input;
+			vector<double> point;
+			pcl::PointXYZ existing;			
+			for(i = 0; i < args->arm_clusters_3d_points->at( (*(args->validated_cluster)) )->size(); i++){
+				existing = args->arm_clusters_3d_points->at( (*(args->validated_cluster)) )->at(i);
+				point.clear();
+				point.push_back(existing.x);
+				point.push_back(existing.y);
+				point.push_back(existing.z);
+				
+				input.push_back(point);
+			}
+			int initial_centroid_suggestion = 10;
+			kmeans_cluster_and_centroid(&input, &centroids, initial_centroid_suggestion, 0, true);
+			cout << "Found " << centroids.size() << " skeleton centroids for " << input.size() << " inputs" << endl;
+		}
 		
 		
 		
