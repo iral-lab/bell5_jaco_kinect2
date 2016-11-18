@@ -136,6 +136,12 @@ struct rgb_set{
 	struct rgb colors[MAX_COLORS_PER_ITEM];
 };
 
+#define BIG_MAX_COLORS_PER_ITEM 24
+struct big_rgb_set{
+	int num_colors;
+	struct rgb colors[BIG_MAX_COLORS_PER_ITEM];
+};
+
 typedef enum{
 	STARTING = 0,
 	NORMAL,

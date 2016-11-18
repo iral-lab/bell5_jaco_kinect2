@@ -74,11 +74,14 @@ struct rgb jaco_arm_match_color = {0, 0, 0xff};
 // pixel shading color for trying to find jaco arm, lightblue
 struct rgb jaco_arm_tried_color = {0xAD, 0xD8, 0xE6};
 
+struct big_rgb_set big_set_colors = {24, {
+	{2,63,165},{125,135,185},{190,193,212},{214,188,192},{187,119,132},{142,6,59},{74,111,227},{133,149,225},{181,187,227},{230,175,185},{224,123,145},{211,63,106},{17,198,56},{141,213,147},{198,222,199},{234,211,198},{240,185,141},{239,151,8},{15,207,192},{156,222,214},{213,234,231},{243,225,235},{246,196,225},{247,156,212}
+}
+};
+
 
 void get_hex_color(int n, struct rgb *color){
-	color->r = (0xAD + n * 1000) % 256;
-	color->g = (0xD8 + n * 1000) % 256;
-	color->b = (0xE6 + n * 1000) % 256;
+	memcpy(color, &(big_set_colors.colors[n % big_set_colors.num_colors]), sizeof(struct rgb));
 }
 
 void *pcl_viz(void *thread_args){
@@ -1231,6 +1234,8 @@ class ImageConverter{
 			color_pixels(&im_matrix, &non_table_or_wall_points, &misc_color);
 		}
 		if(args->find_arm){
+			/*
+			// Commenting out blue coloring in favor of cluster-based
 			if(validated_cluster >= 0){
 				color_pixels(&im_matrix, &(arm_clusters_2d_points.at(validated_cluster)), &jaco_arm_match_color);
 			}else{
@@ -1238,23 +1243,24 @@ class ImageConverter{
 					color_pixels(&im_matrix, &(arm_clusters_2d_points.at(i)), &jaco_arm_match_color);
 				}
 			}
-		}
+			*/
 		
-		if(true && validated_cluster >= 0){
-			// arm_clusters_2d_points
-			// arma::Row<size_t> arm_skeleton_assignments;
-			// vector< vector<double> > arm_skeleton_centroids;
-			int assignment = 0, x = 0, y = 0;
-			//cout << "has " << arm_skeleton_assignments.n_elem << " elements" << endl;
-			struct rgb color;
-			for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
-				assignment = arm_skeleton_assignments.at(i);
-				get_hex_color(assignment, &color);
-				x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
-				y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
-				im_matrix.at<cv::Vec3b>(y,x)[0] = color.b;
-				im_matrix.at<cv::Vec3b>(y,x)[1] = color.g;
-				im_matrix.at<cv::Vec3b>(y,x)[2] = color.r;
+			if(validated_cluster >= 0){
+				// arm_clusters_2d_points
+				// arma::Row<size_t> arm_skeleton_assignments;
+				// vector< vector<double> > arm_skeleton_centroids;
+				int assignment = 0, x = 0, y = 0;
+				//cout << "has " << arm_skeleton_assignments.n_elem << " elements" << endl;
+				struct rgb color;
+				for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
+					assignment = arm_skeleton_assignments.at(i);
+					get_hex_color(assignment, &color);
+					x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
+					y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
+					im_matrix.at<cv::Vec3b>(y,x)[0] = color.b;
+					im_matrix.at<cv::Vec3b>(y,x)[1] = color.g;
+					im_matrix.at<cv::Vec3b>(y,x)[2] = color.r;
+				}
 			}
 		}
 		
