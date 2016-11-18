@@ -82,8 +82,18 @@ struct big_rgb_set big_set_colors = {24, {
 };
 
 
-void get_hex_color(int n, struct rgb *color){
-	memcpy(color, &(big_set_colors.colors[n % big_set_colors.num_colors]), sizeof(struct rgb));
+vector<short> get_hex_color(int n){
+	vector<short> color;
+	struct rgb *chosen = &big_set_colors.colors[n % big_set_colors.num_colors];
+	color.push_back(chosen->r);
+	color.push_back(chosen->g);
+	color.push_back(chosen->b);
+	return color;
+}
+void get_colors(vector<int> *n, vector<vector<short>> *colors){
+	for(int i = 0; i < n->size(); i++){
+		colors->push_back(get_hex_color(n->at(i)));
+	}
 }
 
 void *pcl_viz(void *thread_args){
@@ -139,7 +149,7 @@ void *pcl_viz(void *thread_args){
 	
 }
 
-void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<double>> *colors){
+void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
 	if(!(*is_ready)){
 		int i;
 		input->clear();
@@ -158,17 +168,17 @@ void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr sour
 	}
 }
 
-void load_white(int n, vector<vector <double>> *colors){
-	vector<double> white;
+void load_white(int n, vector<vector <short>> *colors){
+	vector<short> white;
 	white.push_back(0xff);
-	white.push_back(0xff);
-	white.push_back(0xff);
+	white.push_back(0x00);
+	white.push_back(0x00);
 	for(int i = 0; i < n; i++){
 		colors->push_back(white);
 	}
 }
 
-void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<double>> *colors){
+void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointXYZ point;
 	for(int i = 0; i < source->size(); i++){
@@ -577,7 +587,7 @@ void *do_find_arm(void *thread_args){
 		all_3d_cloud->push_back(temp_point);
 	}
 	if(args->viz_selection == PCL_ALL){
-		vector<vector<double>> colors;
+		vector<vector<short>> colors;
 		load_white(all_3d_cloud->size(), &colors);
 		pcl_viz_this_cloud(args->pcl_viz_input_ready, all_3d_cloud, args->pcl_viz_cloud_input, &colors);
 	}
@@ -716,8 +726,12 @@ void *do_find_arm(void *thread_args){
 			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, args->cluster_error_cutoff, false);
 			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
 			if(args->viz_selection == PCL_ARM_SKELETON){
-				vector<vector<double>> colors;
-				load_white(args->arm_skeleton_centroids->size(), &colors);
+				vector<int> assignment_vals;
+				for(i = 0; i < args->arm_skeleton_assignments->size(); i++){
+					assignment_vals.push_back(args->arm_skeleton_assignments->at(i));
+				}
+				vector<vector<short>> colors;
+				get_colors(&assignment_vals, &colors);
 				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
 		}
@@ -1270,8 +1284,14 @@ class ImageConverter{
 		pthread_join(do_find_arm_thread,NULL); 
 
 		if(args->viz_selection == PCL_JUST_ARM && validated_cluster >= 0){
-			vector<vector<double>> colors;
-			load_white(arm_clusters_3d_points.at(validated_cluster)->size(), &colors);
+			vector<vector<short>> colors;
+			
+			for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
+				vector<short> color = get_hex_color(arm_skeleton_assignments.at(i));
+				colors.push_back(color);
+			}
+			
+			//load_white(arm_clusters_3d_points.at(validated_cluster)->size(), &colors);
 			pcl_viz_this_cloud(args->pcl_viz_input_ready, arm_clusters_3d_points.at(validated_cluster), args->pcl_viz_cloud_input, &colors);
 		}
 		
@@ -1301,12 +1321,13 @@ class ImageConverter{
 				struct rgb color;
 				for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
 					assignment = arm_skeleton_assignments.at(i);
-					get_hex_color(assignment, &color);
+					vector<short> color = get_hex_color(assignment);
+					
 					x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
 					y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
-					im_matrix.at<cv::Vec3b>(y,x)[0] = color.b;
-					im_matrix.at<cv::Vec3b>(y,x)[1] = color.g;
-					im_matrix.at<cv::Vec3b>(y,x)[2] = color.r;
+					im_matrix.at<cv::Vec3b>(y,x)[0] = color.at(2);
+					im_matrix.at<cv::Vec3b>(y,x)[1] = color.at(1);
+					im_matrix.at<cv::Vec3b>(y,x)[2] = color.at(0);
 				}
 			}
 		}
