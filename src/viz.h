@@ -38,6 +38,9 @@
 
 #include "dbscan.h"
 
+#define ARM_SKELETON_POINT_FILE "jaco_skeleton.csv"
+#define ARM_PCL_POINT_FILE "jaco_pcl.csv"
+
 using namespace mlpack::kmeans;
 
 // orange color: #ef5e25
@@ -182,6 +185,7 @@ void load_white(int n, vector<vector <short>> *colors){
 }
 
 void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
+	return;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointXYZ point;
 	for(int i = 0; i < source->size(); i++){
@@ -214,6 +218,8 @@ struct find_arm_args{
 	bool *pcl_viz_input_ready;
 	pcl::PointCloud<pcl::PointXYZRGB> *pcl_viz_cloud_input;
 	pcl_vizualizations viz_selection;
+	
+	int *save_jaco_skeleton_frames;
 };
 
 struct temporal_smoothing_args{
@@ -737,6 +743,22 @@ void *do_find_arm(void *thread_args){
 				get_colors(&assignment_vals, &colors);
 				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
+			FILE *out;
+			pcl::PointXYZ point3d;
+			if((*(args->save_jaco_skeleton_frames)) > 0){
+				(*(args->save_jaco_skeleton_frames))--;
+				out = fopen(ARM_SKELETON_POINT_FILE, "a");
+				cout << "writing skeleton: " << (*(args->save_jaco_skeleton_frames)) << endl;
+				
+				for(i = 0; i < args->arm_skeleton_centroids->size(); i++){
+					point3d.x = args->arm_skeleton_centroids->at(i).at(0);
+					point3d.y = args->arm_skeleton_centroids->at(i).at(1);
+					point3d.z = args->arm_skeleton_centroids->at(i).at(2);
+					fprintf(out, "%f,%f,%f\n", point3d.x, point3d.y, point3d.z);
+				}
+				fprintf(out, "======================\n");
+				fclose(out);
+			}
 		}
 		
 		
@@ -1172,6 +1194,7 @@ class ImageConverter{
 		find_arm_args.arm_skeleton_centroids = &arm_skeleton_centroids;
 		find_arm_args.arm_skeleton_assignments = &arm_skeleton_assignments;
 		find_arm_args.cluster_error_cutoff = args->cluster_error_cutoff;
+		find_arm_args.save_jaco_skeleton_frames = &(args->save_jaco_skeleton_frames);
 		
 
 		pthread_t do_find_arm_thread;
@@ -1322,6 +1345,16 @@ class ImageConverter{
 				int assignment = 0, x = 0, y = 0;
 				//cout << "has " << arm_skeleton_assignments.n_elem << " elements" << endl;
 				struct rgb color;
+				FILE *out;
+				bool writing_out = false;
+				if(args->save_jaco_pcl_frames > 0){
+					writing_out = true;
+					args->save_jaco_pcl_frames--;
+					out = fopen(ARM_PCL_POINT_FILE, "a");
+					cout << "writing pcl: " << args->save_jaco_pcl_frames << endl;
+			
+				}
+				pcl::PointXYZ point3d;
 				for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
 					assignment = arm_skeleton_assignments.at(i);
 					vector<short> color = get_hex_color(assignment);
@@ -1331,6 +1364,16 @@ class ImageConverter{
 					im_matrix.at<cv::Vec3b>(y,x)[0] = color.at(2);
 					im_matrix.at<cv::Vec3b>(y,x)[1] = color.at(1);
 					im_matrix.at<cv::Vec3b>(y,x)[2] = color.at(0);
+	
+					if(writing_out){		
+						point3d = arm_clusters_3d_points.at(validated_cluster)->at(i);
+						fprintf(out, "%f,%f,%f\n", point3d.x, point3d.y, point3d.z);
+					}
+										
+				}
+				if(writing_out){
+					fprintf(out, "======================\n");
+					fclose(out);
 				}
 			}
 		}

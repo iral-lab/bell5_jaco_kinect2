@@ -220,6 +220,9 @@ struct viz_thread_args{
 	pcl::PointCloud<pcl::PointXYZRGB> *pcl_viz_cloud_input;
 	pcl_vizualizations viz_selection;
 	bool *reset_camera;
+	
+	int save_jaco_skeleton_frames;
+	int save_jaco_pcl_frames;
 };
 
 struct ros_input{

@@ -87,6 +87,7 @@ void print_help(){
 	cout << "\tv skip <n>                     : Skip rendering frames (default = " << DEFAULT_SKIP_FRAMES << "). " << endl;
 	cout << "\tv frames <n>                   : Combine n past frames to smoooth pixel detection (default = " << DEFAULT_ADDITIONAL_COLOR_MATCH_FRAMES_TO_COMBINE << "). " << endl;
 	cout << "\tv dist <+/->                   : Increase or decrease max recognition window (default = " << DEFAULT_MAX_INTERESTED_DISTANCE << "). " << endl;
+	cout << "\tsave n                         : Save n frames of jaco skeleton and pcl 3d points to files (./" << ARM_SKELETON_POINT_FILE << " and ./" << ARM_PCL_POINT_FILE << ")" << endl;
 	cout << "\txyxyz x,y                      : (KINECT) Map a 2-d point in the RGB to a 3-d coordinate." << endl;
 	cout << "\tv cluster <";
 	for(i = 0; i < NUMBER_OF_DETECTION_ALGORITHMS; i++){
@@ -208,6 +209,23 @@ void handle_viz_distance(struct viz_thread_args *viz_args, char * num){
 
 void handle_viz_frames_to_combine(struct viz_thread_args *viz_args, char * num){
 	viz_args->additional_color_match_frames_to_combine = atoi(num);
+}
+
+void handle_frame_save(struct viz_thread_args *viz_args, char * rest){
+	string delim = " ";
+	char * save_ptr;
+	char * which;
+	char * frames;
+	
+	frames = strtok_r(rest, delim.c_str(), &save_ptr);
+	if(!frames){
+		return;
+	}
+	
+	viz_args->save_jaco_skeleton_frames = atoi(frames);
+	viz_args->save_jaco_pcl_frames = atoi(frames);
+	
+	cout << "saving " << atoi(frames) << " frames" << endl;
 }
 
 void handle_viz_error_cutoff(struct viz_thread_args *viz_args, char * num){
@@ -511,6 +529,9 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 
 	}else if(strlen(cmd) > 10 && strncmp(cmd, "cart goto ", 10) == 0){
 		handle_cartesian_goto(first_arm, (char *) &(cmd[10]));
+	
+	}else if(strlen(cmd) > 5 && strncmp(cmd, "save ", 5) == 0){
+		handle_frame_save(viz_args, (char *) &(cmd[5]) );
 
 	}else if(!strcmp("v verbose", cmd)){
 		viz_args->verbose = !viz_args->verbose;
