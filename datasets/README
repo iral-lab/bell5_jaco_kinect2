@@ -1,0 +1,5 @@
+The diverse_movement.bag file is split so it can be small enough to fit into Github. To reconstitute the file:
+
+cat diverse_movement.bag.a* > diverse_movement.bag
+
+
