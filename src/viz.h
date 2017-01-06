@@ -41,6 +41,9 @@
 #define ARM_SKELETON_POINT_FILE "jaco_skeleton.csv"
 #define ARM_PCL_POINT_FILE "jaco_pcl.csv"
 
+#define VIZ_DO_NOOPS false
+
+
 using namespace mlpack::kmeans;
 
 // orange color: #ef5e25
@@ -567,6 +570,12 @@ void *do_find_arm(void *thread_args){
 	if(args->verbose){
 		cout << "find arm start" << endl;
 	}
+	
+	if(VIZ_DO_NOOPS){
+		//cout << "skipping" << endl;
+		return NULL;
+	}
+	
 	int i = 0, j = 0;
 
 	vector< vector<double> > non_table_points;
