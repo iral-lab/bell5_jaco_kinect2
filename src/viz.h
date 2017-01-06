@@ -160,19 +160,23 @@ void *pcl_viz(void *thread_args){
 
 void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
 	if(!(*is_ready)){
-		int i;
-		input->clear();
-		pcl::PointXYZRGB point;
-	
-		for(i = 0; i < source->size(); i++){
-			point.x = source->at(i).x;
-			point.y = source->at(i).y;
-			point.z = source->at(i).z;
+		if(colors->size() == source->size()){
+			int i;
+			input->clear();
+			pcl::PointXYZRGB point;
 		
-			point.r = colors->at(i).at(0);
-			point.g = colors->at(i).at(1);
-			point.b = colors->at(i).at(2);
-			input->push_back(point);
+			for(i = 0; i < source->size(); i++){
+				point.x = source->at(i).x;
+				point.y = source->at(i).y;
+				point.z = source->at(i).z;
+			
+				point.r = colors->at(i).at(0);
+				point.g = colors->at(i).at(1);
+				point.b = colors->at(i).at(2);
+				input->push_back(point);
+			}
+		}else{
+			cout << "invalid # of colors" << endl;
 		}
 		(*(is_ready)) = true;
 		
