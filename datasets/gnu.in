@@ -1,0 +1,3 @@
+set output "scatter.png"
+set datafile separator ","
+splot "skeleton_frame.csv" using 1:2:3 '%lf,%lf,%lf' with points
