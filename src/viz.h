@@ -96,9 +96,9 @@ vector<short> get_hex_color(int n){
 	color.push_back(chosen->b);
 	return color;
 }
-void get_colors(vector<int> *n, vector<vector<short>> *colors){
-	for(int i = 0; i < n->size(); i++){
-		colors->push_back(get_hex_color(n->at(i)));
+void get_unique_colors(int n, vector<vector<short>> *colors){
+	for(int i = 0; i < n; i++){
+		colors->push_back(get_hex_color(i));
 	}
 }
 
@@ -188,7 +188,6 @@ void load_white(int n, vector<vector <short>> *colors){
 }
 
 void pcl_viz_this_vector_of_points(bool *is_ready, vector< vector<double> > *source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
-	return;
 	pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointXYZ point;
 	for(int i = 0; i < source->size(); i++){
@@ -749,7 +748,7 @@ void *do_find_arm(void *thread_args){
 					assignment_vals.push_back(args->arm_skeleton_assignments->at(i));
 				}
 				vector<vector<short>> colors;
-				get_colors(&assignment_vals, &colors);
+				get_unique_colors(assignment_vals.size(), &colors);
 				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
 			FILE *out;
