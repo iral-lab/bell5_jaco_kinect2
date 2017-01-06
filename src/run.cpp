@@ -61,6 +61,7 @@ void print_help(){
 	cout << "\treturn bottle                  : Go home, then return bottle to original grabbed location. " << endl;
 	cout << "\trelease fingers                : Release all fingers. " << endl;
 	cout << "\tUseful: home | go | gb | home | rb | home " << endl;
+	cout << "\tRange of motions: home | mv 0 10 | mv 1 150 | mv 2 90 | mv 1 190 | mv 0 45 | mv 2 45 | mv 4 0 | mv 2 60 | mv 0 10 | mv 5 90 | mv 5 0 | mv 5 100 | mv 0 180 | mv 1 150 | mv 2 50 | mv 4 90 | mv 4 0 | home | mv 0 10 " << endl;
 
 
 	cout << "Experiment: " << endl;
