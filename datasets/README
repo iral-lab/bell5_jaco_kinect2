@@ -2,4 +2,7 @@ The diverse_movement.bag file is split so it can be small enough to fit into Git
 
 cat diverse_movement.bag.a* > diverse_movement.bag
 
+Or run the script to build and replay:
+
+chmod 0755 build_and_loop_movement.sh && ./build_and_loop_movement.sh
 
