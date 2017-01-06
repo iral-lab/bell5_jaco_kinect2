@@ -160,28 +160,32 @@ void *pcl_viz(void *thread_args){
 
 void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
 	if(!(*is_ready)){
-		int i;
-		input->clear();
-		pcl::PointXYZRGB point;
-		for(i = 0; i < source->size(); i++){
-			point.x = source->at(i).x;
-			point.y = source->at(i).y;
-			point.z = source->at(i).z;
+		if(colors->size() == source->size()){
+			int i;
+			input->clear();
+			pcl::PointXYZRGB point;
+		
+			for(i = 0; i < source->size(); i++){
+				point.x = source->at(i).x;
+				point.y = source->at(i).y;
+				point.z = source->at(i).z;
 			
-			point.r = colors->at(i).at(0);
-			point.g = colors->at(i).at(1);
-			point.b = colors->at(i).at(2);
-			input->push_back(point);
+				point.r = colors->at(i).at(0);
+				point.g = colors->at(i).at(1);
+				point.b = colors->at(i).at(2);
+				input->push_back(point);
+			}
 		}
 		(*(is_ready)) = true;
+		
 	}
 }
 
 void load_white(int n, vector<vector <short>> *colors){
 	vector<short> white;
 	white.push_back(0xff);
-	white.push_back(0x00);
-	white.push_back(0x00);
+	white.push_back(0xff);
+	white.push_back(0xff);
 	for(int i = 0; i < n; i++){
 		colors->push_back(white);
 	}
@@ -751,9 +755,9 @@ void *do_find_arm(void *thread_args){
 				get_unique_colors(assignment_vals.size(), &colors);
 				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
-			FILE *out;
-			pcl::PointXYZ point3d;
 			if((*(args->save_jaco_skeleton_frames)) > 0){
+				FILE *out;
+				pcl::PointXYZ point3d;
 				(*(args->save_jaco_skeleton_frames))--;
 				out = fopen(ARM_SKELETON_POINT_FILE, "a");
 				cout << "writing skeleton: " << (*(args->save_jaco_skeleton_frames)) << endl;
@@ -769,15 +773,9 @@ void *do_find_arm(void *thread_args){
 			}
 		}
 		
-		
-		
 	}
 	
 	
-
-	if(args->verbose){
-		cout << "find arm done" << endl;
-	}
 }
 
 
