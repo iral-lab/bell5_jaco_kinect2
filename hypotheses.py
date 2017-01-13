@@ -54,17 +54,33 @@ def length_3d(vector_3d):
     x,y,z = vector_3d
     return math.sqrt( x*x + y*y + z*z )
 
+DISTANCES_CACHE = {}
 def distance_to_vector(p0, p1, x):
     # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-    x_minus_p0 = vector_between(x, p0)
-    x_minus_p1 = vector_between(x, p1)
-    len_p1_p0 = euclid_distance(p1,p0)
-    cross_xp0_xp1 = np.cross(x_minus_p0, x_minus_p1)
-    
-    # from https://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.cross.html
-    len_cross = length_3d(cross_xp0_xp1)
-    
-    return len_cross / len_p1_p0
+    hash = ('o',p0,p1,x)
+    if not hash in DISTANCES_CACHE:
+        hash_x_minus_p0 = ('m',x,p0)
+        hash_x_minus_p1 = ('m',x,p1)
+        hash_len_p1_p0 = ('d',p1,p0)
+        hash_cross_xp0_xp1 = ('c',x,p1,p0)
+        hash_len_cross = ('l',x,p0,p1)
+        
+        if not hash_x_minus_p0 in DISTANCES_CACHE:
+            DISTANCES_CACHE[hash_x_minus_p0] = vector_between(x, p0)
+        if not hash_x_minus_p1 in DISTANCES_CACHE:
+            DISTANCES_CACHE[hash_x_minus_p1] = vector_between(x, p1)
+        if not hash_len_p1_p0 in DISTANCES_CACHE:
+            DISTANCES_CACHE[hash_len_p1_p0] = euclid_distance(p1,p0)
+        
+        if not hash_cross_xp0_xp1 in DISTANCES_CACHE:
+            DISTANCES_CACHE[hash_cross_xp0_xp1] = np.cross(DISTANCES_CACHE[hash_x_minus_p0], DISTANCES_CACHE[hash_x_minus_p1])
+        
+        # from https://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.cross.html
+        if not hash_len_cross in DISTANCES_CACHE:
+            DISTANCES_CACHE[hash_len_cross] = length_3d(DISTANCES_CACHE[hash_cross_xp0_xp1])
+        
+        DISTANCES_CACHE[hash] = DISTANCES_CACHE[hash_len_cross] / DISTANCES_CACHE[hash_len_p1_p0]
+    return DISTANCES_CACHE[hash]
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
     distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
@@ -160,6 +176,8 @@ if '__main__' == __name__:
 
     pcl_validation_point_percentage = 0.2
     
+    #random.seed(1)
+    
     so_far = 0
     for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
         print SENTINEL,so_far
@@ -170,8 +188,12 @@ if '__main__' == __name__:
                 continue
         
             permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, edge_count+1)
+            print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
+            
+            # if edge_count == 3:
+            #     exit()
             #break
         #break
-        if so_far > 3:
+        if so_far == 2:
             exit()
