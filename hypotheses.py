@@ -73,6 +73,28 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
 def get_fitness(joints, path_distance, total_pcl_error):
     return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
 
+def get_permutation_fitness(input):
+    vertex_count, permutation, skeleton_points, pcl_points = input
+    
+    path = tuple([skeleton_points[i] for i in permutation])
+    
+    distance = calculate_distances(path)
+    
+    # code.interact(local=dict(globals(), **locals()))
+    
+    vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
+    
+    errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
+    total_error = sum(errors)
+    
+    fitness = get_fitness(vertex_count-1, distance, total_error)
+    
+    # add back in the opposite path
+    opposite_path = list(path)
+    opposite_path.reverse()
+    
+    return ( (path, fitness), (tuple(opposite_path), fitness) )
+
 PERMUTATIONS_FILE = "_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
@@ -113,28 +135,14 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     combined = []
     
-    for permutation in permutations:
-        if max(permutation) >= to_permute:
-            # to account for over-provisioned cached permutations
-            continue
-        path = tuple([skeleton_points[i] for i in permutation])
-        
-        distance = calculate_distances(path)
-        
-        # code.interact(local=dict(globals(), **locals()))
-        
-        vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
-        
-        errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
-        total_error = sum(errors)
-        
-        fitness = get_fitness(vertex_count-1, distance, total_error)
-        
-        combined.append( (path, fitness) )
-        # add back in the opposite path
-        opposite_path = list(path)
-        opposite_path.reverse()
-        combined.append( (tuple(opposite_path), fitness) )
+    # don't try using permutations generated with more vertices than you have, avoid indexing outside list
+    inputs = [(vertex_count, permutation,skeleton_points, pcl_points)  for permutation in permutations if max(permutation) < to_permute]
+    
+    computed = pool.map(get_permutation_fitness, inputs)
+    
+    for path,opposite_path in computed:
+        combined.append(path)
+        combined.append(opposite_path)
         
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
@@ -162,8 +170,8 @@ if '__main__' == __name__:
                 continue
         
             permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, edge_count+1)
-            # code.interact(local=dict(globals(), **locals()))
+            #code.interact(local=dict(globals(), **locals()))
             #break
         #break
-        if so_far > 1:
+        if so_far > 3:
             exit()
