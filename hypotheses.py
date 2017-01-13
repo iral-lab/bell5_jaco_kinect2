@@ -88,8 +88,8 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
     distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
     return min(distances)
     
-def get_fitness(joints, path_distance, total_pcl_error):
-    return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
+def get_fitness(joints, path_distance, total_pcl_error, num_points):
+    return (-0.05 * num_points * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
 
 def get_permutation_fitness(input_batch):
     output = []
@@ -107,7 +107,7 @@ def get_permutation_fitness(input_batch):
         errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
         total_error = sum(errors)
     
-        fitness = get_fitness(vertex_count-1, distance, total_error)
+        fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
         # add back in the opposite path
         opposite_path = list(path)
