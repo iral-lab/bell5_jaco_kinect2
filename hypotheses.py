@@ -40,6 +40,7 @@ def get_frames(skeleton_file, pcl_file):
 def euclid_distance(p1,p2):
     return np.linalg.norm(np.array(p1) - np.array(p2))
 
+
 def calculate_distances(points):
     sum_distance = 0.0
     for i in range(len(points) - 1):
@@ -89,27 +90,35 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
 def get_fitness(joints, path_distance, total_pcl_error):
     return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
 
-def get_permutation_fitness(input):
-    vertex_count, permutation, skeleton_points, pcl_points = input
+def get_permutation_fitness(input_batch):
+    output = []
+    for input in input_batch:
+        vertex_count, permutation, skeleton_points, pcl_points = input
     
-    path = tuple([skeleton_points[i] for i in permutation])
+        path = tuple([skeleton_points[i] for i in permutation])
     
-    distance = calculate_distances(path)
+        distance = calculate_distances(path)
     
-    # code.interact(local=dict(globals(), **locals()))
+        # code.interact(local=dict(globals(), **locals()))
     
-    vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
+        vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
     
-    errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
-    total_error = sum(errors)
+        errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
+        total_error = sum(errors)
     
-    fitness = get_fitness(vertex_count-1, distance, total_error)
+        fitness = get_fitness(vertex_count-1, distance, total_error)
     
-    # add back in the opposite path
-    opposite_path = list(path)
-    opposite_path.reverse()
-    
-    return ( (path, fitness), (tuple(opposite_path), fitness) )
+        # add back in the opposite path
+        opposite_path = list(path)
+        opposite_path.reverse()
+        output.append( (path, fitness) )
+        output.append( (tuple(opposite_path), fitness) ) 
+    return output
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
 PERMUTATIONS_FILE = "_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
@@ -154,12 +163,12 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
     inputs = [(vertex_count, permutation,skeleton_points, pcl_points)  for permutation in permutations if max(permutation) < to_permute]
     
-    computed = pool.map(get_permutation_fitness, inputs)
+    computed = pool.map(get_permutation_fitness, chunks(inputs, NUM_THREADS))
     
-    for path,opposite_path in computed:
-        combined.append(path)
-        combined.append(opposite_path)
-        
+    for path_batch in computed:
+        for path in path_batch:
+            combined.append(path)
+    
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     return best_first
@@ -191,8 +200,8 @@ if '__main__' == __name__:
             print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
             
-            # if edge_count == 3:
-            #     exit()
+            if edge_count == 4:
+                exit()
             #break
         #break
         if so_far == 2:
