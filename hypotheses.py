@@ -1,8 +1,9 @@
-import sys, itertools, copy, marshal, os, code, multiprocessing, random, math, time
+import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib
 import numpy as np
 from sets import Set
 
 NUM_THREADS = 8
+CACHE_FOLDER = 'caches/'
 
 if len(sys.argv) < 3:
 	print "Usage: python",sys.argv[0],"skeleton_file.csv pointcloud.csv"
@@ -120,11 +121,11 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
-PERMUTATIONS_FILE = "_permutations"
+PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     to_permute = len(skeleton_points)
-    cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".marshal"
+    cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
     permutations = []
     added_permutations = Set()
     
@@ -152,13 +153,12 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
                 new_path = copy.deepcopy(path)
                 new_path.append(next_index)
                 stack.append(new_path)
-        marshal.dump(permutations, open(cache_file,'w'))
+        cPickle.dump(permutations, open(cache_file,'wb'))
         print "\tsaved",cache_file
     else:
-        permutations = marshal.load(open(cache_file, 'r'))
+        permutations = cPickle.load(open(cache_file, 'rb'))
     
     start = time.time()
-    print "vertex_count:", vertex_count, "points:",len(skeleton_points),"Permutations:",len(permutations)
     combined = []
     
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
@@ -200,8 +200,23 @@ if '__main__' == __name__:
         for edge_count in range(1,max_edges+1):
             if edge_count >= len(skeleton_points):
                 continue
-        
-            permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, edge_count+1)
+            
+            input_tuple = (skeleton_points, pcl_points, edge_count)
+            input_hash = hashlib.md5(str(input_tuple)).hexdigest()
+            cache_file = CACHE_FOLDER+"_input_"+input_hash+".pickle"
+            permuted_paths = None
+            vertex_count = edge_count+1
+            
+            print "vertex_count:", vertex_count, "points:",len(skeleton_points)
+            
+            if os.path.exists(cache_file):
+                permuted_paths = cPickle.load(open(cache_file,'rb'))
+                print "\tLOADED CACHE",cache_file
+            else:
+                permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
+                cPickle.dump(permuted_paths, open(cache_file,'wb'))
+                print "\tSaved paths to",cache_file
+            
             print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
             
