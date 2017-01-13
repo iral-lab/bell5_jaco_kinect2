@@ -1,4 +1,4 @@
-import sys, itertools, copy, marshal, os, code, multiprocessing, random, math
+import sys, itertools, copy, marshal, os, code, multiprocessing, random, math, time
 import numpy as np
 from sets import Set
 
@@ -123,7 +123,6 @@ def chunks(l, n):
 PERMUTATIONS_FILE = "_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
-    print "vertex_count:", vertex_count, "points:",len(skeleton_points)
     to_permute = len(skeleton_points)
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".marshal"
     permutations = []
@@ -158,6 +157,8 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     else:
         permutations = marshal.load(open(cache_file, 'r'))
     
+    start = time.time()
+    print "vertex_count:", vertex_count, "points:",len(skeleton_points),"Permutations:",len(permutations)
     combined = []
     
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
@@ -171,6 +172,9 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
+    taken = time.time() - start
+    print "\tTaken:",round(taken, 2),"Permutations/sec:",round(len(permutations) / taken, 2)
+    
     return best_first
     
 
@@ -181,7 +185,7 @@ if '__main__' == __name__:
     pool = multiprocessing.Pool(NUM_THREADS)
     
     # somewhat arbitrary value for bounding concerns
-    max_edges = 6
+    max_edges = 7
 
     pcl_validation_point_percentage = 0.2
     
@@ -189,10 +193,11 @@ if '__main__' == __name__:
     
     so_far = 0
     for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
-        print SENTINEL,so_far
+        print SENTINEL,"frame:",so_far
         so_far += 1
         sampled_pcl_points = random.sample(pcl_points, int(pcl_validation_point_percentage * len(pcl_points)))
-        for edge_count in range(1,max_edges):
+        print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
+        for edge_count in range(1,max_edges+1):
             if edge_count >= len(skeleton_points):
                 continue
         
@@ -200,8 +205,8 @@ if '__main__' == __name__:
             print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
             
-            if edge_count == 4:
-                exit()
+            # if edge_count == 4:
+            #     exit()
             #break
         #break
         if so_far == 2:
