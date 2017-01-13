@@ -80,6 +80,8 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     to_permute = len(skeleton_points)
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".marshal"
     permutations = []
+    added_permutations = Set()
+    
     if not os.path.exists(cache_file):
         indices = range(to_permute)
         indices_set = Set(indices)
@@ -90,7 +92,14 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
             path = stack.pop()
         
             if len(path) == vertex_count:
-                permutations.append(path)
+                path = tuple(path)
+                opposite = list(path)
+                opposite.reverse()
+                opposite = tuple(opposite)
+                # only add one-direction of the path to the list, will handle later
+                if not opposite in added_permutations:
+                    permutations.append(path)
+                    added_permutations.add(path)
                 continue
         
             for next_index in indices_set - Set(path):
@@ -122,6 +131,10 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         fitness = get_fitness(vertex_count-1, distance, total_error)
         
         combined.append( (path, fitness) )
+        # add back in the opposite path
+        opposite_path = list(path)
+        opposite_path.reverse()
+        combined.append( (tuple(opposite_path), fitness) )
         
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
@@ -149,7 +162,7 @@ if '__main__' == __name__:
                 continue
         
             permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, edge_count+1)
-            #code.interact(local=dict(globals(), **locals()))
+            # code.interact(local=dict(globals(), **locals()))
             #break
         #break
         if so_far > 1:
