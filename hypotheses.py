@@ -1,4 +1,4 @@
-import sys, itertools, copy, marshal, os, code, multiprocessing
+import sys, itertools, copy, marshal, os, code, multiprocessing, random, math
 import numpy as np
 from sets import Set
 
@@ -24,7 +24,19 @@ def csv_reader(input_file):
 				batch.append( tuple([float(x) for x in line.split(",")]) )
 		if len(batch) > 0:
 			yield batch
-
+def get_frames(skeleton_file, pcl_file):
+    skeleton_in = csv_reader(skeleton_file)
+    pcl_in = csv_reader(pcl_file)
+    
+    skeleton = skeleton_in.next()
+    pcl = pcl_in.next()
+    
+    while skeleton and pcl:
+        yield (skeleton, pcl)    
+        skeleton = skeleton_in.next()
+        pcl = pcl_in.next()
+    
+    
 def euclid_distance(p1,p2):
     return np.linalg.norm(np.array(p1) - np.array(p2))
 
@@ -35,10 +47,37 @@ def calculate_distances(points):
         sum_distance += euclid_distance(start,stop)
     return sum_distance
 
+def vector_between(p0, p1):
+    return tuple([p0[i] - p1[i] for i in range(len(p1))])
+
+def length_3d(vector_3d):
+    x,y,z = vector_3d
+    return math.sqrt( x*x + y*y + z*z )
+
+def distance_to_vector(p0, p1, x):
+    # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+    x_minus_p0 = vector_between(x, p0)
+    x_minus_p1 = vector_between(x, p1)
+    len_p1_p0 = euclid_distance(p1,p0)
+    cross_xp0_xp1 = np.cross(x_minus_p0, x_minus_p1)
+    
+    # from https://docs.scipy.org/doc/numpy-1.10.0/reference/generated/numpy.cross.html
+    len_cross = length_3d(cross_xp0_xp1)
+    
+    return len_cross / len_p1_p0
+
+def get_distance_to_nearest_vector(point, vector_endpoints):
+    distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
+    return min(distances)
+    
+def get_fitness(joints, path_distance, total_pcl_error):
+    return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
+
 PERMUTATIONS_FILE = "_permutations"
-def get_paths(pool, points, vertex_count):
-    print "vertex_count:", vertex_count, "points:",len(points)
-    to_permute = len(points)
+def get_paths(pool, skeleton_points, pcl_points, vertex_count):
+    
+    print "vertex_count:", vertex_count, "points:",len(skeleton_points)
+    to_permute = len(skeleton_points)
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".marshal"
     permutations = []
     if not os.path.exists(cache_file):
@@ -63,28 +102,31 @@ def get_paths(pool, points, vertex_count):
     else:
         permutations = marshal.load(open(cache_file, 'r'))
     
-    #print len(permutations)
-    #code.interact(local=dict(globals(), **locals()))
+    combined = []
     
-    ordered_points = []
     for permutation in permutations:
-        if max(permutation) >= len(points):
+        if max(permutation) >= to_permute:
             # to account for over-provisioned cached permutations
             continue
+        path = tuple([skeleton_points[i] for i in permutation])
+        
+        distance = calculate_distances(path)
+        
+        # code.interact(local=dict(globals(), **locals()))
+        
+        vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
+        
+        errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
+        total_error = sum(errors)
+        
+        fitness = get_fitness(vertex_count-1, distance, total_error)
+        
+        combined.append( (path, fitness) )
+        
+    best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
-        ordered_points.append( tuple([points[i] for i in permutation]) )
-   
-    #print "ordered points:",len(ordered_points)
-    #code.interact(local=dict(globals(), **locals()))
+    return best_first
     
-    distances = pool.map(calculate_distances, ordered_points)
-    
-    combined = [ (ordered_points[i], distance) for i,distance in enumerate(distances)]
-    best_first = sorted(combined, key=lambda x:x[1])
-    
-    #code.interact(local=dict(globals(), **locals()))
-    #print ordered_points
-
 
 if '__main__' == __name__:
     input_skeleton = sys.argv[1]
@@ -95,14 +137,20 @@ if '__main__' == __name__:
     # somewhat arbitrary value for bounding concerns
     max_edges = 6
 
+    pcl_validation_point_percentage = 0.2
+    
     so_far = 0
-    for frame_points in csv_reader(input_skeleton):
+    for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
         print SENTINEL,so_far
         so_far += 1
+        sampled_pcl_points = random.sample(pcl_points, int(pcl_validation_point_percentage * len(pcl_points)))
         for edge_count in range(1,max_edges):
-            if edge_count >= len(frame_points):
+            if edge_count >= len(skeleton_points):
                 continue
         
-            permuted_paths = get_paths(pool, frame_points, edge_count+1)
+            permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, edge_count+1)
+            #code.interact(local=dict(globals(), **locals()))
             #break
         #break
+        if so_far > 1:
+            exit()
