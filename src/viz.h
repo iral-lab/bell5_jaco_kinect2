@@ -748,7 +748,7 @@ void *do_find_arm(void *thread_args){
 			
 			kmeans_cluster_and_centroid(&input, args->arm_skeleton_centroids, initial_centroid_suggestion, 0, args->arm_skeleton_assignments, args->cluster_error_cutoff, false);
 			//cout << "Found " << args->arm_skeleton_centroids->size() << " skeleton centroids for " << input.size() << " inputs" << endl;
-			if(args->viz_selection == PCL_ARM_SKELETON){
+			if(args->viz_selection == PCL_ARM_SKELETON && args->arm_skeleton_assignments->size() > 0){
 				vector<int> assignment_vals;
 				for(i = 0; i < args->arm_skeleton_assignments->size(); i++){
 					assignment_vals.push_back(args->arm_skeleton_assignments->at(i));
@@ -1317,7 +1317,7 @@ class ImageConverter{
 		}
 		pthread_join(do_find_arm_thread,NULL); 
 
-		if(args->viz_selection == PCL_JUST_ARM && validated_cluster >= 0){
+		if(args->viz_selection == PCL_JUST_ARM && arm_skeleton_assignments.size() > 0 && validated_cluster >= 0){
 			vector<vector<short>> colors;
 			for(i = 0; i < arm_skeleton_assignments.size(); i++){
 				vector<short> color = get_hex_color(arm_skeleton_assignments.at(i));
