@@ -1319,8 +1319,7 @@ class ImageConverter{
 
 		if(args->viz_selection == PCL_JUST_ARM && validated_cluster >= 0){
 			vector<vector<short>> colors;
-			
-			for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
+			for(i = 0; i < arm_skeleton_assignments.size(); i++){
 				vector<short> color = get_hex_color(arm_skeleton_assignments.at(i));
 				colors.push_back(color);
 			}
