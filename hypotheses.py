@@ -191,11 +191,12 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         
         cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
         print "\tsaved",cache_file
-    else if not COMPUTE_INITIAL_FRAME_PARSE:
+    
+        if COMPUTE_INITIAL_FRAME_PARSE:
+            return None
+    else:
         permutations = cPickle.load(open(cache_file, 'rb'))
     
-    if COMPUTE_INITIAL_FRAME_PARSE:
-        return None
     
     start = time.time()
     combined = []
@@ -251,9 +252,11 @@ if '__main__' == __name__:
             
             print "vertex_count:", vertex_count, "points:",len(skeleton_points)
             
-            if COMPUTE_INITIAL_FRAME_PARSE and os.path.exists(cache_file):
+            cache_file_exists = os.path.exists(cache_file)
+            
+            if COMPUTE_INITIAL_FRAME_PARSE and cache_file_exists:
                 pass
-            else if not os.path.exists(cache_file):
+            else if not cache_file_exists:
                 permuted_paths = cPickle.load(open(cache_file,'rb'))
                 print "\tLOADED CACHE",cache_file
             else:
