@@ -4,7 +4,7 @@ from sets import Set
 
 CACHE_FOLDER = 'caches/'
 
-COMPUTE_PERMUTATIONS = True
+COMPUTE_PERMUTATIONS = False
 
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
@@ -93,8 +93,14 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
     distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
     return min(distances)
     
-def get_fitness(joints, path_distance, total_pcl_error, num_points):
-    return (-0.05 * num_points * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
+def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
+    edge_count_penalty = (-0.001 * num_points * edge_count)
+    fit_to_data = (-1 * total_pcl_error)
+    path_length_penalty = (-0.01 * path_distance)
+    # print num_points, edge_count, path_distance, path_length_penalty, edge_count_penalty, fit_to_data
+    # print "\t",edge_count_penalty + fit_to_data + path_length_penalty
+    return edge_count_penalty + fit_to_data + path_length_penalty
+    # return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
 
 def get_permutation_fitness(input_batch):
     output = []
@@ -156,6 +162,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     to_permute = len(skeleton_points)
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
+    permutations = None
     
     if not os.path.exists(cache_file):
         indices = range(to_permute)
@@ -192,6 +199,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
         print "\tsaved",cache_file
     
+        permutations = list(without_reverse_paths)
     elif not COMPUTE_PERMUTATIONS:
         permutations = cPickle.load(open(cache_file, 'rb'))
 
