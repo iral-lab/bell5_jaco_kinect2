@@ -8,6 +8,8 @@ COMPUTE_PERMUTATIONS = False
 
 DONT_COMPUTE_ANYTHING = '--replay-caches' in sys.argv
 
+COMPUTER_FRAMES = not DONT_COMPUTE_ANYTHING
+
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
     print "example: python",sys.argv[0],"-s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
@@ -272,7 +274,7 @@ if '__main__' == __name__:
                 if not COMPUTE_PERMUTATIONS:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
                     print "\tSaved paths to",cache_file
-            elif not COMPUTE_PERMUTATIONS and cache_file_exists:
+            elif not COMPUTER_FRAMES and not COMPUTE_PERMUTATIONS and cache_file_exists:
                 try:
                     print "\tLOADING CACHE",cache_file
                     permuted_paths = cPickle.load(open(cache_file,'rb'))
