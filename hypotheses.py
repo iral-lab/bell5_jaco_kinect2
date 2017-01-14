@@ -7,9 +7,9 @@ CACHE_FOLDER = 'caches/'
 COMPUTE_INITIAL_FRAME_PARSE = True
 
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
-	print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
+    print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
     print "example: python hypotheses.py -s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
-	exit()
+    exit()
 
 NUM_THREADS = int(sys.argv[sys.argv.index('-t')+1]) if '-t' in sys.argv else 8
 print "Running with",NUM_THREADS,"threads"
