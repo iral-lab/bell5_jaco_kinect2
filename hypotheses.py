@@ -251,7 +251,9 @@ if '__main__' == __name__:
             
             print "vertex_count:", vertex_count, "points:",len(skeleton_points)
             
-            if os.path.exists(cache_file):
+            if COMPUTE_INITIAL_FRAME_PARSE and os.path.exists(cache_file):
+                pass
+            else if not os.path.exists(cache_file):
                 permuted_paths = cPickle.load(open(cache_file,'rb'))
                 print "\tLOADED CACHE",cache_file
             else:
