@@ -160,9 +160,20 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     if not os.path.exists(cache_file):
         indices = range(to_permute)
         stack = []
+        temp_stack = []
         for i,x in enumerate(indices):
             rest = indices[:i]+indices[i+1:]
-            stack.append( ([x], rest, vertex_count, to_permute) )
+            temp_stack.append( ([x], rest, vertex_count, to_permute) )
+        
+        # do one pass of the alg to seed parallel threads
+        for input in temp_stack:
+            path,rest,vertex_count,to_permute = input
+            for i,x in enumerate(rest):
+                new_path = copy.deepcopy(path)
+                new_path.append(x)
+                new_rest = rest[:i]+rest[i+1:]
+                stack.append( (new_path, new_rest, vertex_count, to_permute) )
+        
         
         permutations = pool.map(build_perm, stack)
         # permutations = [build_perm(x) for x in stack]
