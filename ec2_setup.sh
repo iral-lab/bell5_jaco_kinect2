@@ -4,6 +4,11 @@ sudo yum -y install htop screen numpy git gcc
 sudo python -m pip install --upgrade pip
 sudo chown ec2-user:ec2-user -R /usr/lib/python*
 
+
+sudo chown ec2-user:ec2-user -R /usr/lib/python*
+
+pip install --upgrade pip
+
 pip install --user numpy scipy matplotlib ipython jupyter pandas sympy nose
 
 
