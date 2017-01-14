@@ -249,6 +249,7 @@ if '__main__' == __name__:
     
     so_far = 0
     for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
+        frame_start = time.time()
         print SENTINEL,"frame:",so_far
         so_far += 1
         
@@ -295,4 +296,4 @@ if '__main__' == __name__:
             
             
             #code.interact(local=dict(globals(), **locals()))
-
+        print ">> frame took",round(time.time() - frame_start, 2),"seconds"
