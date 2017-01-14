@@ -206,6 +206,9 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
 if '__main__' == __name__:
     input_skeleton = sys.argv[1]
     input_pointcloud = sys.argv[2]
+    
+    if not os.path.exists(CACHE_FOLDER):
+        os.mkdir(CACHE_FOLDER)
 
     pool = multiprocessing.Pool(NUM_THREADS)
     
