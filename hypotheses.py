@@ -2,14 +2,17 @@ import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, t
 import numpy as np
 from sets import Set
 
-NUM_THREADS = 8
 CACHE_FOLDER = 'caches/'
 
 COMPUTE_INITIAL_FRAME_PARSE = True
 
-if len(sys.argv) < 3:
-	print "Usage: python",sys.argv[0],"skeleton_file.csv pointcloud.csv"
+if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
+	print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
+    print "example: python hypotheses.py -s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
 	exit()
+
+NUM_THREADS = int(sys.argv[sys.argv.index('-t')+1]) if '-t' in sys.argv else 8
+print "Running with",NUM_THREADS,"threads"
 
 SENTINEL = "==============="
 def csv_reader(input_file):
@@ -204,8 +207,8 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
 
 if '__main__' == __name__:
-    input_skeleton = sys.argv[1]
-    input_pointcloud = sys.argv[2]
+    input_skeleton = sys.argv[sys.argv.index('-s')+1]
+    input_pointcloud = sys.argv[sys.argv.index('-p')+1]
     
     if not os.path.exists(CACHE_FOLDER):
         os.mkdir(CACHE_FOLDER)
