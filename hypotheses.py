@@ -256,7 +256,7 @@ if '__main__' == __name__:
             
             if COMPUTE_INITIAL_FRAME_PARSE and cache_file_exists:
                 pass
-            else if not cache_file_exists:
+            elif not cache_file_exists:
                 permuted_paths = cPickle.load(open(cache_file,'rb'))
                 print "\tLOADED CACHE",cache_file
             else:
