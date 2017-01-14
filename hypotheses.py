@@ -192,11 +192,11 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
         print "\tsaved",cache_file
     
-        if COMPUTE_INITIAL_FRAME_PARSE:
-            return None
-    else:
+    elif not COMPUTE_INITIAL_FRAME_PARSE:
         permutations = cPickle.load(open(cache_file, 'rb'))
-    
+
+    if COMPUTE_INITIAL_FRAME_PARSE:
+        return None
     
     start = time.time()
     combined = []
@@ -254,16 +254,16 @@ if '__main__' == __name__:
             
             cache_file_exists = os.path.exists(cache_file)
             
-            if COMPUTE_INITIAL_FRAME_PARSE and cache_file_exists:
-                pass
-            elif not cache_file_exists:
-                permuted_paths = cPickle.load(open(cache_file,'rb'))
-                print "\tLOADED CACHE",cache_file
-            else:
+            if COMPUTE_INITIAL_FRAME_PARSE or not cache_file_exists:
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
                 if not COMPUTE_INITIAL_FRAME_PARSE:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
                     print "\tSaved paths to",cache_file
+            elif not COMPUTE_INITIAL_FRAME_PARSE and cache_file_exists:
+                permuted_paths = cPickle.load(open(cache_file,'rb'))
+                print "\tLOADED CACHE",cache_file
+            
+            
             if not COMPUTE_INITIAL_FRAME_PARSE:
                 print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
