@@ -4,7 +4,7 @@ from sets import Set
 
 CACHE_FOLDER = 'caches/'
 
-COMPUTE_INITIAL_FRAME_PARSE = True
+COMPUTE_PERMUTATIONS = True
 
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
@@ -192,10 +192,10 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
         print "\tsaved",cache_file
     
-    elif not COMPUTE_INITIAL_FRAME_PARSE:
+    elif not COMPUTE_PERMUTATIONS:
         permutations = cPickle.load(open(cache_file, 'rb'))
 
-    if COMPUTE_INITIAL_FRAME_PARSE:
+    if COMPUTE_PERMUTATIONS:
         return None
     
     start = time.time()
@@ -254,17 +254,17 @@ if '__main__' == __name__:
             
             cache_file_exists = os.path.exists(cache_file)
             
-            if COMPUTE_INITIAL_FRAME_PARSE or not cache_file_exists:
+            if COMPUTE_PERMUTATIONS or not cache_file_exists:
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
-                if not COMPUTE_INITIAL_FRAME_PARSE:
+                if not COMPUTE_PERMUTATIONS:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
                     print "\tSaved paths to",cache_file
-            elif not COMPUTE_INITIAL_FRAME_PARSE and cache_file_exists:
+            elif not COMPUTE_PERMUTATIONS and cache_file_exists:
                 permuted_paths = cPickle.load(open(cache_file,'rb'))
                 print "\tLOADED CACHE",cache_file
             
             
-            if not COMPUTE_INITIAL_FRAME_PARSE:
+            if not COMPUTE_PERMUTATIONS:
                 print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
             
