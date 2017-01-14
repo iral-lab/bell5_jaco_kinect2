@@ -246,7 +246,9 @@ if '__main__' == __name__:
     for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
         print SENTINEL,"frame:",so_far
         so_far += 1
-        sampled_pcl_points = random.sample(pcl_points, int(pcl_validation_point_percentage * len(pcl_points)))
+        
+        points_to_use = min(1000, len(pcl_points))
+        sampled_pcl_points = random.sample(pcl_points, points_to_use)
         print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
         for edge_count in range(1,max_edges+1):
             if edge_count >= len(skeleton_points):
