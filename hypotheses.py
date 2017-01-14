@@ -286,7 +286,7 @@ if '__main__' == __name__:
             if DONT_COMPUTE_ANYTHING and not permuted_paths:
                 exit()
             
-            if COMPUTE_PERMUTATIONS:
+            if COMPUTER_FRAMES or COMPUTE_PERMUTATIONS:
                 continue
             
             best_score = permuted_paths[0][1]
