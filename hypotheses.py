@@ -6,9 +6,12 @@ CACHE_FOLDER = 'caches/'
 
 COMPUTE_PERMUTATIONS = False
 
+DONT_COMPUTE_ANYTHING = '--replay-caches' in sys.argv
+
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
-    print "example: python hypotheses.py -s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
+    print "example: python",sys.argv[0],"-s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
+    print "example: python",sys.argv[0],"--replay-caches -s datasets/diverse_movement_skeleton.csv  -p datasets/diverse_movement_pcl.csv"
     exit()
 
 NUM_THREADS = int(sys.argv[sys.argv.index('-t')+1]) if '-t' in sys.argv else 8
@@ -264,23 +267,29 @@ if '__main__' == __name__:
             
             cache_file_exists = os.path.exists(cache_file)
             
-            if COMPUTE_PERMUTATIONS or not cache_file_exists:
+            if not DONT_COMPUTE_ANYTHING and (COMPUTE_PERMUTATIONS or not cache_file_exists):
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
                 if not COMPUTE_PERMUTATIONS:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
                     print "\tSaved paths to",cache_file
             elif not COMPUTE_PERMUTATIONS and cache_file_exists:
-                permuted_paths = cPickle.load(open(cache_file,'rb'))
-                print "\tLOADED CACHE",cache_file
+                try:
+                    permuted_paths = cPickle.load(open(cache_file,'rb'))
+                    print "\tLOADED CACHE",cache_file
+                except ValueError:
+                    print "Caught cPickle error, bugged file:",cache_file
+                    permuted_paths = None
+            
+            if DONT_COMPUTE_ANYTHING and not permuted_paths:
+                exit()
+            
+            if COMPUTE_PERMUTATIONS:
+                continue
+            
+            best_score = permuted_paths[0][1]
+            
+            print "\tbest:",best_score
             
             
-            if not COMPUTE_PERMUTATIONS:
-                print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
-            
-            # if edge_count == 4:
-            #     exit()
-            #break
-        #break
-        # if so_far == 2:
-        #     exit()
+
