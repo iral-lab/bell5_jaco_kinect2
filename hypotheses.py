@@ -5,6 +5,8 @@ from sets import Set
 NUM_THREADS = 8
 CACHE_FOLDER = 'caches/'
 
+COMPUTE_INITIAL_FRAME_PARSE = True
+
 if len(sys.argv) < 3:
 	print "Usage: python",sys.argv[0],"skeleton_file.csv pointcloud.csv"
 	exit()
@@ -121,42 +123,65 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
+def build_perm(input):
+    start, rest, vertex_count, to_permute = input
+    stack = [ (start,rest) ]
+    permutations = []
+
+    indices = range(to_permute)
+    indices_set = Set(indices)
+    
+    while len(stack) > 0:
+        path, rest = stack.pop()
+        
+        if len(path) == vertex_count:
+            permutations.append(tuple(path))
+            continue
+    
+        remaining = indices_set - Set(path)
+        for next_index in remaining:
+            new_path = copy.deepcopy(path)
+            new_path.append(next_index)
+            stack.append( (new_path, Set(remaining) - Set([next_index]) ) )
+    return permutations
+
+def flatten(l):
+    return [x for subl in l for x in subl]
+
 PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     to_permute = len(skeleton_points)
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
-    permutations = []
-    added_permutations = Set()
     
     if not os.path.exists(cache_file):
         indices = range(to_permute)
-        indices_set = Set(indices)
+        stack = []
+        for i,x in enumerate(indices):
+            rest = indices[:i]+indices[i+1:]
+            stack.append( ([x], rest, vertex_count, to_permute) )
         
-        stack = [[_] for _ in indices]
-    
-        while len(stack) > 0:
-            path = stack.pop()
-        
-            if len(path) == vertex_count:
-                path = tuple(path)
-                opposite = list(path)
-                opposite.reverse()
-                opposite = tuple(opposite)
-                # only add one-direction of the path to the list, will handle later
-                if not opposite in added_permutations:
-                    permutations.append(path)
-                    added_permutations.add(path)
+        permutations = pool.map(build_perm, stack)
+        # permutations = [build_perm(x) for x in stack]
+        flattened = flatten(permutations)
+
+        without_reverse_paths = Set()
+        for perm in flattened:
+            perm = tuple(perm)
+            opposite = list(perm)
+            opposite.reverse()
+            opposite = tuple(opposite)
+            if opposite in without_reverse_paths:
                 continue
+            without_reverse_paths.add(perm)
         
-            for next_index in indices_set - Set(path):
-                new_path = copy.deepcopy(path)
-                new_path.append(next_index)
-                stack.append(new_path)
-        cPickle.dump(permutations, open(cache_file,'wb'))
+        cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
         print "\tsaved",cache_file
     else:
         permutations = cPickle.load(open(cache_file, 'rb'))
+    
+    if COMPUTE_INITIAL_FRAME_PARSE:
+        return None
     
     start = time.time()
     combined = []
@@ -214,15 +239,16 @@ if '__main__' == __name__:
                 print "\tLOADED CACHE",cache_file
             else:
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
-                cPickle.dump(permuted_paths, open(cache_file,'wb'))
-                print "\tSaved paths to",cache_file
-            
-            print "\tbest:",permuted_paths[0][1]
+                if not COMPUTE_INITIAL_FRAME_PARSE:
+                    cPickle.dump(permuted_paths, open(cache_file,'wb'))
+                    print "\tSaved paths to",cache_file
+            if not COMPUTE_INITIAL_FRAME_PARSE:
+                print "\tbest:",permuted_paths[0][1]
             #code.interact(local=dict(globals(), **locals()))
             
             # if edge_count == 4:
             #     exit()
             #break
         #break
-        if so_far == 2:
-            exit()
+        # if so_far == 2:
+        #     exit()
