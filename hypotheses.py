@@ -239,7 +239,7 @@ if '__main__' == __name__:
     pool = multiprocessing.Pool(NUM_THREADS)
     
     # somewhat arbitrary value for bounding concerns
-    max_edges = 7
+    max_edges = 6
 
     pcl_validation_point_percentage = 0.2
     
@@ -274,8 +274,9 @@ if '__main__' == __name__:
                     print "\tSaved paths to",cache_file
             elif not COMPUTE_PERMUTATIONS and cache_file_exists:
                 try:
+                    print "\tLOADING CACHE",cache_file
                     permuted_paths = cPickle.load(open(cache_file,'rb'))
-                    print "\tLOADED CACHE",cache_file
+                    print "\tdone"
                 except ValueError:
                     print "Caught cPickle error, bugged file:",cache_file
                     permuted_paths = None
