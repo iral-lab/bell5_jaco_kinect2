@@ -248,7 +248,7 @@ if '__main__' == __name__:
     pool = multiprocessing.Pool(NUM_THREADS)
     
     # somewhat arbitrary value for bounding concerns
-    max_edges = 6
+    max_edges = 6 if NUM_THREADS > 8 else 4
 
     pcl_validation_point_percentage = 0.2
     
