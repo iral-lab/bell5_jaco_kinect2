@@ -6,9 +6,9 @@ CACHE_FOLDER = 'caches/'
 
 COMPUTE_PERMUTATIONS = False
 
-DONT_COMPUTE_ANYTHING = '--replay-caches' in sys.argv
+REPLAY_FRAMES = '--replay-caches' in sys.argv
 
-COMPUTE_FRAMES = not DONT_COMPUTE_ANYTHING
+COMPUTE_FRAMES = not REPLAY_FRAMES
 
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
@@ -305,7 +305,7 @@ if '__main__' == __name__:
             
             cache_file_exists = os.path.exists(cache_file)
             
-            if not DONT_COMPUTE_ANYTHING and (COMPUTE_PERMUTATIONS or not cache_file_exists):
+            if not REPLAY_FRAMES and (COMPUTE_PERMUTATIONS or not cache_file_exists):
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
                 if not COMPUTE_PERMUTATIONS:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
@@ -319,7 +319,7 @@ if '__main__' == __name__:
                     print "Caught cPickle error, bugged file:",cache_file
                     permuted_paths = None
             
-            if DONT_COMPUTE_ANYTHING and not permuted_paths:
+            if REPLAY_FRAMES and not permuted_paths:
                 exit()
             
             if COMPUTE_FRAMES or COMPUTE_PERMUTATIONS:
