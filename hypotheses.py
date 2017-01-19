@@ -223,7 +223,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     combined = []
     
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
-    inputs = [(vertex_count, permutation,skeleton_points, pcl_points) for permutation in permutations if max(permutation) < to_permute]
+    inputs = [(vertex_count, permutation, skeleton_points, pcl_points) for permutation in permutations if max(permutation) < to_permute]
     
     computed = pool.map(get_permutation_fitness, chunks(inputs, NUM_THREADS))
     
