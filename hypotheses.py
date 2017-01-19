@@ -71,7 +71,7 @@ def distance_to_vector(p0, p1, x):
     # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
     
     # same as in get_distance_to_nearest_vector
-    hash = tuple(sorted(('o', p0, p1, x)))
+    hash = tuple(['o'] + sorted( [p0, p1] ) + [x])
     
     if hash in DISTANCES_CACHE:
         return DISTANCES_CACHE[hash]
@@ -103,21 +103,20 @@ def distance_to_vector(p0, p1, x):
 def get_distance_to_nearest_vector(point, vector_endpoints):
     min_distance = None
     for p0,p1 in vector_endpoints:
-        hash,hash_swapped = ( ('o', p0, p1, point),  ('o', p1, p0, point) )
+        hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
+        
         distance = None
         if hash in DISTANCES_CACHE:
             distance = DISTANCES_CACHE[hash]
-        elif hash_swapped in DISTANCES_CACHE:
-            distance = DISTANCES_CACHE[hash_swapped]
         else:
-            distance = distance_to_vector(p0,p1, point)
+            distance = distance_to_vector(p0, p1, point)
         min_distance = min(min_distance, distance) if min_distance else distance
     return min_distance
 
 def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
     min_distance = None
     for point in pcl_points:
-        hash = tuple(sorted(('o', p0, p1, point)))
+        hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
         distance = None
         if hash in DISTANCES_CACHE:
             distance = DISTANCES_CACHE[hash]
