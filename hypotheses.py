@@ -75,9 +75,8 @@ def distance_to_vector(p0, p1, x):
     if hash in DISTANCES_CACHE:
         return DISTANCES_CACHE[hash]
     if hash_swapped in DISTANCES_CACHE:
-        #print "swapped"
         return DISTANCES_CACHE[hash_swapped]
-    
+        
     hash_x_minus_p0 = ('m',x,p0)
     hash_x_minus_p1 = ('m',x,p1)
     hash_len_p1_p0 = ('d',p1,p0)
@@ -98,8 +97,10 @@ def distance_to_vector(p0, p1, x):
     if not hash_len_cross in DISTANCES_CACHE:
         DISTANCES_CACHE[hash_len_cross] = length_3d(DISTANCES_CACHE[hash_cross_xp0_xp1])
     
-    DISTANCES_CACHE[hash] = DISTANCES_CACHE[hash_len_cross] / DISTANCES_CACHE[hash_len_p1_p0]
-    return DISTANCES_CACHE[hash]
+    distance = DISTANCES_CACHE[hash_len_cross] / DISTANCES_CACHE[hash_len_p1_p0]
+    DISTANCES_CACHE[hash] = distance
+    DISTANCES_CACHE[hash_swapped] = distance
+    return distance
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
     distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
@@ -222,7 +223,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     combined = []
     
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
-    inputs = [(vertex_count, permutation,skeleton_points, pcl_points)  for permutation in permutations if max(permutation) < to_permute]
+    inputs = [(vertex_count, permutation,skeleton_points, pcl_points) for permutation in permutations if max(permutation) < to_permute]
     
     computed = pool.map(get_permutation_fitness, chunks(inputs, NUM_THREADS))
     
