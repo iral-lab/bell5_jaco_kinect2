@@ -319,15 +319,20 @@ if '__main__' == __name__:
                     print "Caught cPickle error, bugged file:",cache_file
                     permuted_paths = None
             
+            if not permuted_paths:
+                exit()
+            
+            best_score = permuted_paths[0][1]
+            
+            print "\tbest:",best_score
+            
+            
             if REPLAY_FRAMES and not permuted_paths:
                 exit()
             
             if COMPUTE_FRAMES or COMPUTE_PERMUTATIONS:
                 continue
             
-            best_score = permuted_paths[0][1]
-            
-            print "\tbest:",best_score
             
             
             #code.interact(local=dict(globals(), **locals()))
