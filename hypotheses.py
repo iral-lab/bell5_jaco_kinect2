@@ -116,7 +116,21 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
             distance = distance_to_vector(p0,p1, point)
         min_distance = min(min_distance, distance) if min_distance else distance
     return min_distance
-    
+
+def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
+    min_distance = None
+    for point in pcl_points:
+        hash,hash_swapped = ( ('o', p0, p1, point),  ('o', p1, p0, point) )
+        distance = None
+        if hash in DISTANCES_CACHE:
+            distance = DISTANCES_CACHE[hash]
+        elif hash_swapped in DISTANCES_CACHE:
+            distance = DISTANCES_CACHE[hash_swapped]
+        else:
+            distance = distance_to_vector(p0,p1, point)
+        min_distance = min(min_distance, distance) if min_distance else distance
+    return min_distance
+
 def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
     edge_count_penalty = (-0.001 * num_points * edge_count)
     fit_to_data = (-1 * total_pcl_error)
@@ -140,9 +154,11 @@ def get_permutation_fitness(input_batch):
         vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
     
         total_error = 0.0
-        for point in pcl_points:
-            total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
-    
+        #for point in pcl_points:
+        #    total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
+        for p0,p1 in vectors_endpoints:
+            total_error += get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
+        
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
         # add back in the opposite path
