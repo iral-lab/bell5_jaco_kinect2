@@ -71,12 +71,10 @@ def distance_to_vector(p0, p1, x):
     # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
     
     # same as in get_distance_to_nearest_vector
-    hash,hash_swapped = ( ('o', p0, p1, x),  ('o', p1, p0, x) )
+    hash = tuple(sorted(('o', p0, p1, x)))
     
     if hash in DISTANCES_CACHE:
         return DISTANCES_CACHE[hash]
-    if hash_swapped in DISTANCES_CACHE:
-        return DISTANCES_CACHE[hash_swapped]
         
     hash_x_minus_p0 = ('m',x,p0)
     hash_x_minus_p1 = ('m',x,p1)
@@ -100,7 +98,6 @@ def distance_to_vector(p0, p1, x):
     
     distance = DISTANCES_CACHE[hash_len_cross] / DISTANCES_CACHE[hash_len_p1_p0]
     DISTANCES_CACHE[hash] = distance
-    DISTANCES_CACHE[hash_swapped] = distance
     return distance
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
@@ -120,12 +117,10 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
 def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
     min_distance = None
     for point in pcl_points:
-        hash,hash_swapped = ( ('o', p0, p1, point),  ('o', p1, p0, point) )
+        hash = tuple(sorted(('o', p0, p1, point)))
         distance = None
         if hash in DISTANCES_CACHE:
             distance = DISTANCES_CACHE[hash]
-        elif hash_swapped in DISTANCES_CACHE:
-            distance = DISTANCES_CACHE[hash_swapped]
         else:
             distance = distance_to_vector(p0,p1, point)
         min_distance = min(min_distance, distance) if min_distance else distance
@@ -144,7 +139,7 @@ def get_permutation_fitness(input_batch):
     output = []
     for input in input_batch:
         vertex_count, permutation, skeleton_points, pcl_points = input
-    
+        
         path = tuple([skeleton_points[i] for i in permutation])
     
         distance = calculate_distances(path)
@@ -156,8 +151,13 @@ def get_permutation_fitness(input_batch):
         total_error = 0.0
         #for point in pcl_points:
         #    total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
+        
+        pcl_hash = hashlib.md5(str(pcl_points)).hexdigest()
         for p0,p1 in vectors_endpoints:
-            total_error += get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
+            distance_hash = pcl_hash+"_"+str(sorted([p0,p1]))
+            if not distance_hash in DISTANCES_CACHE:
+                DISTANCES_CACHE[distance_hash] = get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
+            total_error += DISTANCES_CACHE[distance_hash]
         
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
@@ -277,7 +277,7 @@ if '__main__' == __name__:
     pool = multiprocessing.Pool(NUM_THREADS)
     
     # somewhat arbitrary value for bounding concerns
-    max_edges = 6 if NUM_THREADS > 8 else 4
+    max_edges = 6 #if NUM_THREADS > 8 else 4
 
     pcl_validation_point_percentage = 0.2
     
