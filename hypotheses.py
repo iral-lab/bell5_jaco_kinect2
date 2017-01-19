@@ -8,7 +8,7 @@ COMPUTE_PERMUTATIONS = False
 
 DONT_COMPUTE_ANYTHING = '--replay-caches' in sys.argv
 
-COMPUTER_FRAMES = not DONT_COMPUTE_ANYTHING
+COMPUTE_FRAMES = not DONT_COMPUTE_ANYTHING
 
 if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
     print "Usage: python",sys.argv[0]," <-t num-threads> -s skeleton_file.csv -p pointcloud.csv"
@@ -310,7 +310,7 @@ if '__main__' == __name__:
                 if not COMPUTE_PERMUTATIONS:
                     cPickle.dump(permuted_paths, open(cache_file,'wb'))
                     print "\tSaved paths to",cache_file
-            elif not COMPUTER_FRAMES and not COMPUTE_PERMUTATIONS and cache_file_exists:
+            elif not COMPUTE_FRAMES and not COMPUTE_PERMUTATIONS and cache_file_exists:
                 try:
                     print "\tLOADING CACHE",cache_file
                     permuted_paths = cPickle.load(open(cache_file,'rb'))
@@ -322,7 +322,7 @@ if '__main__' == __name__:
             if DONT_COMPUTE_ANYTHING and not permuted_paths:
                 exit()
             
-            if COMPUTER_FRAMES or COMPUTE_PERMUTATIONS:
+            if COMPUTE_FRAMES or COMPUTE_PERMUTATIONS:
                 continue
             
             best_score = permuted_paths[0][1]
