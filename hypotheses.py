@@ -69,8 +69,9 @@ def length_3d(vector_3d):
 DISTANCES_CACHE = {}
 def distance_to_vector(p0, p1, x):
     # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-    hash = ('o',p0,p1,x)
-    hash_swapped = ('o', p1, p0, x)
+    
+    # same as in get_distance_to_nearest_vector
+    hash,hash_swapped = ( ('o', p0, p1, x),  ('o', p1, p0, x) )
     
     if hash in DISTANCES_CACHE:
         return DISTANCES_CACHE[hash]
@@ -103,8 +104,18 @@ def distance_to_vector(p0, p1, x):
     return distance
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
-    distances = [distance_to_vector(p0,p1, point) for p0,p1 in vector_endpoints]
-    return min(distances)
+    min_distance = None
+    for p0,p1 in vector_endpoints:
+        hash,hash_swapped = ( ('o', p0, p1, point),  ('o', p1, p0, point) )
+        distance = None
+        if hash in DISTANCES_CACHE:
+            distance = DISTANCES_CACHE[hash]
+        elif hash_swapped in DISTANCES_CACHE:
+            distance = DISTANCES_CACHE[hash_swapped]
+        else:
+            distance = distance_to_vector(p0,p1, point)
+        min_distance = min(min_distance, distance) if min_distance else distance
+    return min_distance
     
 def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
     edge_count_penalty = (-0.001 * num_points * edge_count)
@@ -128,8 +139,9 @@ def get_permutation_fitness(input_batch):
     
         vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
     
-        errors = [get_distance_to_nearest_vector(point, vectors_endpoints) for point in pcl_points]
-        total_error = sum(errors)
+        total_error = 0.0
+        for point in pcl_points:
+            total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
     
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
