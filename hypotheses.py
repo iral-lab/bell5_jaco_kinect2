@@ -234,7 +234,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     taken = time.time() - start
-    print "\tTaken:",round(taken, 2),"Permutations/sec:",round(len(permutations) / taken, 2)
+    print "\tTaken:",round(taken, 2),"seconds, Permutations/sec:",round(len(permutations) / taken, 2),"for",len(inputs),"permutations"
     
     return best_first
     
