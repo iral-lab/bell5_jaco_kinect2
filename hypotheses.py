@@ -115,6 +115,7 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
                 distance = distance_to_vector(p0, p1, point)
             min_distance = min(min_distance, distance) if min_distance else distance
         DISTANCES_CACHE[overall_hash] = min_distance
+
     return DISTANCES_CACHE[overall_hash]
 
 def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
@@ -149,7 +150,7 @@ def get_permutation_fitness(input_batch):
     
         # code.interact(local=dict(globals(), **locals()))
     
-        vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
+        vectors_endpoints = sorted([ (path[i+1],path[i]) for i in range(len(path) - 1) ])
     
         total_error = 0.0
 
