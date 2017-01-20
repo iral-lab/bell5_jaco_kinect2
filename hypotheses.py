@@ -148,15 +148,23 @@ def get_permutation_fitness(input_batch):
         vectors_endpoints = [ (path[i+1],path[i]) for i in range(len(path) - 1) ]
     
         total_error = 0.0
-        #for point in pcl_points:
-        #    total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
-        
+
         pcl_hash = hashlib.md5(str(pcl_points)).hexdigest()
-        for p0,p1 in vectors_endpoints:
-            distance_hash = pcl_hash+"_"+str(sorted([p0,p1]))
-            if not distance_hash in DISTANCES_CACHE:
-                DISTANCES_CACHE[distance_hash] = get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
-            total_error += DISTANCES_CACHE[distance_hash]
+        
+        if True:
+            # old way
+            for point in pcl_points:
+                total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
+        else:
+            # 2nd way, wrong because this takes the sum of the closest points to the given line.
+            raise "Shouldn't be here"
+            total_error = 0.0
+            for p0,p1 in vectors_endpoints:
+                
+                distance_hash = pcl_hash+"_"+str(sorted([p0,p1]))
+                if not distance_hash in DISTANCES_CACHE:
+                    DISTANCES_CACHE[distance_hash] = get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
+                total_error += DISTANCES_CACHE[distance_hash]
         
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
@@ -323,9 +331,8 @@ if '__main__' == __name__:
                 exit()
             
             best_score = permuted_paths[0][1]
-            
             print "\tbest:",best_score
-            
+            #exit()
             
             if REPLAY_FRAMES and not permuted_paths:
                 exit()
