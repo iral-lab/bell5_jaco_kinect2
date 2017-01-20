@@ -157,7 +157,7 @@ def get_permutation_fitness(input_batch):
         pcl_hash = hashlib.md5(str(pcl_points)).hexdigest()
         
         if True:
-            # old way
+            # old way, can't be cached since each time we get here it's a different path (vectors) or pcl points
             for point in pcl_points:
                 total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
         else:
