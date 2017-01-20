@@ -101,17 +101,21 @@ def distance_to_vector(p0, p1, x):
     return distance
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
-    min_distance = None
-    for p0,p1 in vector_endpoints:
-        hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
+    
+    overall_hash = tuple(['ov'] + [point] + sorted(vector_endpoints))
+    if not overall_hash in DISTANCES_CACHE:
+        min_distance = None
+        for p0,p1 in vector_endpoints:
+            hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
         
-        distance = None
-        if hash in DISTANCES_CACHE:
-            distance = DISTANCES_CACHE[hash]
-        else:
-            distance = distance_to_vector(p0, p1, point)
-        min_distance = min(min_distance, distance) if min_distance else distance
-    return min_distance
+            distance = None
+            if hash in DISTANCES_CACHE:
+                distance = DISTANCES_CACHE[hash]
+            else:
+                distance = distance_to_vector(p0, p1, point)
+            min_distance = min(min_distance, distance) if min_distance else distance
+        DISTANCES_CACHE[overall_hash] = min_distance
+    return DISTANCES_CACHE[overall_hash]
 
 def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
     min_distance = None
