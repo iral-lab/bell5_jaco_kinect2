@@ -145,9 +145,7 @@ def get_permutation_fitness(input_batch):
     output = []
     
     for input in input_batch:
-        vertex_count, permutation, skeleton_points, pcl_points = input
-        
-        new_skeleton_hash = hashlib.md5( str(tuple(sorted(skeleton_points)))).hexdigest()
+        vertex_count, permutation, skeleton_points, pcl_points, new_skeleton_hash = input
         
         if not new_skeleton_hash == computed_skeleton_hash:
             computed_skeleton_hash = new_skeleton_hash
@@ -295,8 +293,10 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     start = time.time()
     combined = []
     
+    new_skeleton_hash = hashlib.md5( str(tuple(sorted(skeleton_points)))).hexdigest()
+    
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
-    inputs = [(vertex_count, permutation, skeleton_points, pcl_points) for permutation in permutations if max(permutation) < to_permute]
+    inputs = [(vertex_count, permutation, skeleton_points, pcl_points, new_skeleton_hash) for permutation in permutations if max(permutation) < to_permute]
     
     computed = None
     
