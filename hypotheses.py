@@ -331,7 +331,7 @@ if '__main__' == __name__:
     # somewhat arbitrary value for bounding concerns
     max_edges = 6 #if NUM_THREADS > 8 else 4
 
-    pcl_validation_point_percentage = 0.2
+    max_points_to_use = 500
     
     #random.seed(1)
     
@@ -341,7 +341,7 @@ if '__main__' == __name__:
         print SENTINEL,"frame:",so_far
         so_far += 1
         
-        points_to_use = min(1000, len(pcl_points))
+        points_to_use = min(max_points_to_use, len(pcl_points))
         sampled_pcl_points = random.sample(pcl_points, points_to_use)
         print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
         for edge_count in range(1,max_edges+1):
