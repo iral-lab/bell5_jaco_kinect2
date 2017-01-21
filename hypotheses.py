@@ -1,4 +1,4 @@
-import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib
+import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib,pprint
 import numpy as np
 from sets import Set
 
@@ -70,7 +70,6 @@ DISTANCES_CACHE = {}
 def distance_to_vector(p0, p1, x):
     # from http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
     
-    # same as in get_distance_to_nearest_vector
     hash = tuple(['o'] + sorted( [p0, p1] ) + [x])
     
     if hash in DISTANCES_CACHE:
@@ -103,17 +102,20 @@ def distance_to_vector(p0, p1, x):
 def get_distance_to_nearest_vector(point, vector_endpoints):
     
     min_distance = None
+    closest_to = None
     for p0,p1 in vector_endpoints:
-        hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
+        p0,p1 = sorted([p0,p1])
+        hash = tuple(['o', p0, p1, point])
     
         distance = None
         if hash in DISTANCES_CACHE:
             distance = DISTANCES_CACHE[hash]
         else:
             distance = distance_to_vector(p0, p1, point)
-        min_distance = min(min_distance, distance) if min_distance else distance
-  
-    return min_distance
+        if not min_distance or distance < min_distance:
+            min_distance = distance
+            closest_to = (p0, p1)
+    return (min_distance, closest_to)
 
 def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
     edge_count_penalty = (-0.001 * num_points * edge_count)
@@ -124,10 +126,47 @@ def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
     return edge_count_penalty + fit_to_data + path_length_penalty
     # return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
 
+def get_all_pairs(lst):
+    added = Set()
+    for pair in itertools.permutations(lst, 2):
+        ordered = tuple(sorted(pair))
+        added.add(ordered)
+    return added
+
+
+CLOSEST_TO_VECTOR_MAP = {}
+ERROR_MAP = {}
+master_points_to_try = Set()
+computed_skeleton_hash = None
+
 def get_permutation_fitness(input_batch):
+    global computed_skeleton_hash, CLOSEST_TO_VECTOR_MAP, ERROR_MAP, master_points_to_try
+    
     output = []
+    
     for input in input_batch:
         vertex_count, permutation, skeleton_points, pcl_points = input
+        
+        new_skeleton_hash = hashlib.md5( str(tuple(sorted(skeleton_points)))).hexdigest()
+        
+        if not new_skeleton_hash == computed_skeleton_hash:
+            computed_skeleton_hash = new_skeleton_hash
+            
+            all_vectors = get_all_pairs(skeleton_points)
+            for point in pcl_points:
+                master_points_to_try.add(point)
+                
+                near_error,near_vector = get_distance_to_nearest_vector(point, all_vectors)
+                
+                if not near_vector in CLOSEST_TO_VECTOR_MAP:
+                    CLOSEST_TO_VECTOR_MAP[near_vector] = Set()
+                    ERROR_MAP[near_vector] = 0.0
+                    
+                    #print "<<",near_vector
+                
+                CLOSEST_TO_VECTOR_MAP[near_vector].add(point)
+                ERROR_MAP[near_vector] += near_error
+            print "COMPUTED VECTOR AND ERROR MAPS",len(ERROR_MAP),"of",len(all_vectors)
         
         path = tuple([skeleton_points[i] for i in permutation])
     
@@ -136,15 +175,35 @@ def get_permutation_fitness(input_batch):
         # code.interact(local=dict(globals(), **locals()))
     
         vectors_endpoints = sorted([ (path[i+1],path[i]) for i in range(len(path) - 1) ])
-    
+        #print "vector endpoints:",len(vectors_endpoints)
         total_error = 0.0
 
         pcl_hash = hashlib.md5(str(pcl_points)).hexdigest()
         
-        # old way, can't be cached since each time we get here it's a different path (vectors) or pcl points
-        for point in pcl_points:
-            total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
-  
+        points_to_try = Set(list(master_points_to_try))
+        
+        for vector in vectors_endpoints:
+            p0,p1 = sorted(vector)
+            hash = (p0,p1)
+            #print ">>",hash
+            if hash in ERROR_MAP:
+                total_error += ERROR_MAP[hash] # get the error for all the closest points we already computed the sum for
+                for point in CLOSEST_TO_VECTOR_MAP[hash]:
+                    points_to_try.discard(point)
+        
+        #print "leftover:",len(points_to_try),"of",len(master_points_to_try)
+        
+        for point in points_to_try:
+            min_distance = None
+            for vector in vectors_endpoints:
+                hash = tuple(['o'] + (sorted( vector )) + [point])
+                this_distance = DISTANCES_CACHE[hash]
+                if not min_distance or this_distance < min_distance:
+                    min_distance = this_distance
+            total_error += min_distance
+                
+        # code.interact(local=dict(globals(), **locals()))
+        
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
         # add back in the opposite path
@@ -239,7 +298,14 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
     inputs = [(vertex_count, permutation, skeleton_points, pcl_points) for permutation in permutations if max(permutation) < to_permute]
     
-    computed = pool.map(get_permutation_fitness, chunks(inputs, NUM_THREADS))
+    computed = None
+    
+    chunk_size = len(inputs) / NUM_THREADS
+    
+    if 1 == NUM_THREADS:
+        computed = [get_permutation_fitness(_) for _ in chunks(inputs, chunk_size)]
+    else:
+        computed = pool.map(get_permutation_fitness, chunks(inputs, chunk_size))
     
     for path_batch in computed:
         for path in path_batch:
