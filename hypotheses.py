@@ -102,32 +102,17 @@ def distance_to_vector(p0, p1, x):
 
 def get_distance_to_nearest_vector(point, vector_endpoints):
     
-    overall_hash = tuple(['ov'] + [point] + sorted(vector_endpoints))
-    if not overall_hash in DISTANCES_CACHE:
-        min_distance = None
-        for p0,p1 in vector_endpoints:
-            hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
-        
-            distance = None
-            if hash in DISTANCES_CACHE:
-                distance = DISTANCES_CACHE[hash]
-            else:
-                distance = distance_to_vector(p0, p1, point)
-            min_distance = min(min_distance, distance) if min_distance else distance
-        DISTANCES_CACHE[overall_hash] = min_distance
-
-    return DISTANCES_CACHE[overall_hash]
-
-def get_distance_to_nearest_vector_flat(p0, p1, pcl_points):
     min_distance = None
-    for point in pcl_points:
+    for p0,p1 in vector_endpoints:
         hash = tuple(['o'] + sorted( [p0, p1] ) + [point])
+    
         distance = None
         if hash in DISTANCES_CACHE:
             distance = DISTANCES_CACHE[hash]
         else:
-            distance = distance_to_vector(p0,p1, point)
+            distance = distance_to_vector(p0, p1, point)
         min_distance = min(min_distance, distance) if min_distance else distance
+  
     return min_distance
 
 def get_fitness(edge_count, path_distance, total_pcl_error, num_points):
@@ -156,21 +141,10 @@ def get_permutation_fitness(input_batch):
 
         pcl_hash = hashlib.md5(str(pcl_points)).hexdigest()
         
-        if True:
-            # old way, can't be cached since each time we get here it's a different path (vectors) or pcl points
-            for point in pcl_points:
-                total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
-        else:
-            # 2nd way, wrong because this takes the sum of the closest points to the given line.
-            raise "Shouldn't be here"
-            total_error = 0.0
-            for p0,p1 in vectors_endpoints:
-                
-                distance_hash = pcl_hash+"_"+str(sorted([p0,p1]))
-                if not distance_hash in DISTANCES_CACHE:
-                    DISTANCES_CACHE[distance_hash] = get_distance_to_nearest_vector_flat(p0, p1, pcl_points)
-                total_error += DISTANCES_CACHE[distance_hash]
-        
+        # old way, can't be cached since each time we get here it's a different path (vectors) or pcl points
+        for point in pcl_points:
+            total_error += get_distance_to_nearest_vector(point, vectors_endpoints)
+  
         fitness = get_fitness(vertex_count-1, distance, total_error, len(pcl_points))
     
         # add back in the opposite path
