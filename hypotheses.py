@@ -306,7 +306,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     computed = None
     
-    chunk_size = len(inputs) / NUM_THREADS
+    chunk_size = max(1, len(inputs) / NUM_THREADS)
     
     if 1 == NUM_THREADS:
         computed = [get_permutation_fitness(_) for _ in chunks(inputs, chunk_size)]

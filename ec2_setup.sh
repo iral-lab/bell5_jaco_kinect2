@@ -15,3 +15,7 @@ pip install --user numpy scipy matplotlib ipython jupyter pandas sympy nose
 sudo chown ec2-user:ec2-user -R /usr/lib/python*
 
 git clone https://github.com/iral-lab/bell5_jaco_kinect2.git
+
+cd bell5_jaco_kinect2
+mkdir caches
+
