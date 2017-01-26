@@ -35,6 +35,10 @@ def csv_reader(input_file):
 				batch.append( tuple([float(x) for x in line.split(",")]) )
 		if len(batch) > 0:
 			yield batch
+
+def round_to_precision(point, precision):
+    return tuple([round(value, precision) for value in point])
+
 def get_frames(skeleton_file, pcl_file):
     skeleton_in = csv_reader(skeleton_file)
     pcl_in = csv_reader(pcl_file)
@@ -325,7 +329,9 @@ if '__main__' == __name__:
     
     if not os.path.exists(CACHE_FOLDER):
         os.mkdir(CACHE_FOLDER)
-
+    
+    precision_digits = 3
+    
     pool = multiprocessing.Pool(NUM_THREADS)
     
     # somewhat arbitrary value for bounding concerns
@@ -340,11 +346,20 @@ if '__main__' == __name__:
         frame_start = time.time()
         print SENTINEL,"frame:",so_far
         so_far += 1
+
+        # code.interact(local=dict(globals(), **locals()))
         
         points_to_use = min(max_points_to_use, len(pcl_points))
         sampled_pcl_points = random.sample(pcl_points, points_to_use)
         print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
+        
+        skeleton_points = [round_to_precision(point, precision_digits) for point in skeleton_points]
+        sampled_pcl_points = [round_to_precision(point, precision_digits) for point in sampled_pcl_points]
+        
         for edge_count in range(1,max_edges+1):
+            # go in reverse order, most -> least
+            # edge_count = (max_edges+1) - edge_count
+
             if edge_count >= len(skeleton_points):
                 continue
             
