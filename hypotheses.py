@@ -170,7 +170,7 @@ def get_permutation_fitness(input_batch):
                 
                 CLOSEST_TO_VECTOR_MAP[near_vector].add(point)
                 ERROR_MAP[near_vector] += near_error
-            print "COMPUTED VECTOR AND ERROR MAPS",len(ERROR_MAP),"of",len(all_vectors)
+            # print "COMPUTED VECTOR AND ERROR MAPS",len(ERROR_MAP),"of",len(all_vectors)
         
         path = tuple([skeleton_points[i] for i in permutation])
     
