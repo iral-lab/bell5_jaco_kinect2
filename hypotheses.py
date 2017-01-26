@@ -153,11 +153,13 @@ def get_permutation_fitness(input_batch):
         
         if not new_skeleton_hash == computed_skeleton_hash:
             computed_skeleton_hash = new_skeleton_hash
+            master_points_to_try = Set()
             
             all_vectors = get_all_pairs(skeleton_points)
             for point in pcl_points:
                 master_points_to_try.add(point)
                 
+                # print ">>",point
                 near_error,near_vector = get_distance_to_nearest_vector(point, all_vectors)
                 
                 if not near_vector in CLOSEST_TO_VECTOR_MAP:
