@@ -231,6 +231,8 @@ struct find_arm_args{
 	pcl_vizualizations viz_selection;
 	
 	int *save_jaco_skeleton_frames;
+	
+	bool *show_viz_cluster_colors;
 };
 
 struct temporal_smoothing_args{
@@ -757,7 +759,18 @@ void *do_find_arm(void *thread_args){
 					assignment_vals.push_back(args->arm_skeleton_assignments->at(i));
 				}
 				vector<vector<short>> colors;
-				get_unique_colors(args->arm_skeleton_centroids->size(), &colors);
+				vector<short> white;
+				white.push_back(0xff);
+				white.push_back(0xff);
+				white.push_back(0xff);
+				if(*(args->show_viz_cluster_colors)){
+					get_unique_colors(args->arm_skeleton_centroids->size(), &colors);
+				}else{
+					for(i = 0; i < args->arm_skeleton_centroids->size(); i++){
+						colors.push_back(white);
+					}
+				}
+				
 				pcl_viz_this_vector_of_points(args->pcl_viz_input_ready, args->arm_skeleton_centroids, args->pcl_viz_cloud_input, &colors);
 			}
 			if((*(args->save_jaco_skeleton_frames)) > 0){
@@ -1206,6 +1219,7 @@ class ImageConverter{
 		find_arm_args.arm_skeleton_assignments = &arm_skeleton_assignments;
 		find_arm_args.cluster_error_cutoff = args->cluster_error_cutoff;
 		find_arm_args.save_jaco_skeleton_frames = &(args->save_jaco_skeleton_frames);
+		find_arm_args.show_viz_cluster_colors = &(args->show_viz_cluster_colors);
 		
 
 		pthread_t do_find_arm_thread;
