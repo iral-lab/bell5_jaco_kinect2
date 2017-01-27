@@ -340,10 +340,10 @@ def do_analysis():
     best_case_output_file = "best_values_"+start_id+".csv"
     
     columns = ["Frame"] + [str(x) for x in range(1, max_edges+1)]
-    open(best_case_output_file,'w').write(",".join(columns)+"\n")
+    open(best_case_output_file,'w').write("\t".join(columns)+"\n")
     
     best_path_output = "best_path_"+start_id+".csv"
-    open(best_path_output, 'w').write('Frame,Path\n')
+    open(best_path_output, 'w').write('Frame\tPath\n')
     
     max_points_to_use = 500
     
@@ -403,7 +403,10 @@ def do_analysis():
             best_score = permuted_paths[0][1]
             print "\tbest:",best_score
             bests.append(best_score)
-            open(best_path_output,'a').write(",".join([str(so_far), str(edge_count)]+[str(x) for x in permuted_paths[0][0]])+"\n")
+            path_strings = [",".join([str(x) for x in path]) for path in permuted_paths[0][0]]
+            # code.interact(local=dict(globals(), **locals()))
+            
+            open(best_path_output,'a').write("\t".join([str(so_far), str(edge_count)]+path_strings)+"\n")
                 
             #exit()
             
@@ -415,7 +418,7 @@ def do_analysis():
             
             #code.interact(local=dict(globals(), **locals()))
 
-        open(best_case_output_file, 'a').write(",".join([str(so_far)] + [str(x) for x in bests])+"\n")
+        open(best_case_output_file, 'a').write("\t".join([str(so_far)] + [str(x) for x in bests])+"\n")
         print ">> frame took",round(time.time() - frame_start, 2),"seconds"
     
 
