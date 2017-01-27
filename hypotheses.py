@@ -225,7 +225,7 @@ def iterate_distance_for_perm(input):
     return (vector_endpoints, error)
 
 LOOKUP_FILE = CACHE_FOLDER+"_lookup"
-LOOKUPS = {}
+LOOKUPS = {} # stores file name, since other threads have to load it
 def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     lookup_hash = hashlib.md5( str(tuple(sorted(skeleton_points))) + str(tuple(sorted(pcl_points)))).hexdigest()
     cache_file = LOOKUP_FILE+"_"+str(MAX_EDGES)+"_"+str(lookup_hash)+".pickle"
@@ -255,13 +255,13 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
         
         cPickle.dump(lookup, open(cache_file,'wb'))
         print "\tsaved",cache_file
-        LOOKUPS[lookup_hash] = lookup
+        LOOKUPS[lookup_hash] = cache_file
     elif not lookup_hash in LOOKUPS:
-        print "\tloading",cache_file
-        LOOKUPS[lookup_hash] = load_cache_file(cache_file)
+        # print "\tloading",cache_file
+        LOOKUPS[lookup_hash] = cache_file # load_cache_file(cache_file)
     else:
         print "saved lookup load"
-    return (LOOKUPS[lookup_hash], cache_file)
+    return LOOKUPS[lookup_hash]
     
 FILE_CACHE = {}
 def load_cache_file(path):
@@ -321,7 +321,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     start = time.time()
     
-    lookup, lookup_cache_file = build_distance_lookup_table(pool, skeleton_points, pcl_points)
+    lookup_cache_file = build_distance_lookup_table(pool, skeleton_points, pcl_points)
     
     combined = []
     
