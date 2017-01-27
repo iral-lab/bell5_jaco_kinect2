@@ -145,17 +145,10 @@ def get_all_pairs(lst):
         added.add(ordered)
     return added
 
-
-CLOSEST_TO_VECTOR_MAP = {}
-ERROR_MAP = {}
-master_points_to_try = Set()
-computed_skeleton_hash = None
-
 def get_permutation_fitness(input_batch):
-    global computed_skeleton_hash, CLOSEST_TO_VECTOR_MAP, ERROR_MAP, master_points_to_try
-    
     output = []
     permutation_batch, skeleton_points, lookup = input_batch
+    print "one starting with fitness",len(permutation_batch)
     for permutation in permutation_batch:
         
         path = tuple([skeleton_points[i] for i in permutation])
@@ -179,7 +172,8 @@ def get_permutation_fitness(input_batch):
         opposite_path = list(path)
         opposite_path.reverse()
         output.append( (path, fitness) )
-        output.append( (tuple(opposite_path), fitness) ) 
+        output.append( (tuple(opposite_path), fitness) )
+    print "one done with fitness"
     return output
 
 def chunks(l, n):
@@ -328,11 +322,12 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     chunk_size = max(1, len(permutations) / NUM_THREADS)
     
-    print NUM_THREADS, len(permutations), chunk_size
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
     #inputs = [(permutation, skeleton_points, lookup) for permutation in permutations if max(permutation) < to_permute]
     permutations_batches = chunks(permutations, chunk_size)
     inputs = [(permutation_batch, skeleton_points, lookup) for permutation_batch in permutations_batches]
+    
+    print NUM_THREADS, len(permutations), chunk_size, len(inputs)
     
     computed = None
     print "beginning fitness"
