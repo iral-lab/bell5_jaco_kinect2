@@ -202,6 +202,8 @@ struct viz_thread_args{
 
 	int skip_frames;
 	
+	bool show_viz_cluster_colors;
+	
 	double *cluster_error_cutoff;
 
 	char *kinect_topic;

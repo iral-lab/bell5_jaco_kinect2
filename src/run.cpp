@@ -81,6 +81,7 @@ void print_help(){
 	cout << "\tv depth                        : toggle depth filter. " << endl;
 	cout << "\tv table                        : toggle table removal. " << endl;
 	cout << "\tv live <all|arm|skeleton>      : switch live PCL view. " << endl;
+	cout << "\tv colors                       : toggle cluster-based colors in viz. " << endl;
 	cout << "\tv dbscan                       : toggle dbscan vs ransac arm detection. (default = " << DEFAULT_USE_DBSCAN << ")" << endl;
 	cout << "\tv pixels                       : toggle pixel match color filter. " << endl;
 	cout << "\tv error <" << DEFAULT_CLUSTER_ERROR_CUTOFF << ">                  : update arm clustering error (in meters). " << endl;
@@ -577,6 +578,10 @@ bool handle_cmd(int num_threads, struct thread_args *args, struct viz_thread_arg
 	}else if(!strcmp("v dbscan", cmd)){
 		viz_args->use_dbscan = !viz_args->use_dbscan;
 		cout << "Robot detection: use_dbscan: " << (viz_args->use_dbscan ? "On" : "Off, using ransac blob") << endl;
+		
+	}else if(!strcmp("v colors", cmd)){
+		viz_args->show_viz_cluster_colors = !viz_args->show_viz_cluster_colors;
+		cout << "Rendering cluster colors: " << (viz_args->show_viz_cluster_colors ? "On" : "Off") << endl;
 	
 	}else if(strlen(cmd) > 7 && strncmp(cmd, "v live ", 7) == 0){
 		handle_live_viz(viz_args, (char *) &(cmd[7]) );
@@ -871,6 +876,7 @@ int main(int argc, char **argv){
 	viz_args.highlight_table = false;
 	viz_args.skip_frames = DEFAULT_SKIP_FRAMES;
 	viz_args.use_dbscan = DEFAULT_USE_DBSCAN;
+	viz_args.show_viz_cluster_colors = false;
 	
 	viz_args.pcl_viz_input_ready = &pcl_viz_input_ready;
 	viz_args.pcl_viz_cloud_input = &pcl_viz_cloud_input;

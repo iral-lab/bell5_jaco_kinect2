@@ -73,6 +73,9 @@ struct rgb wall_color = {0x77, 0x89, 0xff};
 // misc color
 struct rgb misc_color = {0xff, 0xd8, 0xb5};
 
+// white
+struct rgb white_color = {0xff, 0xff, 0xff};
+
 // pixel shading color for jaco tag, red
 struct rgb jaco_match_color = {0xff, 0, 0};
 
@@ -1319,8 +1322,17 @@ class ImageConverter{
 
 		if(args->viz_selection == PCL_JUST_ARM && arm_skeleton_assignments.size() > 0 && validated_cluster >= 0){
 			vector<vector<short>> colors;
+			vector<short> white;
+			white.push_back(0xff);
+			white.push_back(0xff);
+			white.push_back(0xff);
 			for(i = 0; i < arm_skeleton_assignments.size(); i++){
-				vector<short> color = get_hex_color(arm_skeleton_assignments.at(i));
+				vector<short> color;
+				if(args->show_viz_cluster_colors){
+					color = get_hex_color(arm_skeleton_assignments.at(i));
+				}else{
+					color = white;
+				}
 				colors.push_back(color);
 			}
 			
