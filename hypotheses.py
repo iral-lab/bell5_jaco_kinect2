@@ -1,4 +1,4 @@
-import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib,pprint
+import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib, pprint, math
 import numpy as np
 from sets import Set
 
@@ -126,13 +126,17 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
     return (min_distance, closest_to)
 
 def get_fitness(edge_count, path_distance, total_pcl_error):
-    edge_count_penalty = 1 * edge_count
-    fit_to_data = (-1 * total_pcl_error)
-    path_length_penalty = (-0.01 * path_distance)
-    # print num_points, edge_count, path_distance, path_length_penalty, edge_count_penalty, fit_to_data
-    # print "\t",edge_count_penalty + fit_to_data + path_length_penalty
-    return edge_count_penalty + fit_to_data + path_length_penalty
-    # return (-0.1 * joints) + (-0.1 * path_distance) + (-1 * total_pcl_error)
+    
+    fit_to_data = -2.0 * total_pcl_error
+    
+    lambda_scalar = 1.1
+    edge_count_penalty = math.exp(lambda_scalar * edge_count)
+    
+    total_penalty = fit_to_data - edge_count_penalty
+    
+    # print "path penalty:",fit_to_data, total_pcl_error, edge_count, edge_count_penalty, total_penalty
+    
+    return total_penalty
 
 def get_all_pairs(lst):
     added = Set()
@@ -227,6 +231,7 @@ def iterate_distance_for_perm(input):
     return (vector_endpoints, error)
 
 LOOKUP_FILE = CACHE_FOLDER+"_lookup"
+LOOKUPS = {}
 def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     lookup_hash = hashlib.md5( str(tuple(sorted(skeleton_points))) + str(tuple(sorted(pcl_points)))).hexdigest()
     cache_file = LOOKUP_FILE+"_"+str(MAX_EDGES)+"_"+str(lookup_hash)+".pickle"
@@ -256,10 +261,13 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
         
         cPickle.dump(lookup, open(cache_file,'wb'))
         print "\tsaved",cache_file
-    else:
+        LOOKUPS[lookup_hash] = lookup
+    elif not lookup_hash in LOOKUPS:
         print "\tloading",cache_file
-        lookup = cPickle.load(open(cache_file, 'rb'))
-    return lookup
+        LOOKUPS[lookup_hash] = cPickle.load(open(cache_file, 'rb'))
+    else:
+        print "saved lookup load"
+    return LOOKUPS[lookup_hash]
     
 def load_or_build_perms(pool, vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
