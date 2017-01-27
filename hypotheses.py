@@ -245,13 +245,21 @@ def build_perm(input):
 def flatten(l):
     return [x for subl in l for x in subl]
 
-
-PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
-def get_paths(pool, skeleton_points, pcl_points, vertex_count):
+def build_distance_lookup_table(skeleton_points, pcl_points):
+    lookup = {}
+    all_edges = sorted(get_all_pairs(skeleton_points))
     
-    to_permute = len(skeleton_points)
+        
+    # for point in pcl_points:
+        
+        
+    
+    
+    code.interact(local=dict(globals(), **locals()))
+
+
+def load_or_build_perms(vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
-    permutations = None
     
     if not os.path.exists(cache_file):
         indices = range(to_permute)
@@ -291,9 +299,18 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         permutations = list(without_reverse_paths)
     else:
         permutations = cPickle.load(open(cache_file, 'rb'))
+    return permutations
+
+PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
+def get_paths(pool, skeleton_points, pcl_points, vertex_count):
+    
+    to_permute = len(skeleton_points)
+    permutations = load_or_build_perms(vertex_count, to_permute)
     
     start = time.time()
-
+    
+    # build_distance_lookup_table(skeleton_points, pcl_points)
+    
     combined = []
     
     new_skeleton_hash = hashlib.md5( str(tuple(sorted(skeleton_points)))).hexdigest()
