@@ -401,9 +401,10 @@ def do_analysis():
                 exit()
             
             best_score = permuted_paths[0][1]
-            open(best_path_output,'a').write(",".join([str(x) for x in permuted_paths[0][0]])+"\n")
             print "\tbest:",best_score
             bests.append(best_score)
+            open(best_path_output,'a').write(",".join([str(so_far), str(edge_count)]+[str(x) for x in permuted_paths[0][0]])+"\n")
+                
             #exit()
             
             if REPLAY_FRAMES and not permuted_paths:
@@ -413,8 +414,7 @@ def do_analysis():
                 continue
             
             #code.interact(local=dict(globals(), **locals()))
-            
-            #code.interact(local=dict(globals(), **locals()))
+
         open(best_case_output_file, 'a').write(",".join([str(so_far)] + [str(x) for x in bests])+"\n")
         print ">> frame took",round(time.time() - frame_start, 2),"seconds"
     
