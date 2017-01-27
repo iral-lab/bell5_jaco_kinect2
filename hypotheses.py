@@ -338,7 +338,12 @@ if '__main__' == __name__:
     
     # somewhat arbitrary value for bounding concerns
     max_edges = 6 #if NUM_THREADS > 8 else 4
-
+    
+    best_case_output_file = "best_values_"+str(int(time.time()))+".csv"
+    
+    columns = ["Frame"] + [str(x) for x in range(1, max_edges+1)]
+    open(best_case_output_file,'w').write(",".join(columns)+"\n")
+    
     max_points_to_use = 500
     
     #random.seed(1)
@@ -357,6 +362,8 @@ if '__main__' == __name__:
         
         skeleton_points = [round_to_precision(point, precision_digits) for point in skeleton_points]
         sampled_pcl_points = [round_to_precision(point, precision_digits) for point in sampled_pcl_points]
+        
+        bests = []
         
         for edge_count in range(1,max_edges+1):
             # go in reverse order, most -> least
@@ -394,6 +401,7 @@ if '__main__' == __name__:
             
             best_score = permuted_paths[0][1]
             print "\tbest:",best_score
+            bests.append(best_score)
             #exit()
             
             if REPLAY_FRAMES and not permuted_paths:
@@ -405,4 +413,5 @@ if '__main__' == __name__:
             
             
             #code.interact(local=dict(globals(), **locals()))
+        open(best_case_output_file, 'a').write(",".join([str(so_far)] + [str(x) for x in bests])+"\n")
         print ">> frame took",round(time.time() - frame_start, 2),"seconds"
