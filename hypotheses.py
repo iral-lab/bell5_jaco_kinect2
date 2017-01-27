@@ -130,7 +130,7 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
 
 def get_fitness(edge_count, path_distance, total_pcl_error):
     
-    fit_to_data = -10.0 * total_pcl_error
+    fit_to_data = -1000.0 * total_pcl_error
     
     lambda_scalar = 2.0 # ridiculously high, but should show some effect as they get higher
     edge_count_penalty = math.exp(lambda_scalar * edge_count)
@@ -407,7 +407,7 @@ def do_analysis():
             
             input_tuple = (skeleton_points, pcl_points, edge_count)
             input_hash = hashlib.md5(str(input_tuple)).hexdigest()
-            cache_file = CACHE_FOLDER+"_input_"+input_hash+COMPRESSION_EXTENSION
+            cache_file = CACHE_FOLDER+"_frame_"+input_hash+COMPRESSION_EXTENSION
             permuted_paths = None
             vertex_count = edge_count+1
             
