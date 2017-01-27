@@ -1,11 +1,14 @@
-import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib, pprint, math
+import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib, pprint, math, marshal, json
 import numpy as np
 from sets import Set
+
+COMPRESSION = cPickle #json #marshal #cPickle
+COMPRESSION_EXTENSION = '.pickle'
 
 CACHE_FOLDER = 'caches/'
 
 # somewhat arbitrary value for bounding concerns
-MAX_EDGES = 6 #if NUM_THREADS > 8 else 4
+MAX_EDGES = 3 #if NUM_THREADS > 8 else 4
 
 REPLAY_FRAMES = '--replay-caches' in sys.argv
 
@@ -222,7 +225,7 @@ LOOKUP_FILE = CACHE_FOLDER+"_lookup"
 LOOKUPS = {} # stores file name, since other threads have to load it
 def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     lookup_hash = hashlib.md5( str(tuple(sorted(skeleton_points))) + str(tuple(sorted(pcl_points)))).hexdigest()
-    cache_file = LOOKUP_FILE+"_"+str(MAX_EDGES)+"_"+str(lookup_hash)+".pickle"
+    cache_file = LOOKUP_FILE+"_"+str(MAX_EDGES)+"_"+str(lookup_hash)+COMPRESSION_EXTENSION
     
     lookup = None
     if not os.path.exists(cache_file):
@@ -247,7 +250,7 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
             lookup.update(temp_lookup)
             print round(time.time() - start,2),round(time.time() - this_round, 2), ">>",len(temp_lookup),len(lookup)
         
-        cPickle.dump(lookup, open(cache_file,'wb'))
+        open(cache_file,'wb').write(COMPRESSION.dumps(lookup))
         print "\tsaved",cache_file
         LOOKUPS[lookup_hash] = cache_file
     elif not lookup_hash in LOOKUPS:
@@ -260,12 +263,12 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
 FILE_CACHE = {}
 def load_cache_file(path):
     if not path in FILE_CACHE:
-        FILE_CACHE[path] = cPickle.load(open(path, 'rb'))
+        FILE_CACHE[path] = COMPRESSION.loads(open(path, 'rb').read())
     return FILE_CACHE[path]
     
     
 def load_or_build_perms(pool, vertex_count, to_permute):
-    cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
+    cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+COMPRESSION_EXTENSION
     permutations = None
     if not os.path.exists(cache_file):
         indices = range(to_permute)
@@ -299,12 +302,13 @@ def load_or_build_perms(pool, vertex_count, to_permute):
                 continue
             without_reverse_paths.add(perm)
         
-        cPickle.dump(without_reverse_paths, open(cache_file,'wb'))
+        permutations = sorted(list(without_reverse_paths))
+        open(cache_file,'wb').write(COMPRESSION.dumps(permutations))
         print "\tsaved",cache_file
     
-        permutations = sorted(list(without_reverse_paths))
+        
     else:
-        permutations = cPickle.load(open(cache_file, 'rb'))
+        permutations = COMPRESSION.loads(open(cache_file, 'rb').read())
     return sorted(permutations)
 
 PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
@@ -328,7 +332,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     permutations_batches = chunks(permutations, chunk_size)
     inputs = [(permutation_batch, skeleton_points, lookup_cache_file) for permutation_batch in permutations_batches]
     
-    print NUM_THREADS, len(permutations), chunk_size, len(inputs)
+    print "input_stats:",NUM_THREADS, len(permutations), chunk_size, len(inputs)
     
     computed = None
     
@@ -403,7 +407,7 @@ def do_analysis():
             
             input_tuple = (skeleton_points, pcl_points, edge_count)
             input_hash = hashlib.md5(str(input_tuple)).hexdigest()
-            cache_file = CACHE_FOLDER+"_input_"+input_hash+".pickle"
+            cache_file = CACHE_FOLDER+"_input_"+input_hash+COMPRESSION_EXTENSION
             permuted_paths = None
             vertex_count = edge_count+1
             
@@ -414,15 +418,15 @@ def do_analysis():
             if cache_file_exists or (REPLAY_FRAMES and cache_file_exists):
                 try:
                     print "\tLOADING CACHE",cache_file
-                    permuted_paths = cPickle.load(open(cache_file,'rb'))
+                    permuted_paths = COMPRESSION.loads(open(cache_file,'rb').read())
                     print "\tdone"
                 except ValueError:
-                    print "Caught cPickle error, bugged file:",cache_file
+                    print "Caught COMPRESSION error, bugged file:",cache_file
                     permuted_paths = None
             
             else:
                 permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
-                cPickle.dump(permuted_paths, open(cache_file,'wb'))
+                open(cache_file,'wb').write(COMPRESSION.dumps(permuted_paths))
                 print "\tSaved paths to",cache_file    
             
             if not permuted_paths:
