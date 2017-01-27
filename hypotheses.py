@@ -130,7 +130,7 @@ def get_distance_to_nearest_vector(point, vector_endpoints):
 
 def get_fitness(edge_count, path_distance, total_pcl_error):
     
-    fit_to_data = -1000.0 * total_pcl_error
+    fit_to_data = -10000.0 * total_pcl_error
     
     lambda_scalar = 2.0 # ridiculously high, but should show some effect as they get higher
     edge_count_penalty = math.exp(lambda_scalar * edge_count)
