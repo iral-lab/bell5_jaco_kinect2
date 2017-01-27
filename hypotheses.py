@@ -147,8 +147,9 @@ def get_all_pairs(lst):
 
 def get_permutation_fitness(input_batch):
     output = []
-    permutation_batch, skeleton_points, lookup = input_batch
-    print "one starting with fitness",len(permutation_batch)
+    permutation_batch, skeleton_points, lookup_cache_file = input_batch
+    lookup = load_cache_file(lookup_cache_file)
+
     for permutation in permutation_batch:
         
         path = tuple([skeleton_points[i] for i in permutation])
@@ -173,7 +174,6 @@ def get_permutation_fitness(input_batch):
         opposite_path.reverse()
         output.append( (path, fitness) )
         output.append( (tuple(opposite_path), fitness) )
-    print "one done with fitness"
     return output
 
 def chunks(l, n):
@@ -258,10 +258,17 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
         LOOKUPS[lookup_hash] = lookup
     elif not lookup_hash in LOOKUPS:
         print "\tloading",cache_file
-        LOOKUPS[lookup_hash] = cPickle.load(open(cache_file, 'rb'))
+        LOOKUPS[lookup_hash] = load_cache_file(cache_file)
     else:
         print "saved lookup load"
-    return LOOKUPS[lookup_hash]
+    return (LOOKUPS[lookup_hash], cache_file)
+    
+FILE_CACHE = {}
+def load_cache_file(path):
+    if not path in FILE_CACHE:
+        FILE_CACHE[path] = cPickle.load(open(path, 'rb'))
+    return FILE_CACHE[path]
+    
     
 def load_or_build_perms(pool, vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
@@ -314,7 +321,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     start = time.time()
     
-    lookup = build_distance_lookup_table(pool, skeleton_points, pcl_points)
+    lookup, lookup_cache_file = build_distance_lookup_table(pool, skeleton_points, pcl_points)
     
     combined = []
     
@@ -325,12 +332,11 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
     #inputs = [(permutation, skeleton_points, lookup) for permutation in permutations if max(permutation) < to_permute]
     permutations_batches = chunks(permutations, chunk_size)
-    inputs = [(permutation_batch, skeleton_points, lookup) for permutation_batch in permutations_batches]
+    inputs = [(permutation_batch, skeleton_points, lookup_cache_file) for permutation_batch in permutations_batches]
     
     print NUM_THREADS, len(permutations), chunk_size, len(inputs)
     
     computed = None
-    print "beginning fitness"
     
     if 1 == NUM_THREADS:
         computed = [get_permutation_fitness(_) for _ in inputs]
@@ -341,7 +347,6 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         for path in path_batch:
             combined.append(path)
 
-    print "fitness done"
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     taken = time.time() - start
