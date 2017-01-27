@@ -161,10 +161,40 @@ void *pcl_viz(void *thread_args){
 	
 }
 
+
+void add_lines_to_pcl_render(vector<vector<vector<float>>> *lines, pcl::PointCloud<pcl::PointXYZRGB> *input){
+	int line_i;
+	for(line_i = 0; line_i < lines->size(); line_i++){
+		vector<float> P0 = lines->at(line_i).at(0);
+		vector<float> P1 = lines->at(line_i).at(1);
+		
+		vector<float> direction_vector;
+		for(int i = 0; i < P0.size(); i++){
+			direction_vector.push_back( P0.at(i) - P1.at(i) );
+		}
+		float delta = 0.001;
+		float so_far = 0;
+		while(so_far < 1){
+			pcl::PointXYZRGB point;
+		
+			point.x = P0.at(0) + so_far * direction_vector.at(0);
+			point.y = P0.at(1) + so_far * direction_vector.at(1);
+			point.z = P0.at(2) + so_far * direction_vector.at(2);
+	
+			point.r = 0xff;
+			point.g = 0x00;
+			point.b = 0x00;
+			input->push_back(point);
+		
+			so_far += delta;
+		}
+	}
+}
+
 void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
+	int i;
 	if(!(*is_ready)){
 		if(colors->size() == source->size()){
-			int i;
 			input->clear();
 			pcl::PointXYZRGB point;
 		
@@ -181,6 +211,25 @@ void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr sour
 		}else{
 			cout << "invalid # of colors" << endl;
 		}
+		
+		/* add in best-fit edge lines overlay */
+		
+		vector<float> p0 {-0.304, -0.01, 1.197};
+		vector<float> p1 {-0.303, -0.196, 1.211};
+		vector<float> p2 {-0.315, -0.328, 1.173};
+		vector<float> p3 {-0.272, -0.569, 1.134};
+		vector<float> p4 {-0.121, -0.269, 0.914};
+		
+		vector<vector<float>> line1 {p0, p1};
+		vector<vector<float>> line2 {p1, p2};
+		vector<vector<float>> line3 {p2, p3};
+		vector<vector<float>> line4 {p3, p4};
+		
+		vector<vector<vector<float>>> lines {line1, line2, line3, line4};
+		
+		add_lines_to_pcl_render(&lines, input);
+		
+		
 		(*(is_ready)) = true;
 		
 	}
