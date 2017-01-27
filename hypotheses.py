@@ -354,6 +354,11 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     return best_first
 
+def clear_caches(n):
+    FILE_CACHE = {}
+    LOOKUPS = {}
+    DISTANCES_CACHE = {}
+
 def do_analysis():
 
     input_skeleton = sys.argv[sys.argv.index('-s')+1]
@@ -383,6 +388,8 @@ def do_analysis():
         so_far += 1
 
         # code.interact(local=dict(globals(), **locals()))
+        
+        pool.map(clear_caches, range(NUM_THREADS))
         
         points_to_use = min(max_points_to_use, len(pcl_points))
         sampled_pcl_points = random.sample(pcl_points, points_to_use)
