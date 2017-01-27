@@ -101,6 +101,9 @@ def distance_to_vector(p0, p1, x):
     DISTANCES_CACHE[hash] = distance
     return distance
 
+def get_distance_to_nearest_vector_parallel(input):
+    return get_distance_to_nearest_vector(input[0], input[1])
+
 def get_distance_to_nearest_vector(point, vector_endpoints):
     
     min_distance = None
@@ -245,6 +248,23 @@ def build_perm(input):
 def flatten(l):
     return [x for subl in l for x in subl]
 
+
+def iterate_distance_for_perm(input):
+    perm, sorted_skeleton_points, pcl_points = input
+    
+    edges = tuple([sorted_skeleton_points[i] for i in perm])
+    unsorted_endpoints = [ tuple(sorted((edges[i], edges[i+1]))) for i in range(len(edges) - 1)]
+    vector_endpoints = tuple(sorted(unsorted_endpoints))
+    
+    error = 0.0
+    for point in pcl_points:
+        min_distance,closest = get_distance_to_nearest_vector(point, vector_endpoints)
+        error += min_distance
+    # print error
+    # code.interact(local=dict(globals(), **locals()))
+    
+    return (vector_endpoints, error)
+
 def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     lookup = {}
     all_edges = sorted(get_all_pairs(skeleton_points))
@@ -253,30 +273,21 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     
     for vertex_count in range(2, to_permute+1):
         print vertex_count, to_permute
-        permutations = load_or_build_perms(pool, vertex_count, to_permute)
+        permutations = sorted(load_or_build_perms(pool, vertex_count, to_permute))
+        
         print ">",len(permutations)
+        
         #code.interact(local=dict(globals(), **locals()))
-        for i,perm in enumerate(permutations):
-            if i % 100 == 0:
-                print "so far",i
-            # print perm
-            edges = tuple([sorted_skeleton_points[i] for i in perm])
-            unsorted_endpoints = [ tuple(sorted((edges[i], edges[i+1]))) for i in range(len(edges) - 1)]
-            vector_endpoints = tuple(sorted(unsorted_endpoints))
-            
-            if vector_endpoints in lookup:
-                print "saved"
-                continue
-            
-            error = 0.0
-            for point in pcl_points:
-                min_distance,closest = get_distance_to_nearest_vector(point, vector_endpoints)
-                error += min_distance
-
-            lookup[vector_endpoints] = error
-            # print vector_endpoints,error
-    code.interact(local=dict(globals(), **locals()))
-
+        
+        inputs = [(perm, sorted_skeleton_points, pcl_points) for perm in permutations]
+        results = pool.map(iterate_distance_for_perm, inputs)
+        
+        temp_lookup = dict(results)
+        lookup.update(temp_lookup)
+        
+        print lookup[(((-0.308, -0.086, 1.227), (-0.286, -0.265, 1.221)),)]
+        # 32.132505065139341
+        code.interact(local=dict(globals(), **locals()))
 
 def load_or_build_perms(pool, vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
@@ -381,7 +392,7 @@ def do_analysis():
     
     max_points_to_use = 500
     
-    #random.seed(1)
+    random.seed(1)
     
     so_far = 0
     for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
