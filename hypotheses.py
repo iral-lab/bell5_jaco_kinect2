@@ -158,12 +158,6 @@ def get_permutation_fitness(input_batch):
 
         vectors_endpoints = tuple(sorted([ tuple(sorted((path[i+1],path[i]))) for i in range(len(path) - 1) ]))
         
-        # print path
-        # print vectors_endpoints
-        # print vectors_endpoints in lookup
-        # code.interact(local=dict(globals(), **locals()))
-    
-        
         #print "vector endpoints:",len(vectors_endpoints)
         total_error = lookup[vectors_endpoints]
         
@@ -350,7 +344,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     taken = time.time() - start
-    print "\tTaken:",round(taken, 2),"seconds, Permutations/sec:",round(len(permutations) / taken, 2),"for",len(inputs),"permutations"
+    print "\tTaken:",round(taken, 2),"seconds, Permutations/sec:",round(len(permutations) / taken, 2),"for",len(permutations),"permutations"
     
     return best_first
 
