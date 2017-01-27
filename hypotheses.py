@@ -341,10 +341,16 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     # else:
     #     computed = pool.map(get_permutation_fitness, inputs)
     
+    try:
+        print "Lookup file deleted",lookup_cache_file
+        os.remove(lookup_cache_file)
+    except:
+        pass
+    
     for path_batch in computed:
         for path in path_batch:
             combined.append(path)
-
+    
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     taken = time.time() - start
