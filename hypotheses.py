@@ -1,6 +1,32 @@
 import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib,pprint
 import numpy as np
 from sets import Set
+    
+try:
+    from glumpy import app
+    from glumpy.graphics.collections import PointCollection
+
+    def start_visualizing(input_queue):
+        window = app.Window(1024,1024, color=(1,1,1,1))
+        point_collection = PointCollection("agg", color="local", size="local")
+
+        @window.event
+        def on_draw(dt):
+            window.clear()
+            point_collection.draw()
+            if len(point_collection) < 100000:
+                point_collection.append(np.random.normal(0.0,0.5,(1,3)),
+                              color = np.random.uniform(0,1,4),
+                              size  = np.random.uniform(1,24,1))
+
+        window.attach(point_collection["transform"])
+        window.attach(point_collection["viewport"])
+        app.run()
+    
+   
+except:
+    print "Can't do rendering here"
+
 
 CACHE_FOLDER = 'caches/'
 
@@ -323,15 +349,11 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     print "\tTaken:",round(taken, 2),"seconds, Permutations/sec:",round(len(permutations) / taken, 2),"for",len(inputs),"permutations"
     
     return best_first
-    
 
-if '__main__' == __name__:
+def do_analysis():
+
     input_skeleton = sys.argv[sys.argv.index('-s')+1]
     input_pointcloud = sys.argv[sys.argv.index('-p')+1]
-    
-    if not os.path.exists(CACHE_FOLDER):
-        os.mkdir(CACHE_FOLDER)
-    
     precision_digits = 3
     
     pool = multiprocessing.Pool(NUM_THREADS)
@@ -410,8 +432,32 @@ if '__main__' == __name__:
             if COMPUTE_FRAMES or COMPUTE_PERMUTATIONS:
                 continue
             
-            
+            #code.interact(local=dict(globals(), **locals()))
             
             #code.interact(local=dict(globals(), **locals()))
         open(best_case_output_file, 'a').write(",".join([str(so_far)] + [str(x) for x in bests])+"\n")
         print ">> frame took",round(time.time() - frame_start, 2),"seconds"
+    
+
+if '__main__' == __name__:
+    
+    if not os.path.exists(CACHE_FOLDER):
+        os.mkdir(CACHE_FOLDER)
+    
+    if NUM_THREADS > 1 and '--viz' in sys.argv:
+        visualizer_points = multiprocessing.Queue()
+    
+        analysis_process = multiprocessing.Process(target = do_analysis, args = ())
+        analysis_process.start()
+    
+        try:
+            # visualizer = multiprocessing.Process(target = start_visualizing, args = (visualizer_points,))
+    #         visualizer.start()
+            start_visualizing(visualizer_points)
+        except:
+            pass
+    else:
+        do_analysis()
+    
+    
+    
