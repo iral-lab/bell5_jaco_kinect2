@@ -4,8 +4,6 @@ from sets import Set
 
 CACHE_FOLDER = 'caches/'
 
-COMPUTE_PERMUTATIONS = False
-
 REPLAY_FRAMES = '--replay-caches' in sys.argv
 
 COMPUTE_FRAMES = not REPLAY_FRAMES
@@ -247,6 +245,7 @@ def build_perm(input):
 def flatten(l):
     return [x for subl in l for x in subl]
 
+
 PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
@@ -290,13 +289,11 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
         print "\tsaved",cache_file
     
         permutations = list(without_reverse_paths)
-    elif not COMPUTE_PERMUTATIONS:
+    else:
         permutations = cPickle.load(open(cache_file, 'rb'))
-
-    if COMPUTE_PERMUTATIONS:
-        return None
     
     start = time.time()
+
     combined = []
     
     new_skeleton_hash = hashlib.md5( str(tuple(sorted(skeleton_points)))).hexdigest()
@@ -383,12 +380,7 @@ def do_analysis():
             
             cache_file_exists = os.path.exists(cache_file)
             
-            if not REPLAY_FRAMES and (COMPUTE_PERMUTATIONS or not cache_file_exists):
-                permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
-                if not COMPUTE_PERMUTATIONS:
-                    cPickle.dump(permuted_paths, open(cache_file,'wb'))
-                    print "\tSaved paths to",cache_file
-            elif not COMPUTE_FRAMES and not COMPUTE_PERMUTATIONS and cache_file_exists:
+            if cache_file_exists or (REPLAY_FRAMES and cache_file_exists):
                 try:
                     print "\tLOADING CACHE",cache_file
                     permuted_paths = cPickle.load(open(cache_file,'rb'))
@@ -396,6 +388,11 @@ def do_analysis():
                 except ValueError:
                     print "Caught cPickle error, bugged file:",cache_file
                     permuted_paths = None
+            
+            else:
+                permuted_paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
+                cPickle.dump(permuted_paths, open(cache_file,'wb'))
+                print "\tSaved paths to",cache_file    
             
             if not permuted_paths:
                 exit()
@@ -407,13 +404,11 @@ def do_analysis():
             # code.interact(local=dict(globals(), **locals()))
             
             open(best_path_output,'a').write("\t".join([str(so_far), str(edge_count)]+path_strings)+"\n")
-                
-            #exit()
             
             if REPLAY_FRAMES and not permuted_paths:
                 exit()
             
-            if COMPUTE_FRAMES or COMPUTE_PERMUTATIONS:
+            if COMPUTE_FRAMES:
                 continue
             
             #code.interact(local=dict(globals(), **locals()))
