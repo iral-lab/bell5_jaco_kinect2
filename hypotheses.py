@@ -328,6 +328,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     chunk_size = max(1, len(permutations) / NUM_THREADS)
     
+    print NUM_THREADS, len(permutations), chunk_size
     # don't try using permutations generated with more vertices than you have, avoid indexing outside list
     #inputs = [(permutation, skeleton_points, lookup) for permutation in permutations if max(permutation) < to_permute]
     permutations_batches = chunks(permutations, chunk_size)
