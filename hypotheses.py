@@ -4,6 +4,9 @@ from sets import Set
 
 CACHE_FOLDER = 'caches/'
 
+# somewhat arbitrary value for bounding concerns
+MAX_EDGES = 6 #if NUM_THREADS > 8 else 4
+
 REPLAY_FRAMES = '--replay-caches' in sys.argv
 
 COMPUTE_FRAMES = not REPLAY_FRAMES
@@ -265,33 +268,43 @@ def iterate_distance_for_perm(input):
     
     return (vector_endpoints, error)
 
+LOOKUP_FILE = CACHE_FOLDER+"_lookup"
 def build_distance_lookup_table(pool, skeleton_points, pcl_points):
-    lookup = {}
-    all_edges = sorted(get_all_pairs(skeleton_points))
-    sorted_skeleton_points = sorted(skeleton_points)
-    to_permute = len(skeleton_points)
+    lookup_hash = hashlib.md5( str(tuple(sorted(skeleton_points))) + str(tuple(sorted(pcl_points)))).hexdigest()
+    cache_file = LOOKUP_FILE+"_"+str(MAX_EDGES)+"_"+str(lookup_hash)+".pickle"
     
-    for vertex_count in range(2, to_permute+1):
-        print vertex_count, to_permute
-        permutations = sorted(load_or_build_perms(pool, vertex_count, to_permute))
+    lookup = None
+    if not os.path.exists(cache_file):
+        lookup = {}
+        all_edges = sorted(get_all_pairs(skeleton_points))
+        sorted_skeleton_points = sorted(skeleton_points)
+        to_permute = len(skeleton_points)
+        start = time.time()
+        for vertex_count in range(2, min(MAX_EDGES+1, to_permute)+1):
+            this_round = time.time()
+            print vertex_count, to_permute
+            permutations = sorted(load_or_build_perms(pool, vertex_count, to_permute))
         
-        print ">",len(permutations)
+            print ">",len(permutations)
         
-        #code.interact(local=dict(globals(), **locals()))
+            #code.interact(local=dict(globals(), **locals()))
         
-        inputs = [(perm, sorted_skeleton_points, pcl_points) for perm in permutations]
-        results = pool.map(iterate_distance_for_perm, inputs)
+            inputs = [(perm, sorted_skeleton_points, pcl_points) for perm in permutations]
+            results = pool.map(iterate_distance_for_perm, inputs)
         
-        temp_lookup = dict(results)
-        lookup.update(temp_lookup)
+            temp_lookup = dict(results)
+            lookup.update(temp_lookup)
+            print round(time.time() - start,2),round(time.time() - this_round, 2), ">>",len(temp_lookup),len(lookup)
         
-        print lookup[(((-0.308, -0.086, 1.227), (-0.286, -0.265, 1.221)),)]
-        # 32.132505065139341
-        code.interact(local=dict(globals(), **locals()))
-
+        cPickle.dump(lookup, open(cache_file,'wb'))
+        print "\tsaved",cache_file
+    else:
+        lookup = cPickle.load(open(cache_file, 'rb'))
+    return lookup
+    
 def load_or_build_perms(pool, vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
-    
+    permutations = None
     if not os.path.exists(cache_file):
         indices = range(to_permute)
         stack = []
@@ -340,7 +353,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     start = time.time()
     
-    build_distance_lookup_table(pool, skeleton_points, pcl_points)
+    lookup = build_distance_lookup_table(pool, skeleton_points, pcl_points)
     
     combined = []
     
@@ -376,15 +389,12 @@ def do_analysis():
     precision_digits = 3
     
     pool = multiprocessing.Pool(NUM_THREADS)
-    
-    # somewhat arbitrary value for bounding concerns
-    max_edges = 6 #if NUM_THREADS > 8 else 4
-    
+        
     start_id = str(int(time.time()))
     
     best_case_output_file = "best_values_"+start_id+".csv"
     
-    columns = ["Frame"] + [str(x) for x in range(1, max_edges+1)]
+    columns = ["Frame"] + [str(x) for x in range(1, MAX_EDGES+1)]
     open(best_case_output_file,'w').write("\t".join(columns)+"\n")
     
     best_path_output = "best_path_"+start_id+".csv"
@@ -411,9 +421,9 @@ def do_analysis():
         
         bests = []
         
-        for edge_count in range(1,max_edges+1):
+        for edge_count in range(1,MAX_EDGES+1):
             # go in reverse order, most -> least
-            # edge_count = (max_edges+1) - edge_count
+            # edge_count = (MAX_EDGES+1) - edge_count
 
             if edge_count >= len(skeleton_points):
                 continue
