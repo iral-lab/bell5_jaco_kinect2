@@ -8,7 +8,7 @@ COMPRESSION_EXTENSION = '.pickle'
 CACHE_FOLDER = 'caches/'
 
 # somewhat arbitrary value for bounding concerns
-MAX_EDGES = 3 #if NUM_THREADS > 8 else 4
+MAX_EDGES = 6 #if NUM_THREADS > 8 else 4
 
 REPLAY_FRAMES = '--replay-caches' in sys.argv
 
