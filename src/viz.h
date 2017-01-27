@@ -1389,15 +1389,16 @@ class ImageConverter{
 				}
 				pcl::PointXYZ point3d;
 				for(i = 0; i < arm_skeleton_assignments.n_elem; i++){
-					assignment = arm_skeleton_assignments.at(i);
-					vector<short> color = get_hex_color(assignment);
+					if(args->show_viz_cluster_colors){
+						assignment = arm_skeleton_assignments.at(i);
+						vector<short> color = get_hex_color(assignment);
 					
-					x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
-					y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
-					im_matrix.at<cv::Vec3b>(y,x)[0] = color.at(2);
-					im_matrix.at<cv::Vec3b>(y,x)[1] = color.at(1);
-					im_matrix.at<cv::Vec3b>(y,x)[2] = color.at(0);
-	
+						x = arm_clusters_2d_points.at(validated_cluster).at(i).at(0);
+						y = arm_clusters_2d_points.at(validated_cluster).at(i).at(1);
+						im_matrix.at<cv::Vec3b>(y,x)[0] = color.at(2);
+						im_matrix.at<cv::Vec3b>(y,x)[1] = color.at(1);
+						im_matrix.at<cv::Vec3b>(y,x)[2] = color.at(0);
+					}
 					if(writing_out){		
 						point3d = arm_clusters_3d_points.at(validated_cluster)->at(i);
 						fprintf(out, "%f,%f,%f\n", point3d.x, point3d.y, point3d.z);
