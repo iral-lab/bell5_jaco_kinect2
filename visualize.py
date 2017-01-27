@@ -2,22 +2,25 @@ import sys, json, multiprocessing, time, random
 import numpy as np
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 1.0
+DRAW_DELAY = 2.0
 MAX_POINTS = 1000
 
-PURPLE = [ 0.44865016 , 0.08414224 , 0.81931686 , 0.95626713]
-BLUE = [ 0.20815755, 0.4907831, 0.72991901, 0.31302678]
-PINK = [ 0.8650541  , 0.19603308 , 0.67572193 , 0.44581312]
-ORANGE = [ 0.83885254 , 0.48906794 , 0.02429835 , 0.30316865]
-LURPLE = [ 0.81915068 , 0.56576916 , 0.98879524 , 0.0699857 ]
-RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 0.68154473]
+BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
+RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 1]
+GREEN = [ 0.34262711 , 0.75813294 , 0.34156955 , 1]
 
-CLUSTER = RED
-SKELETON = BLUE
+
+CLUSTER_COLOR = RED
+SKELETON_COLOR = BLUE
+LINE_COLOR = GREEN # np.random.uniform(0,1,4)
+
+POINT = "point"
+LINE = "line"
 
 
 from glumpy import app
-from glumpy.graphics.collections import PointCollection
+from glumpy.graphics.collections import PointCollection, SegmentCollection
+from glumpy.graphics.collections import PathCollection
 
 SENTINEL = "==============="
 def csv_reader(input_file):
@@ -83,8 +86,9 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 
 
 def start_visualizing(cluster_points):
-    window = app.Window(1024,1024, color=(1,1,1,1))
+    window = app.Window(1024,1024, color=(1,2,1,1))
     point_collection = PointCollection("agg", color="local", size="local")
+    paths = PathCollection(mode="agg")
 
     @window.event
     def on_draw(dt):
@@ -98,21 +102,36 @@ def start_visualizing(cluster_points):
             while len(point_collection) > 0:
                 del point_collection[0]
             
+            while len(paths) > 0:
+                del paths[0]
+            
             while not possible == TERMINATOR:
-                point, color = possible
-                new_point = [[0.7*x for x in point]]
-                new_point[0][1] *= -1
-                point_collection.append(new_point,
-                                  color = color,
-                                  size  = 10)
+                type, data, color = possible
+                if POINT == type:
+                    new_point = [[0.7*x for x in data]]
+                    new_point[0][1] *= -1
+                    point_collection.append(new_point,
+                                      color = color,
+                                      size  = 10)
+                elif LINE == type:
+                    path = []
+                    for hop in data:
+                        new_hop =[round(0.7 * abs(x),5) for x in hop]
+                        path.append(new_hop)
+                    path = np.asarray(path)
+                    print path, len(path)
+                    paths.append(path, closed=True, itemsize=len(path))
+                    paths["linewidth"] = 3.0
+                
                 possible = cluster_points.get()
+
 
     window.attach(point_collection["transform"])
     window.attach(point_collection["viewport"])
     app.run()
 
 def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
-    edge_count_to_show = 3
+    edge_count_to_show = 5
     frame = 0
     for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_paths_csv):
         frame += 1
@@ -123,10 +142,16 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
             to_render = random.sample(to_render, MAX_POINTS)
         
         for point in to_render:
-            cluster_points.put( (point, CLUSTER) )
-        
+            cluster_points.put( (POINT, point, CLUSTER_COLOR) )
+
         for point in skeleton_frame:
-            cluster_points.put( (point, SKELETON) )
+            cluster_points.put( (POINT, point, SKELETON_COLOR) )
+            
+
+        for point in path_frame[edge_count_to_show]:
+            cluster_points.put( (POINT, point, LINE_COLOR) )
+        
+        # cluster_points.put( (LINE, path_frame[edge_count_to_show], SKELETON_COLOR) )
         
         cluster_points.put(TERMINATOR)
     
