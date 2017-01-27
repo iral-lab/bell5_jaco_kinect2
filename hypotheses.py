@@ -1,32 +1,6 @@
 import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, time, hashlib,pprint
 import numpy as np
 from sets import Set
-    
-try:
-    from glumpy import app
-    from glumpy.graphics.collections import PointCollection
-
-    def start_visualizing(input_queue):
-        window = app.Window(1024,1024, color=(1,1,1,1))
-        point_collection = PointCollection("agg", color="local", size="local")
-
-        @window.event
-        def on_draw(dt):
-            window.clear()
-            point_collection.draw()
-            if len(point_collection) < 100000:
-                point_collection.append(np.random.normal(0.0,0.5,(1,3)),
-                              color = np.random.uniform(0,1,4),
-                              size  = np.random.uniform(1,24,1))
-
-        window.attach(point_collection["transform"])
-        window.attach(point_collection["viewport"])
-        app.run()
-    
-   
-except:
-    print "Can't do rendering here"
-
 
 CACHE_FOLDER = 'caches/'
 
@@ -361,10 +335,15 @@ def do_analysis():
     # somewhat arbitrary value for bounding concerns
     max_edges = 6 #if NUM_THREADS > 8 else 4
     
-    best_case_output_file = "best_values_"+str(int(time.time()))+".csv"
+    start_id = str(int(time.time()))
+    
+    best_case_output_file = "best_values_"+start_id+".csv"
     
     columns = ["Frame"] + [str(x) for x in range(1, max_edges+1)]
     open(best_case_output_file,'w').write(",".join(columns)+"\n")
+    
+    best_path_output = "best_path_"+start_id+".csv"
+    open(best_path_output, 'w').write('Frame,Path\n')
     
     max_points_to_use = 500
     
@@ -422,6 +401,7 @@ def do_analysis():
                 exit()
             
             best_score = permuted_paths[0][1]
+            open(best_path_output,'a').write(",".join([str(x) for x in permuted_paths[0][0]])+"\n")
             print "\tbest:",best_score
             bests.append(best_score)
             #exit()
@@ -444,20 +424,7 @@ if '__main__' == __name__:
     if not os.path.exists(CACHE_FOLDER):
         os.mkdir(CACHE_FOLDER)
     
-    if NUM_THREADS > 1 and '--viz' in sys.argv:
-        visualizer_points = multiprocessing.Queue()
-    
-        analysis_process = multiprocessing.Process(target = do_analysis, args = ())
-        analysis_process.start()
-    
-        try:
-            # visualizer = multiprocessing.Process(target = start_visualizing, args = (visualizer_points,))
-    #         visualizer.start()
-            start_visualizing(visualizer_points)
-        except:
-            pass
-    else:
-        do_analysis()
+    do_analysis()
     
     
     
