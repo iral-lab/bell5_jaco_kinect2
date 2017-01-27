@@ -299,6 +299,7 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
         cPickle.dump(lookup, open(cache_file,'wb'))
         print "\tsaved",cache_file
     else:
+        print "\tloading",cache_file
         lookup = cPickle.load(open(cache_file, 'rb'))
     return lookup
     
