@@ -245,20 +245,40 @@ def build_perm(input):
 def flatten(l):
     return [x for subl in l for x in subl]
 
-def build_distance_lookup_table(skeleton_points, pcl_points):
+def build_distance_lookup_table(pool, skeleton_points, pcl_points):
     lookup = {}
     all_edges = sorted(get_all_pairs(skeleton_points))
+    sorted_skeleton_points = sorted(skeleton_points)
+    to_permute = len(skeleton_points)
     
-        
-    # for point in pcl_points:
-        
-        
-    
-    
+    for vertex_count in range(2, to_permute+1):
+        print vertex_count, to_permute
+        permutations = load_or_build_perms(pool, vertex_count, to_permute)
+        print ">",len(permutations)
+        #code.interact(local=dict(globals(), **locals()))
+        for i,perm in enumerate(permutations):
+            if i % 100 == 0:
+                print "so far",i
+            # print perm
+            edges = tuple([sorted_skeleton_points[i] for i in perm])
+            unsorted_endpoints = [ tuple(sorted((edges[i], edges[i+1]))) for i in range(len(edges) - 1)]
+            vector_endpoints = tuple(sorted(unsorted_endpoints))
+            
+            if vector_endpoints in lookup:
+                print "saved"
+                continue
+            
+            error = 0.0
+            for point in pcl_points:
+                min_distance,closest = get_distance_to_nearest_vector(point, vector_endpoints)
+                error += min_distance
+
+            lookup[vector_endpoints] = error
+            # print vector_endpoints,error
     code.interact(local=dict(globals(), **locals()))
 
 
-def load_or_build_perms(vertex_count, to_permute):
+def load_or_build_perms(pool, vertex_count, to_permute):
     cache_file = PERMUTATIONS_FILE+"_"+str(vertex_count)+"_"+str(to_permute)+".pickle"
     
     if not os.path.exists(cache_file):
@@ -305,11 +325,11 @@ PERMUTATIONS_FILE = CACHE_FOLDER+"_permutations"
 def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     to_permute = len(skeleton_points)
-    permutations = load_or_build_perms(vertex_count, to_permute)
+    permutations = load_or_build_perms(pool, vertex_count, to_permute)
     
     start = time.time()
     
-    # build_distance_lookup_table(skeleton_points, pcl_points)
+    build_distance_lookup_table(pool, skeleton_points, pcl_points)
     
     combined = []
     
