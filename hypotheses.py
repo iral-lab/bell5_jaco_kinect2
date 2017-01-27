@@ -335,7 +335,7 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     inputs = [(permutation_batch, skeleton_points, lookup) for permutation_batch in permutations_batches]
     
     computed = None
-    
+    print "beginning fitness"
     
     if 1 == NUM_THREADS:
         computed = [get_permutation_fitness(_) for _ in inputs]
@@ -345,7 +345,8 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     for path_batch in computed:
         for path in path_batch:
             combined.append(path)
-    
+
+    print "fitness done"
     best_first = sorted(combined, key=lambda x:x[1], reverse=1)
     
     taken = time.time() - start
