@@ -246,8 +246,8 @@ def build_distance_lookup_table(pool, skeleton_points, pcl_points):
             print ">",len(permutations)
         
             inputs = [(perm, sorted_skeleton_points, pcl_points) for perm in permutations]
-            #results = pool.map(iterate_distance_for_perm, inputs)
-            results = [iterate_distance_for_perm(input) for input in inputs]
+            results = pool.map(iterate_distance_for_perm, inputs)
+            #results = [iterate_distance_for_perm(input) for input in inputs]
         
             #code.interact(local=dict(globals(), **locals()))
             temp_lookup = dict(results)
