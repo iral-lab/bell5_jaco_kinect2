@@ -336,10 +336,10 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     computed = None
     
-    if 1 == NUM_THREADS:
+    if True: #1 == NUM_THREADS:
         computed = [get_permutation_fitness(_) for _ in inputs]
-    else:
-        computed = pool.map(get_permutation_fitness, inputs)
+    # else:
+    #     computed = pool.map(get_permutation_fitness, inputs)
     
     for path_batch in computed:
         for path in path_batch:
