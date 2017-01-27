@@ -1,7 +1,20 @@
-import sys, json, multiprocessing, time
+import sys, json, multiprocessing, time, random
+import numpy as np
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 2.0
+DRAW_DELAY = 1.0
+MAX_POINTS = 1000
+
+PURPLE = [ 0.44865016 , 0.08414224 , 0.81931686 , 0.95626713]
+BLUE = [ 0.20815755, 0.4907831, 0.72991901, 0.31302678]
+PINK = [ 0.8650541  , 0.19603308 , 0.67572193 , 0.44581312]
+ORANGE = [ 0.83885254 , 0.48906794 , 0.02429835 , 0.30316865]
+LURPLE = [ 0.81915068 , 0.56576916 , 0.98879524 , 0.0699857 ]
+RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 0.68154473]
+
+CLUSTER = RED
+SKELETON = BLUE
+
 
 from glumpy import app
 from glumpy.graphics.collections import PointCollection
@@ -86,10 +99,11 @@ def start_visualizing(cluster_points):
                 del point_collection[0]
             
             while not possible == TERMINATOR:
-                new_possible = [[0.7*x for x in possible]]
-                new_possible[0][1] *= -1
-                point_collection.append(new_possible,
-                                  color = [ 0.20815755, 0.4907831, 0.72991901, 0.31302678],
+                point, color = possible
+                new_point = [[0.7*x for x in point]]
+                new_point[0][1] *= -1
+                point_collection.append(new_point,
+                                  color = color,
                                   size  = 10)
                 possible = cluster_points.get()
 
@@ -103,8 +117,17 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
     for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_paths_csv):
         frame += 1
         
+        to_render = pcl_frame
+        
+        if len(to_render) > MAX_POINTS:
+            to_render = random.sample(to_render, MAX_POINTS)
+        
+        for point in to_render:
+            cluster_points.put( (point, CLUSTER) )
+        
         for point in skeleton_frame:
-            cluster_points.put(point)
+            cluster_points.put( (point, SKELETON) )
+        
         cluster_points.put(TERMINATOR)
     
 
