@@ -23,7 +23,7 @@ if len(sys.argv) < 4 or not '-s' in sys.argv or not '-p' in sys.argv:
 NUM_THREADS = int(sys.argv[sys.argv.index('-t')+1]) if '-t' in sys.argv else 8
 print "Running with",NUM_THREADS,"threads"
 
-SENTINEL = "==============="
+SENTINEL = "===="
 def csv_reader(input_file):
 	with open(input_file, 'r') as handle:
 		next_line = handle.readline()
@@ -336,10 +336,10 @@ def get_paths(pool, skeleton_points, pcl_points, vertex_count):
     
     computed = None
     
-    if True: #1 == NUM_THREADS:
+    if 1 == NUM_THREADS:
         computed = [get_permutation_fitness(_) for _ in inputs]
-    # else:
-    #     computed = pool.map(get_permutation_fitness, inputs)
+    else:
+        computed = pool.map(get_permutation_fitness, inputs)
     
     try:
         print "Lookup file deleted",lookup_cache_file
