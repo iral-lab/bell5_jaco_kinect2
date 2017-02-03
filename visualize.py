@@ -2,7 +2,7 @@ import sys, json, multiprocessing, time, random
 import numpy as np
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 2.0
+DRAW_DELAY = 1.0
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -62,7 +62,7 @@ def paths_reader(input_file):
             if last_frame and not frame == last_frame:
                 yield batch
                 batch = {}
-            # print path
+            
             points = []
             for point in path:
                 points.append( tuple( [float(x) for x in point.split(',')]))
@@ -81,29 +81,31 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
     pcl_frame = pcl_reader.next()
     path_frame = path_reader.next()
     
-    frame_n = 0
     while skeleton_frame and pcl_frame and path_frame:
-        print "frame:",frame_n
-        frame_n += 1
         yield (skeleton_frame, pcl_frame, path_frame)
         skeleton_frame = skeleton_reader.next()
         pcl_frame = pcl_reader.next()
         path_frame = path_reader.next()
 
 
+FRAME_N = 0
 def start_visualizing(cluster_points):
     window = app.Window(1024,1024, color=(1,2,1,1))
     point_collection = PointCollection("agg", color="local", size="local")
     paths = PathCollection(mode="agg")
-
+    
     @window.event
     def on_draw(dt):
+        global FRAME_N
         window.clear()
         point_collection.draw()
 
         time.sleep(DRAW_DELAY)
         if not cluster_points.empty():
             possible = cluster_points.get()
+            
+            print "frame",FRAME_N
+            FRAME_N += 1
             
             while len(point_collection) > 0:
                 del point_collection[0]
