@@ -81,7 +81,10 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
     pcl_frame = pcl_reader.next()
     path_frame = path_reader.next()
     
+    frame_n = 0
     while skeleton_frame and pcl_frame and path_frame:
+        print "frame:",frame_n
+        frame_n += 1
         yield (skeleton_frame, pcl_frame, path_frame)
         skeleton_frame = skeleton_reader.next()
         pcl_frame = pcl_reader.next()
@@ -174,6 +177,10 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
             cluster_points.put( (POINT, point, SKELETON_COLOR, BIG) )
         
         this_path = path_frame[edge_count_to_show]
+        
+        for point in this_path:
+            cluster_points.put( (POINT, point, LINE_COLOR, BIG) )
+        
         
         endpoints = [(this_path[i], this_path[i+1]) for i in range(len(this_path)-1)]
         for line in [generate_line(p0,p1) for p0,p1 in endpoints]:
