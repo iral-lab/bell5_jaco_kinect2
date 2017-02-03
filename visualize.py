@@ -9,6 +9,7 @@ BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
 RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 1]
 GREEN = [ 0.34262711 , 0.75813294 , 0.34156955 , 1]
 
+EDGE_COUNT_OVERRIDE = False
 
 CLUSTER_COLOR = RED
 SKELETON_COLOR = BLUE
@@ -70,28 +71,50 @@ def paths_reader(input_file):
 			last_frame = frame
 		if len(batch) > 0:
 			yield batch
-	print "paths",input_file,"done"
 
-def get_frames(skeleton_csv, pcl_csv, paths_csv):
+def values_reader(input_file):
+	with open(input_file, 'r') as handle:
+		next_line = handle.readline()
+		schema = []
+		while next_line:
+			line = next_line.strip().split("\t")
+			parts = line[1:]
+			next_line = handle.readline()
+			if 'Frame' == line[0]:
+				schema = [int(x) for x in parts]
+				continue
+			
+			pairs = [(float(parts[i]), i) for i in range(len(parts))]
+			ordered = sorted(pairs, reverse = True)
+			best_pair = ordered[0]
+			best_edge_count = schema[ best_pair[1] ]
+			
+			yield best_edge_count
+
+def get_frames(skeleton_csv, pcl_csv, paths_csv, best_values):
 	skeleton_reader = csv_reader(skeleton_csv)
 	pcl_reader = csv_reader(pcl_csv)
 	path_reader = paths_reader(paths_csv)
+	value_reader = values_reader(best_values)
 	
 	
 	skeleton_frame = skeleton_reader.next()
 	pcl_frame = pcl_reader.next()
 	path_frame = path_reader.next()
+	value = value_reader.next()
 	
-	while skeleton_frame and pcl_frame and path_frame:
-		frame = (skeleton_frame, pcl_frame, path_frame)
+	while skeleton_frame and pcl_frame and path_frame and value:
+		frame = (skeleton_frame, pcl_frame, path_frame, value)
 		yield frame
 		skeleton_frame = skeleton_reader.next()
 		pcl_frame = pcl_reader.next()
 		path_frame = path_reader.next()
+		value = value_reader.next()
 
 FRAME_N = 0
+DIM = 1536
 def start_visualizing(cluster_points):
-	window = app.Window(1024,1024, color=(1,2,1,1))
+	window = app.Window(DIM,DIM, color=(1,2,1,1))
 	point_collection = PointCollection("agg", color="local", size="local")
 	paths = PathCollection(mode="agg")
 	
@@ -144,7 +167,7 @@ def euclid_distance(p1,p2):
 	return np.linalg.norm(np.array(p1) - np.array(p2))
 
 def generate_line(p0, p1):
-	density = 0.01
+	density = 0.005
 	
 	distance = euclid_distance(p0,p1)
 	
@@ -170,11 +193,14 @@ def generate_line(p0, p1):
 	return line
 	
 
-def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
-	edge_count_to_show = 4
+def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_values):
+	# edge_count_to_show = 4
 	frame_n = 0
-	for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_paths_csv):
+	for skeleton_frame, pcl_frame, path_frame, edge_count_to_show in get_frames(skeleton_csv, pcl_csv, best_paths_csv, best_values):
 		frame_n += 1
+		
+		if EDGE_COUNT_OVERRIDE:
+			edge_count_to_show = EDGE_COUNT_OVERRIDE
 		
 		to_render = pcl_frame
 		
@@ -203,17 +229,17 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
 
 if '__main__' == __name__:
 	if len(sys.argv) < 3:
-		print "python",sys.argv[0],"skeleton.csv pcl.csv best_paths.csv"
+		print "python",sys.argv[0],"skeleton.csv pcl.csv best_paths.csv best_values.csv"
 		exit()
 	
-	skeleton_csv, pcl_csv, best_paths_csv = sys.argv[1:4]
+	skeleton_csv, pcl_csv, best_paths_csv, best_values_csv = sys.argv[1:5]
 	
 	cluster_points = multiprocessing.Queue()
 	
 	# -0.572,-0.343,1.101	 -0.398,-0.562,1.183	 -0.364,-0.436,1.223	 -0.299,0.04,1.217
 	# 26
 	
-	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_paths_csv, cluster_points))
+	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_values_csv))
 	processor.start()
 	
 	start_visualizing(cluster_points)
