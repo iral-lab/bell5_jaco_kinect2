@@ -17,6 +17,9 @@ LINE_COLOR = GREEN # np.random.uniform(0,1,4)
 POINT = "point"
 LINE = "line"
 
+BIG = 10
+SMALL = 5
+
 
 from glumpy import app
 from glumpy.graphics.collections import PointCollection, SegmentCollection
@@ -106,13 +109,13 @@ def start_visualizing(cluster_points):
                 del paths[0]
             
             while not possible == TERMINATOR:
-                type, data, color = possible
+                type, data, color, size = possible
                 if POINT == type:
                     new_point = [[0.7*x for x in data]]
                     new_point[0][1] *= -1
                     point_collection.append(new_point,
                                       color = color,
-                                      size  = 10)
+                                      size  = size)
                 elif LINE == type:
                     path = []
                     for hop in data:
@@ -130,11 +133,34 @@ def start_visualizing(cluster_points):
     window.attach(point_collection["viewport"])
     app.run()
 
+
+def generate_line(p0, p1):
+    delta = 0.1
+    t = delta
+    v = []
+    for i in range(3):
+        v.append( round(p0[i] - p1[i],6) )
+    v = tuple(v)
+    line = []
+    
+    
+    while t < 1:
+        p = []
+        
+        for i in range(3):
+            p.append( round(p1[i] + t * v[i], 6))
+        
+        line.append(tuple(p))
+        
+        t += delta
+    return line
+    
+
 def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
-    edge_count_to_show = 5
-    frame = 0
+    edge_count_to_show = 4
+    frame_n = 0
     for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_paths_csv):
-        frame += 1
+        frame_n += 1
         
         to_render = pcl_frame
         
@@ -142,16 +168,17 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points):
             to_render = random.sample(to_render, MAX_POINTS)
         
         for point in to_render:
-            cluster_points.put( (POINT, point, CLUSTER_COLOR) )
+            cluster_points.put( (POINT, point, CLUSTER_COLOR, BIG) )
 
         for point in skeleton_frame:
-            cluster_points.put( (POINT, point, SKELETON_COLOR) )
-            
-
-        for point in path_frame[edge_count_to_show]:
-            cluster_points.put( (POINT, point, LINE_COLOR) )
+            cluster_points.put( (POINT, point, SKELETON_COLOR, BIG) )
         
-        # cluster_points.put( (LINE, path_frame[edge_count_to_show], SKELETON_COLOR) )
+        this_path = path_frame[edge_count_to_show]
+        
+        endpoints = [(this_path[i], this_path[i+1]) for i in range(len(this_path)-1)]
+        for line in [generate_line(p0,p1) for p0,p1 in endpoints]:
+            for point in line:
+                cluster_points.put( (POINT, point, LINE_COLOR, SMALL) )
         
         cluster_points.put(TERMINATOR)
     
@@ -164,6 +191,9 @@ if '__main__' == __name__:
     skeleton_csv, pcl_csv, best_paths_csv = sys.argv[1:4]
     
     cluster_points = multiprocessing.Queue()
+    
+    # -0.572,-0.343,1.101     -0.398,-0.562,1.183     -0.364,-0.436,1.223     -0.299,0.04,1.217
+    # 26
     
     processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_paths_csv, cluster_points))
     processor.start()
