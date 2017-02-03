@@ -1,5 +1,7 @@
-import sys, json, multiprocessing, time, random
+import sys, json, multiprocessing, time, random, code
 import numpy as np
+
+# code.interact(local=dict(globals(), **locals())) 
 
 TERMINATOR = "terminate"
 DRAW_DELAY = 1.0
