@@ -3,6 +3,8 @@ import numpy as np
 
 # code.interact(local=dict(globals(), **locals())) 
 
+SCALE = 1
+
 TERMINATOR = "terminate"
 DRAW_DELAY = 1.0
 MAX_POINTS = 1000
@@ -41,7 +43,7 @@ def csv_reader(input_file):
 				yield batch
 				batch = []
 			else:
-				batch.append( tuple([float(x) for x in line.split(",")]) )
+				batch.append( tuple([float(x) * SCALE for x in line.split(",")]) )
 		if len(batch) > 0:
 			yield batch
 
@@ -68,7 +70,7 @@ def paths_reader(input_file):
 			
 			points = []
 			for point in path:
-				points.append( tuple( [float(x) for x in point.split(',')]))
+				points.append( tuple( [float(x) * SCALE for x in point.split(',')]))
 			batch[edge_count] = points
 			last_frame = frame
 		if len(batch) > 0:
