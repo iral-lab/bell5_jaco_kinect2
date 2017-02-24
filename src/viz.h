@@ -163,6 +163,8 @@ void *pcl_viz(void *thread_args){
 
 
 void add_lines_to_pcl_render(vector<vector<vector<float>>> *lines, pcl::PointCloud<pcl::PointXYZRGB> *input){
+	return;
+	/*
 	int line_i;
 	for(line_i = 0; line_i < lines->size(); line_i++){
 		vector<float> P0 = lines->at(line_i).at(0);
@@ -189,6 +191,7 @@ void add_lines_to_pcl_render(vector<vector<vector<float>>> *lines, pcl::PointClo
 			so_far += delta;
 		}
 	}
+	*/
 }
 
 void pcl_viz_this_cloud(bool *is_ready, pcl::PointCloud<pcl::PointXYZ>::Ptr source, pcl::PointCloud<pcl::PointXYZRGB> *input, vector<vector<short>> *colors){
