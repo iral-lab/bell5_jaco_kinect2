@@ -177,9 +177,9 @@ void add_lines_to_pcl_render(vector<vector<vector<float>>> *lines, pcl::PointClo
 		while(so_far < 1){
 			pcl::PointXYZRGB point;
 		
-			point.x = P0.at(0) + so_far * direction_vector.at(0);
-			point.y = P0.at(1) + so_far * direction_vector.at(1);
-			point.z = P0.at(2) + so_far * direction_vector.at(2);
+			point.x = P1.at(0) + so_far * direction_vector.at(0);
+			point.y = P1.at(1) + so_far * direction_vector.at(1);
+			point.z = P1.at(2) + so_far * direction_vector.at(2);
 	
 			point.r = 0xff;
 			point.g = 0x00;
