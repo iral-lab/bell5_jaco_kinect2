@@ -1,6 +1,9 @@
-import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math
+import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os
 from sets import Set
 from hypotheses import csv_reader, CACHE_FOLDER, SENTINEL, get_frames, euclid_distance, round_to_precision, vector_between, length_3d
+
+TERMINATE = "TERMINATE"
+SCORED_CANDIDATES_OUTPUT = "attachment_scored_outputs.csv"
 
 NUM_THREADS = int(sys.argv[sys.argv.index('-t')+1]) if '-t' in sys.argv else 8
 PRECISION_DIGITS = 3
@@ -8,7 +11,7 @@ PRECISION_DIGITS = 3
 COMPRESSION = cPickle
 COMPRESSION_EXTENSION = '.pickle'
 
-MAX_EDGES = 6
+MAX_EDGES = 5
 
 
 def get_ordered_nearest_points(skeleton_points):
@@ -93,26 +96,23 @@ def normalize_vector(vector):
 	return tuple([p/l for p in vector])
 
 def get_ordered_other_points(source, points):
-	distances = [(euclid_distance(p, source), p) for p in points]
-	sorted_distance = sorted(distances)
-	return [p[1] for p in sorted_distance]
+	return sorted(points, key=lambda p: euclid_distance(p, source))
 
 def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 	anchors = get_anchors(skeleton_points)
-	
 	
 	num_closest = get_num_closest(len(skeleton_points))
 	
 	stack = []
 	for anchor in anchors:
-		stack.append( [anchor] )
+		stack.append( ([anchor], [anchor]) )
 	
 	final_paths = []
 	
 	max_path_length = len(candidate) + 1
 	
 	while len(stack) > 0:
-		path = stack.pop()
+		path,invalid_points = stack.pop()
 		
 		if len(path) == max_path_length:
 			final_paths.append(path)
@@ -121,9 +121,10 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 		previous = path[-1]
 		
 		# get a new list of possible "nearby" points, since our attachment will definitely result in new points
-		path_points = Set(path)
-		valid_points = [p for p in skeleton_points if not p in path_points]		
-		nearby_points = get_ordered_other_points(previous, valid_points)
+		# but don't let points we've already shot towards be shot at again
+		valid_points = [p for p in skeleton_points if not p in invalid_points]
+		nearby_points = sorted(valid_points, key=lambda p: euclid_distance(p, previous))
+		# nearby_points = get_ordered_other_points(previous, valid_points)
 		
 		# iterate through the nearest points
 		added = 0
@@ -146,7 +147,10 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 			
 			new = copy.deepcopy(path)
 			new.append(this_endpoint)
-			stack.append( new )
+			
+			new_invalid = copy.deepcopy(invalid_points)
+			new_invalid.append(next_point)
+			stack.append( (new, new_invalid) )
 	
 	
 	
@@ -207,21 +211,46 @@ def get_candidates(skeleton_points, sampled_pcl_points, vertex_count):
 	candidates = [tuple(path_to_candidate(path)) for path in paths]
 	
 	return candidates
-	# won't generally be done here, but we are for testing/dev
-	#score = score_candidate_against_frame(candidates[0], skeleton_points, sampled_pcl_points)
+
+def do_cell_scoring(input_q, output_q):
+	input = input_q.get()
+	count = 0
+	while not TERMINATE == input:
+		candidate, frame_number, skeleton_points, sampled_pcl_points = input
+		score = score_candidate_against_frame(candidate, skeleton_points, sampled_pcl_points)
+		
+		output_q.put( (candidate, frame_number, score) )
+		count += 1
+		input = input_q.get()
+	print "scorer stopped after",count,input
+
+def get_scores(input_q, cell_results):
+	input = input_q.get()
+	count = 0
 	
-	#print candidates[0], score
-	
-	#code.interact(local=dict(globals(), **locals()))
-	#return paths
+	with open(SCORED_CANDIDATES_OUTPUT, 'a') as handle:
+				
+		while not TERMINATE == input:
+			candidate, frame_number, score = input
+			if count % 50 == 0:
+				 print "+++",count
+			count += 1
+		
+			key = (candidate, frame_number)
+		
+			if key in cell_results:
+				print "weird duplicate"
+				raise ValueError, "Shouldn't have a duplicate"
+		
+			cell_results[key] = score
+			handle.write("\t".join([str(frame_number), str(candidate), str(score)]) + "\n")
+			input = input_q.get()
 
 def do_analysis():
 
 	input_skeleton = sys.argv[sys.argv.index('-s')+1]
 	input_pointcloud = sys.argv[sys.argv.index('-p')+1]
 	
-	pool = multiprocessing.Pool(NUM_THREADS)
-		
 	start_id = str(int(time.time()))
 	
 	best_case_output_file = "attachment_best_values_"+start_id+".csv"
@@ -229,17 +258,49 @@ def do_analysis():
 	columns = ["Frame"] + [str(x) for x in range(1, MAX_EDGES+1)]
 	#open(best_case_output_file,'w').write("\t".join(columns)+"\n")
 	
-	best_path_output = "attachment_best_path_"+start_id+".csv"
-	open(best_path_output, 'w').write('Frame\tPath\n')
+	# best_path_output = "attachment_best_path_"+start_id+".csv"
+	# open(best_path_output, 'w').write('Frame\tPath\n')
 	
 	max_points_to_use = 500
 	
 	previous_frames = []
 	
 	candidates_so_far = Set()
-	candidate_frames_to_compute = multiprocessing.Queue()
 	
-	#random.seed(1)	
+	if os.path.exists(SCORED_CANDIDATES_OUTPUT):
+		h = open(SCORED_CANDIDATES_OUTPUT, 'r')
+		header = h.readline()
+		line = h.readline()
+		while line:
+			try:
+				frame_number, candidate, score = line.strip().split("\t")
+				key = (candidate, frame_number)
+				candidates_so_far.add(key)
+			except:
+				# bad line probably
+				pass
+			line = h.readline()
+		print "read in",len(candidates_so_far),"cached scores already"
+	else:
+		open(SCORED_CANDIDATES_OUTPUT, 'w').write('Frame\tCandidate\tScore\n')
+		
+	
+	candidate_frames_to_compute = multiprocessing.Queue()
+	computed_cells = multiprocessing.Queue()
+	
+	cell_processors = []
+	for i in range(NUM_THREADS):
+		p = multiprocessing.Process(target = do_cell_scoring, args = (candidate_frames_to_compute, computed_cells))
+		p.start()
+		cell_processors.append(p)
+	
+	manager = multiprocessing.Manager()
+	cell_results = manager.dict()
+	computed_score_receiver = multiprocessing.Process(target = get_scores, args = (computed_cells, cell_results))
+	computed_score_receiver.start()
+	
+	
+	# random.seed(1)
 	frame_number = 0
 	for skeleton_points, pcl_points in get_frames(input_skeleton, input_pointcloud):
 		frame_start = time.time()
@@ -302,13 +363,54 @@ def do_analysis():
 						continue
 					candidates_so_far.add(key)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
-			print "\tdone pushing onto computation queue",len(candidates_so_far)
+			print "\tdone pushing onto computation queue",len(candidates_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
 			
 		#open(best_case_output_file, 'a').write("\t".join([str(frame_number)] + [str(x) for x in bests])+"\n")
 		print ">> frame took",round(time.time() - frame_start, 2),"seconds"
 		frame_number += 1
+		
+		# if frame_number > 0:
+		# 	break
 	
+	for i in range(NUM_THREADS):
+		candidate_frames_to_compute.put(TERMINATE)
+	
+	
+	for p in cell_processors:
+		p.join()
+	
+	computed_cells.put(TERMINATE)
+	computed_score_receiver.join()
+	
+	local_results = {}
+	for key, score in cell_results.items():
+		candidate, frame_n = key
+	
+		if not candidate in local_results:
+			local_results[candidate] = {}
+		if frame_n in local_results[candidate]:
+			raise ValueError, "Shouldn't have duplicate"
+	
+		local_results[candidate][frame_n] = score
+	
+	best_score = None
+	best_candidate = None
+	
+	avg_attachment_file = "attachment_avgs_after_"+str(frame_number)+"_"+start_id+".csv"
+	
+	with open(avg_attachment_file, 'w') as handle:
+		for candidate, scores in local_results.items():
+			avg = sum(scores.values()) / (1.0 * len(scores))
+			if not best_score or avg > best_score:
+				best_score = avg
+				best_candidate = candidate
+			handle.write("\t".join([str(candidate), str(avg)]) + "\n")
+	
+	print "Best candidate",best_candidate,best_score
+	print "All done"
+	#code.interact(local=dict(globals(), **locals()))
+	pass
 
 if '__main__' == __name__:
 
