@@ -6,7 +6,7 @@ import numpy as np
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 1.0
+DRAW_DELAY = 1.5
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -210,9 +210,17 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_va
 		
 		if len(to_render) > MAX_POINTS:
 			to_render = random.sample(to_render, MAX_POINTS)
+		min_v = 99999
+		max_v = -99999
+		v_ind = 1
+		for point in to_render:
+			min_v = min(point[v_ind], min_v)
+			max_v = max(point[v_ind], max_v)
 		
 		for point in to_render:
-			cluster_points.put( (POINT, point, CLUSTER_COLOR, BIG) )
+			n = float((point[v_ind] + abs(min_v) * 1.0) / (max_v+ abs(min_v)))
+			this_color = [ n, n, n, 1]
+			cluster_points.put( (POINT, point, this_color, BIG) )
 
 		for point in skeleton_frame:
 			cluster_points.put( (POINT, point, SKELETON_COLOR, BIG) )
