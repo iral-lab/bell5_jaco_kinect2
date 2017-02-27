@@ -37,7 +37,7 @@ def get_ordered_nearest_points(skeleton_points):
 def get_num_closest(num_points):
 	return min(5, num_points)
 
-def get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count):
+def get_paths(skeleton_points, sampled_pcl_points, vertex_count):
    
 	#skeleton_points = [(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5)]
 	num_closest = get_num_closest(len(skeleton_points))
@@ -201,8 +201,8 @@ def score_path_against_points(path, pcl_points):
 	
 	return -1 * total
 
-def get_candidates(pool, skeleton_points, sampled_pcl_points, vertex_count):
-	paths = get_paths(pool, skeleton_points, sampled_pcl_points, vertex_count)
+def get_candidates(skeleton_points, sampled_pcl_points, vertex_count):
+	paths = get_paths(skeleton_points, sampled_pcl_points, vertex_count)
 	
 	candidates = [tuple(path_to_candidate(path)) for path in paths]
 	
@@ -283,7 +283,7 @@ def do_analysis():
 					candidates = None
 			
 			else:
-				candidates = get_candidates(pool, skeleton_points, sampled_pcl_points, vertex_count)
+				candidates = get_candidates(skeleton_points, sampled_pcl_points, vertex_count)
 				open(cache_file,'wb').write(COMPRESSION.dumps(candidates))
 				print "\tSaved paths to",cache_file	
 			
