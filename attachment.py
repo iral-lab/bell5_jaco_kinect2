@@ -273,17 +273,21 @@ def do_analysis():
 		line = h.readline()
 		while line:
 			try:
-				frame_number, candidate, score = line.strip().split("\t")
-				key = (candidate, frame_number)
+				parts = line.strip().split("\t")
+				if len(parts) > 3 or len(parts) < 3:
+					line = h.readline()
+					continue
+				frame_number, candidate, score = parts
+				key = ("\t".join([str(candidate), str(frame_number)]))
 				candidates_so_far.add(key)
 			except:
 				# bad line probably
 				pass
 			line = h.readline()
+		open(SCORED_CANDIDATES_OUTPUT, 'a').write("\n")
 		print "read in",len(candidates_so_far),"cached scores already"
 	else:
 		open(SCORED_CANDIDATES_OUTPUT, 'w').write('Frame\tCandidate\tScore\n')
-		
 	
 	candidate_frames_to_compute = multiprocessing.Queue()
 	computed_cells = multiprocessing.Queue()
@@ -358,7 +362,7 @@ def do_analysis():
 			# inclusive with current frame due to adding it to previous frames as above
 			for candidate in candidates:
 				for old_frame_number, old_skeleton_points, old_sampled_pcl_points in previous_frames:
-					key = (candidate, old_frame_number)
+					key = ("\t".join([str(candidate), str(old_frame_number)]))
 					if key in candidates_so_far:
 						continue
 					candidates_so_far.add(key)
