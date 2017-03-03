@@ -19,9 +19,9 @@ def get_memoized_or_run(label, func, args):
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
-	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance',
-							'v_dist','vector_between','v_dot','dist_to_segment']):
-		print "Skipped",label,args
+	#elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance',
+	#						'v_dist','vector_between','v_dot','dist_to_segment']):
+	#	print "Skipped",label,args
 	return MEMO_CACHE[key]
 
 
