@@ -2,6 +2,8 @@ import sys, itertools, copy, cPickle, os, code, multiprocessing, random, math, t
 import numpy as np
 from sets import Set
 
+PRECISION_DIGITS = 3
+
 COMPRESSION = cPickle #json #marshal #cPickle
 COMPRESSION_EXTENSION = '.pickle'
 
@@ -62,7 +64,7 @@ def calculate_distances(points):
 	return sum_distance
 
 def vector_between(p0, p1):
-	return tuple([p0[i] - p1[i] for i in range(len(p1))])
+	return tuple([round(p0[i] - p1[i], PRECISION_DIGITS) for i in range(len(p1))])
 
 def length_3d(vector_3d):
 	x,y,z = vector_3d
@@ -361,7 +363,6 @@ def do_analysis():
 
 	input_skeleton = sys.argv[sys.argv.index('-s')+1]
 	input_pointcloud = sys.argv[sys.argv.index('-p')+1]
-	precision_digits = 3
 	
 	pool = multiprocessing.Pool(NUM_THREADS)
 		
@@ -393,8 +394,8 @@ def do_analysis():
 		sampled_pcl_points = random.sample(pcl_points, points_to_use)
 		print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
 		
-		skeleton_points = [round_to_precision(point, precision_digits) for point in skeleton_points]
-		sampled_pcl_points = [round_to_precision(point, precision_digits) for point in sampled_pcl_points]
+		skeleton_points = [round_to_precision(point, PRECISION_DIGITS) for point in skeleton_points]
+		sampled_pcl_points = [round_to_precision(point, PRECISION_DIGITS) for point in sampled_pcl_points]
 		
 		bests = []
 		
