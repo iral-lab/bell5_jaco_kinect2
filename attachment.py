@@ -23,7 +23,9 @@ def get_memoized_or_run(label, func, args):
 		print "LEN CACHE:",cache_len
 	if cache_len == MEMO_SIZE:
 		# chop cache in half, naively
-		MEMO_CACHE = dict(MEMO_CACHE.items()[:int(MEMO_SIZE/2)])
+		# MEMO_CACHE = dict(MEMO_CACHE.items()[:int(MEMO_SIZE*0.5)])
+		# clear cache and start over. halving cache takes too much memory for duplication
+		MEMO_CACHE = {}
 
 	
 	key = tuple([label,args])
