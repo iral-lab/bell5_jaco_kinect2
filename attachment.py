@@ -49,7 +49,7 @@ def get_ordered_nearest_points(skeleton_points):
 	return ordered_skeleton_near_points
 
 def get_num_closest(num_points):
-	return min(5, num_points)
+	return min(3, num_points)
 
 def get_paths(skeleton_points, sampled_pcl_points, vertex_count):
    
