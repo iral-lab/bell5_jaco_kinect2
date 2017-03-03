@@ -219,12 +219,12 @@ def score_path_against_points(path, pcl_points):
 			min_dist = min(min_dist, dist)
 		total_pcl_error += min_dist
 	
-	fit_to_data = -10.0 * total_pcl_error
+	fit_to_data = -100.0 * total_pcl_error
 	
 	vertex_count = len(path)
 	if not vertex_count in PENALTY_CACHE:
 		edge_count = vertex_count - 1
-		lambda_scalar = 1.5
+		lambda_scalar = 1.4
 		PENALTY_CACHE[vertex_count] = math.exp(lambda_scalar * edge_count)
 	# else:
 	# 	print "skipped penalty"
