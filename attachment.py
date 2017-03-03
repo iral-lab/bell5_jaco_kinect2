@@ -195,15 +195,24 @@ def score_path_against_points(path, pcl_points):
 	
 	endpoints = [(path[i], path[i+1]) for i in range(len(path) - 1)]
 	
-	total = 0.0
+	total_pcl_error = 0.0
 	for point in pcl_points:
 		min_dist = 9999999.0
 		for p0,p1 in endpoints:
 			dist = dist_to_segment(point, p0, p1)
 			min_dist = min(min_dist, dist)
-		total += min_dist
+		total_pcl_error += min_dist
 	
-	return -1 * total
+	fit_to_data = -10.0 * total_pcl_error
+
+	vertex_count = len(path)
+	edge_count = vertex_count - 1
+	lambda_scalar = 1.5
+	edge_count_penalty = math.exp(lambda_scalar * edge_count)
+
+	total_penalty = fit_to_data - edge_count_penalty
+	print "path penalty:",fit_to_data, total_pcl_error, edge_count, edge_count_penalty, total_penalty
+	return total_penalty
 
 def get_candidates(skeleton_points, sampled_pcl_points, vertex_count):
 	paths = get_paths(skeleton_points, sampled_pcl_points, vertex_count)
@@ -355,7 +364,7 @@ def do_analysis():
 			else:
 				candidates = get_candidates(skeleton_points, sampled_pcl_points, vertex_count)
 				#open(cache_file,'wb').write(COMPRESSION.dumps(candidates))
-				print "\tSaved paths to",cache_file	
+				# print "\tSaved paths to",cache_file
 			
 			if not candidates:
 				print "\tno candidates, quitting"
