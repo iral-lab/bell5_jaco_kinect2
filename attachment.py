@@ -12,6 +12,7 @@ COMPRESSION_EXTENSION = '.pickle'
 
 MAX_EDGES = 5
 
+MAX_POINTS_TO_USE = 100
 
 def get_ordered_nearest_points(skeleton_points):
 	skeleton_distances = {}
@@ -260,7 +261,7 @@ def do_analysis():
 	# best_path_output = "attachment_best_path_"+start_id+".csv"
 	# open(best_path_output, 'w').write('Frame\tPath\n')
 	
-	max_points_to_use = 500
+	
 	
 	previous_frames = []
 	
@@ -316,7 +317,7 @@ def do_analysis():
 
 		# code.interact(local=dict(globals(), **locals()))
 		
-		points_to_use = min(max_points_to_use, len(pcl_points))
+		points_to_use = min(MAX_POINTS_TO_USE, len(pcl_points))
 		sampled_pcl_points = random.sample(pcl_points, points_to_use)
 		print "Using",len(sampled_pcl_points),"of",len(pcl_points),"Pointcloud points"
 		
