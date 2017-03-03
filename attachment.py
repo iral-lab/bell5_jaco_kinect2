@@ -1,4 +1,4 @@
-import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os, json, pylru
+import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os, json #, pylru
 from hypotheses import csv_reader, CACHE_FOLDER, SENTINEL, get_frames, euclid_distance, round_to_precision, vector_between, length_3d
 
 TERMINATE = "TERMINATE"
@@ -15,8 +15,17 @@ MAX_EDGES = 5
 MAX_POINTS_TO_USE = 100
 
 MEMO_SIZE = 10000000
-MEMO_CACHE = pylru.lrucache(MEMO_SIZE)
+MEMO_CACHE = {} #pylru.lrucache(MEMO_SIZE)
 def get_memoized_or_run(label, func, args):
+	global MEMO_CACHE
+	cache_len = len(MEMO_CACHE)
+	if cache_len > 0 and cache_len % 1000000 == 0:
+		print "LEN CACHE:",cache_len
+	if cache_len == MEMO_SIZE:
+		# chop cache in half, naively
+		MEMO_CACHE = dict(MEMO_CACHE.items()[:int(MEMO_SIZE/2)])
+
+	
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
