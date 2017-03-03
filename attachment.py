@@ -14,6 +14,16 @@ MAX_EDGES = 5
 
 MAX_POINTS_TO_USE = 100
 
+MEMO_CACHE = {}
+def get_memoized_or_run(label, func, args):
+	key = tuple([label,args])
+	if not key in MEMO_CACHE:
+		MEMO_CACHE[key] = func(*args)
+	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector']):
+		print "Skipped",label,args
+	return MEMO_CACHE[key]
+
+
 def get_ordered_nearest_points(skeleton_points):
 	skeleton_distances = {}
 	ordered_skeleton_near_points = {}
@@ -45,7 +55,7 @@ def get_paths(skeleton_points, sampled_pcl_points, vertex_count):
 	#skeleton_points = [(1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5)]
 	num_closest = get_num_closest(len(skeleton_points))
 	
-	ordered_skeleton_near_points = get_ordered_nearest_points(skeleton_points)
+	ordered_skeleton_near_points = get_memoized_or_run('get_ordered_nearest_points',get_ordered_nearest_points, (tuple(skeleton_points),))
 	
 	# only let the n points with lowest y-axis be "anchor" points
 	possible_anchors = get_anchors(skeleton_points)
@@ -89,7 +99,7 @@ def path_to_candidate(path):
 	lengths = []
 	for i in range(len(path)-1):
 		lengths.append( round( euclid_distance(path[i], path[i+1]), PRECISION_DIGITS) )
-	return lengths
+	return tuple(lengths)
 
 def normalize_vector(vector):
 	l = length_3d(vector)
@@ -99,7 +109,7 @@ def get_ordered_other_points(source, points):
 	return sorted(points, key=lambda p: euclid_distance(p, source))
 
 def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
-	anchors = get_anchors(skeleton_points)
+	anchors = get_memoized_or_run('get_anchors',get_anchors, (tuple(skeleton_points),))
 	
 	num_closest = get_num_closest(len(skeleton_points))
 	
@@ -137,7 +147,7 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 			added += 1
 			
 			vector = vector_between(next_point, previous)
-			normalized = normalize_vector(vector)
+			normalized = get_memoized_or_run('normalize_vector',normalize_vector,(tuple(vector),))
 			
 			link_length = candidate[ len(path) - 1]
 			
@@ -171,8 +181,9 @@ def v_norm(v):
 def v_dist(u,v):
 	diff = vector_between(u,v)
 	return v_norm(diff)
-	
+		
 def dist_to_segment(p, s0, s1):
+
 	# from dist_Point_to_Segment() http://geomalgorithms.com/a02-_lines.html
 	v = vector_between(s1, s0)
 	w = vector_between(p, s0)
@@ -188,7 +199,6 @@ def dist_to_segment(p, s0, s1):
 	return v_dist(p, pb)
 	
 		
-
 def score_path_against_points(path, pcl_points):
 	if len(path) == 0:
 		return 0.0
@@ -211,14 +221,13 @@ def score_path_against_points(path, pcl_points):
 	edge_count_penalty = math.exp(lambda_scalar * edge_count)
 
 	total_penalty = fit_to_data - edge_count_penalty
-	print "path penalty:",fit_to_data, total_pcl_error, edge_count, edge_count_penalty, total_penalty
+	# print "path penalty:",fit_to_data, total_pcl_error, edge_count, edge_count_penalty, total_penalty
 	return total_penalty
 
 def get_candidates(skeleton_points, sampled_pcl_points, vertex_count):
 	paths = get_paths(skeleton_points, sampled_pcl_points, vertex_count)
 	
-	candidates = [tuple(path_to_candidate(path)) for path in paths]
-	
+	candidates = [path_to_candidate(path) for path in paths]
 	return candidates
 
 def do_cell_scoring(input_q, output_q):
