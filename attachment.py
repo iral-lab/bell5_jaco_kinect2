@@ -353,7 +353,7 @@ def do_analysis():
 			
 			else:
 				candidates = get_candidates(skeleton_points, sampled_pcl_points, vertex_count)
-				open(cache_file,'wb').write(COMPRESSION.dumps(candidates))
+				#open(cache_file,'wb').write(COMPRESSION.dumps(candidates))
 				print "\tSaved paths to",cache_file	
 			
 			if not candidates:
