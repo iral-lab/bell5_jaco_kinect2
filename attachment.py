@@ -1,5 +1,4 @@
 import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os
-from sets import Set
 from hypotheses import csv_reader, CACHE_FOLDER, SENTINEL, get_frames, euclid_distance, round_to_precision, vector_between, length_3d
 
 TERMINATE = "TERMINATE"
@@ -265,7 +264,7 @@ def do_analysis():
 	
 	previous_frames = []
 	
-	candidates_so_far = Set()
+	candidates_so_far = set()
 	
 	if os.path.exists(SCORED_CANDIDATES_OUTPUT):
 		h = open(SCORED_CANDIDATES_OUTPUT, 'r')
