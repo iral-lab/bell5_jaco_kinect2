@@ -14,7 +14,7 @@ MAX_EDGES = 5
 
 MAX_POINTS_TO_USE = 100
 
-MEMO_SIZE = 10000000
+MEMO_SIZE = 5000000
 MEMO_CACHE = {} #pylru.lrucache(MEMO_SIZE)
 def get_memoized_or_run(label, func, args):
 	global MEMO_CACHE
