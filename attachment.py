@@ -19,9 +19,9 @@ def get_memoized_or_run(label, func, args):
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
-	#elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance',
-	#						'v_dist','vector_between','v_dot','dist_to_segment']):
-	#	print "Skipped",label,args
+	# elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance',
+	# 						'v_dist','vector_between','v_dot','dist_to_segment']):
+	# 	print "Skipped",label,args
 	return MEMO_CACHE[key]
 
 
@@ -106,16 +106,15 @@ def normalize_vector(vector):
 	l = length_3d(vector)
 	return tuple([p/l for p in vector])
 
-def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
+def get_scoreable_paths(candidate, skeleton_points):
 	anchors = get_memoized_or_run('get_anchors',get_anchors, (tuple(skeleton_points),))
 	
+	final_paths = []
 	num_closest = get_num_closest(len(skeleton_points))
-	
+		
 	stack = []
 	for anchor in anchors:
 		stack.append( ([anchor], [anchor]) )
-	
-	final_paths = []
 	
 	max_path_length = len(candidate) + 1
 	
@@ -148,9 +147,10 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 			
 			link_length = candidate[ len(path) - 1]
 			
-			movement_vector = tuple([link_length * val for val in normalized])
-			
-			this_endpoint = tuple([round(previous[i] + movement_vector[i], PRECISION_DIGITS) for i in range(len(movement_vector))])
+			# movement_vector = tuple([link_length * val for val in normalized])
+			# this_endpoint = tuple([round(previous[i] + movement_vector[i], PRECISION_DIGITS) for i in range(len(movement_vector))])
+
+			this_endpoint = tuple([round(previous[i] + (normalized[i] * link_length), PRECISION_DIGITS) for i in range(len(normalized))])
 			
 			new = copy.deepcopy(path)
 			new.append(this_endpoint)
@@ -158,8 +158,10 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 			new_invalid = copy.deepcopy(invalid_points)
 			new_invalid.append(next_point)
 			stack.append( (new, new_invalid) )
-	
-	
+	return final_paths
+
+def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
+	final_paths = get_scoreable_paths(candidate, skeleton_points)
 	
 	scored = [(score_path_against_points(path, pcl_points), path) for path in final_paths]
 	
