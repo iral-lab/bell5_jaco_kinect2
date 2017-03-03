@@ -19,7 +19,7 @@ def get_memoized_or_run(label, func, args):
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
-	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector']):
+	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance']):
 		print "Skipped",label,args
 	return MEMO_CACHE[key]
 
@@ -98,15 +98,12 @@ def get_anchors(possibles):
 def path_to_candidate(path):
 	lengths = []
 	for i in range(len(path)-1):
-		lengths.append( round( euclid_distance(path[i], path[i+1]), PRECISION_DIGITS) )
+		lengths.append( round( get_memoized_or_run('euclid_distance', euclid_distance, (path[i], path[i+1])), PRECISION_DIGITS) )
 	return tuple(lengths)
 
 def normalize_vector(vector):
 	l = length_3d(vector)
 	return tuple([p/l for p in vector])
-
-def get_ordered_other_points(source, points):
-	return sorted(points, key=lambda p: euclid_distance(p, source))
 
 def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 	anchors = get_memoized_or_run('get_anchors',get_anchors, (tuple(skeleton_points),))
@@ -133,8 +130,7 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 		# get a new list of possible "nearby" points, since our attachment will definitely result in new points
 		# but don't let points we've already shot towards be shot at again
 		valid_points = [p for p in skeleton_points if not p in invalid_points]
-		nearby_points = sorted(valid_points, key=lambda p: euclid_distance(p, previous))
-		# nearby_points = get_ordered_other_points(previous, valid_points)
+		nearby_points = sorted(valid_points, key=lambda p: get_memoized_or_run('euclid_distance',euclid_distance, (p, previous)))
 		
 		# iterate through the nearest points
 		added = 0
