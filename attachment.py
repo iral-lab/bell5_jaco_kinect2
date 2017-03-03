@@ -1,4 +1,4 @@
-import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os
+import sys, multiprocessing, cPickle, time, random, hashlib, code, copy, math, os, json
 from hypotheses import csv_reader, CACHE_FOLDER, SENTINEL, get_frames, euclid_distance, round_to_precision, vector_between, length_3d
 
 TERMINATE = "TERMINATE"
@@ -264,7 +264,8 @@ def do_analysis():
 	
 	previous_frames = []
 	
-	candidates_so_far = set()
+	computed_candidate_frames_so_far = set()
+	all_candidates = set()
 	
 	if os.path.exists(SCORED_CANDIDATES_OUTPUT):
 		h = open(SCORED_CANDIDATES_OUTPUT, 'r')
@@ -278,16 +279,20 @@ def do_analysis():
 					continue
 				frame_number, candidate, score = parts
 				key = ("\t".join([str(candidate), str(frame_number)]))
-				candidates_so_far.add(key)
+				computed_candidate_frames_so_far.add(key)
+				tupleized = tuple(json.loads(candidate.replace('(', '[').replace(')',']')))
+				all_candidates.add(tupleized)
 			except:
 				# bad line probably
+				print "here"
 				pass
 			line = h.readline()
 		open(SCORED_CANDIDATES_OUTPUT, 'a').write("\n")
-		print "read in",len(candidates_so_far),"cached scores already"
+		print "read in",len(computed_candidate_frames_so_far),"computed (frames/candidates) for",len(all_candidates),"candidates"
 	else:
 		open(SCORED_CANDIDATES_OUTPUT, 'w').write('Frame\tCandidate\tScore\n')
-	
+
+	# code.interact(local=dict(globals(), **locals()))
 	candidate_frames_to_compute = multiprocessing.Queue()
 	computed_cells = multiprocessing.Queue()
 	
@@ -355,18 +360,23 @@ def do_analysis():
 				print "\tno candidates, quitting"
 				exit()
 			
+			# push frame onto previous frames
 			previous_frames.append( (frame_number, skeleton_points, sampled_pcl_points) )
-			
-			# now cross with all previous frames.
-			# inclusive with current frame due to adding it to previous frames as above
+			# push candidates into options to be ran
 			for candidate in candidates:
+				all_candidates.add(tuple(candidate))
+			# code.interact(local=dict(globals(), **locals()))
+			
+			# now cross all candidates with all previous frames.
+			# inclusive with current frame and candidates due to adding them above
+			for candidate in all_candidates:
 				for old_frame_number, old_skeleton_points, old_sampled_pcl_points in previous_frames:
 					key = ("\t".join([str(candidate), str(old_frame_number)]))
-					if key in candidates_so_far:
+					if key in computed_candidate_frames_so_far:
 						continue
-					candidates_so_far.add(key)
+					computed_candidate_frames_so_far.add(key)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
-			print "\tdone pushing onto computation queue",len(candidates_so_far),"so far"
+			print "\tdone pushing onto computation queue",len(computed_candidate_frames_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
 			
 		#open(best_case_output_file, 'a').write("\t".join([str(frame_number)] + [str(x) for x in bests])+"\n")
