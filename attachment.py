@@ -19,8 +19,8 @@ MEMO_CACHE = {} #pylru.lrucache(MEMO_SIZE)
 def get_memoized_or_run(label, func, args):
 	global MEMO_CACHE
 	cache_len = len(MEMO_CACHE)
-	if cache_len > 0 and cache_len % 1000000 == 0:
-		print "LEN CACHE:",cache_len
+	# if cache_len > 0 and cache_len % 1000000 == 0:
+	# 	print "LEN CACHE:",cache_len
 	if cache_len == MEMO_SIZE:
 		# chop cache in half, naively
 		# MEMO_CACHE = dict(MEMO_CACHE.items()[:int(MEMO_SIZE*0.5)])
@@ -422,7 +422,7 @@ def do_analysis():
 					num_new += 1
 					computed_candidate_frames_so_far.add(key)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
-			print "\tdone loading",num_new,"empty (candidate (",len(all_candidates),"),frame) cells onto computation queue",len(computed_candidate_frames_so_far),"so far"
+			print "\tdone loading",num_new,"empty (candidate,frame) cells onto computation queue:",len(all_candidates),"*",frame_number+1,"=",len(computed_candidate_frames_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
 			
 		#open(best_case_output_file, 'a').write("\t".join([str(frame_number)] + [str(x) for x in bests])+"\n")
