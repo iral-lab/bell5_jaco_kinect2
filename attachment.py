@@ -19,7 +19,7 @@ def get_memoized_or_run(label, func, args):
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
-	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance']):
+	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance','v_dist','vector_between']):
 		print "Skipped",label,args
 	return MEMO_CACHE[key]
 
@@ -142,7 +142,7 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 			
 			added += 1
 			
-			vector = vector_between(next_point, previous)
+			vector = memoized_vector_between(next_point, previous)
 			normalized = get_memoized_or_run('normalize_vector',normalize_vector,(tuple(vector),))
 			
 			link_length = candidate[ len(path) - 1]
@@ -170,23 +170,30 @@ def score_candidate_against_frame(candidate, skeleton_points, pcl_points):
 	
 	return score
 
+def memoized_vector_between(u,v):
+	return get_memoized_or_run('vector_between',vector_between, (u, v))
+def memoized_v_dot(u,v):
+	return get_memoized_or_run('v_dot',v_dot, (u, v))
+
 def v_dot(u,v):
 	return (u[0] * v[0] + u[1] * v[1] + u[2] * v[2])
 def v_norm(v):
-	return math.sqrt(v_dot(v,v))
+	return math.sqrt(memoized_v_dot(v,v))
 def v_dist(u,v):
-	diff = vector_between(u,v)
+	return get_memoized_or_run('v_dist', _v_dist, (u,v))
+def _v_dist(u,v):
+	diff = memoized_vector_between(u,v)
 	return v_norm(diff)
 		
 def dist_to_segment(p, s0, s1):
 
 	# from dist_Point_to_Segment() http://geomalgorithms.com/a02-_lines.html
-	v = vector_between(s1, s0)
-	w = vector_between(p, s0)
-	c1 = v_dot(w,v)
+	v = memoized_vector_between(s1, s0)
+	w = memoized_vector_between(p, s0)
+	c1 = memoized_v_dot(w,v)
 	if c1 < 0:
 		return v_dist(p, s0)
-	c2 = v_dot(v,v)
+	c2 = memoized_v_dot(v,v)
 	if c2 <= c1:
 		return v_dist(p, s1)
 	
