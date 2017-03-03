@@ -224,7 +224,7 @@ def score_path_against_points(path, pcl_points):
 	vertex_count = len(path)
 	if not vertex_count in PENALTY_CACHE:
 		edge_count = vertex_count - 1
-		lambda_scalar = 1.4
+		lambda_scalar = 1.3
 		PENALTY_CACHE[vertex_count] = math.exp(lambda_scalar * edge_count)
 	# else:
 	# 	print "skipped penalty"
