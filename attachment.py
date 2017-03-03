@@ -14,7 +14,9 @@ MAX_EDGES = 5
 
 MAX_POINTS_TO_USE = 100
 
-MEMO_SIZE = 5000000
+MAX_QUEUE_SIZE = 10000
+
+MEMO_SIZE = 10000000
 MEMO_CACHE = {} #pylru.lrucache(MEMO_SIZE)
 def get_memoized_or_run(label, func, args):
 	global MEMO_CACHE
@@ -421,6 +423,8 @@ def do_analysis():
 						continue
 					num_new += 1
 					computed_candidate_frames_so_far.add(key)
+					while candidate_frames_to_compute.qsize() > MAX_QUEUE_SIZE:
+						time.sleep(1)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
 			print "\tdone loading",num_new,"empty (candidate,frame) cells onto computation queue:",len(all_candidates),"*",frame_number+1,"=",len(computed_candidate_frames_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
