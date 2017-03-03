@@ -401,14 +401,16 @@ def do_analysis():
 			
 			# now cross all candidates with all previous frames.
 			# inclusive with current frame and candidates due to adding them above
+			num_new = 0
 			for candidate in all_candidates:
 				for old_frame_number, old_skeleton_points, old_sampled_pcl_points in previous_frames:
 					key = ("\t".join([str(candidate), str(old_frame_number)]))
 					if key in computed_candidate_frames_so_far:
 						continue
+					num_new += 1
 					computed_candidate_frames_so_far.add(key)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
-			print "\tdone empty cells onto computation queue",len(computed_candidate_frames_so_far),"so far"
+			print "\tdone loading",num_new,"empty (candidate,frame) cells onto computation queue",len(computed_candidate_frames_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
 			
 		#open(best_case_output_file, 'a').write("\t".join([str(frame_number)] + [str(x) for x in bests])+"\n")
