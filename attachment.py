@@ -19,7 +19,8 @@ def get_memoized_or_run(label, func, args):
 	key = tuple([label,args])
 	if not key in MEMO_CACHE:
 		MEMO_CACHE[key] = func(*args)
-	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance','v_dist','vector_between']):
+	elif not label in set(['get_anchors','get_ordered_nearest_points','normalize_vector','euclid_distance',
+							'v_dist','vector_between','v_dot','dist_to_segment']):
 		print "Skipped",label,args
 	return MEMO_CACHE[key]
 
@@ -201,7 +202,7 @@ def dist_to_segment(p, s0, s1):
 	pb = tuple([s0[i] + b * v[i] for i in range(len(p))])
 	return v_dist(p, pb)
 	
-		
+PENALTY_CACHE = {}
 def score_path_against_points(path, pcl_points):
 	if len(path) == 0:
 		return 0.0
@@ -212,19 +213,22 @@ def score_path_against_points(path, pcl_points):
 	for point in pcl_points:
 		min_dist = 9999999.0
 		for p0,p1 in endpoints:
-			dist = dist_to_segment(point, p0, p1)
+			dist = get_memoized_or_run('dist_to_segment', dist_to_segment, (point, p0, p1))
 			min_dist = min(min_dist, dist)
 		total_pcl_error += min_dist
 	
 	fit_to_data = -10.0 * total_pcl_error
-
+	
 	vertex_count = len(path)
-	edge_count = vertex_count - 1
-	lambda_scalar = 1.5
-	edge_count_penalty = math.exp(lambda_scalar * edge_count)
+	if not vertex_count in PENALTY_CACHE:
+		edge_count = vertex_count - 1
+		lambda_scalar = 1.5
+		PENALTY_CACHE[vertex_count] = math.exp(lambda_scalar * edge_count)
+	# else:
+	# 	print "skipped penalty"
 
-	total_penalty = fit_to_data - edge_count_penalty
-	# print "path penalty:",fit_to_data, total_pcl_error, edge_count, edge_count_penalty, total_penalty
+	total_penalty = fit_to_data - PENALTY_CACHE[vertex_count]
+	# print "path penalty:",fit_to_data, total_pcl_error, edge_count, PENALTY_CACHE[vertex_count], total_penalty
 	return total_penalty
 
 def get_candidates(skeleton_points, sampled_pcl_points, vertex_count):
