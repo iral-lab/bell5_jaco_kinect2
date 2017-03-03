@@ -391,8 +391,12 @@ def do_analysis():
 			# push frame onto previous frames
 			previous_frames.append( (frame_number, skeleton_points, sampled_pcl_points) )
 			# push candidates into options to be ran
+			num_new = 0
 			for candidate in candidates:
-				all_candidates.add(tuple(candidate))
+				if not candidate in all_candidates:
+					num_new += 1
+					all_candidates.add(tuple(candidate))
+			print ".. Generated",len(candidates),"candidates,",num_new,"new"
 			# code.interact(local=dict(globals(), **locals()))
 			
 			# now cross all candidates with all previous frames.
@@ -404,7 +408,7 @@ def do_analysis():
 						continue
 					computed_candidate_frames_so_far.add(key)
 					candidate_frames_to_compute.put( (candidate, old_frame_number, old_skeleton_points, old_sampled_pcl_points) )
-			print "\tdone pushing onto computation queue",len(computed_candidate_frames_so_far),"so far"
+			print "\tdone empty cells onto computation queue",len(computed_candidate_frames_so_far),"so far"
 			#code.interact(local=dict(globals(), **locals()))
 			
 		#open(best_case_output_file, 'a').write("\t".join([str(frame_number)] + [str(x) for x in bests])+"\n")
