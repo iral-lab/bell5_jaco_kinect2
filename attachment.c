@@ -21,6 +21,14 @@
 #include "util.h"
 
 
+void compute_candidate_for_frames(int rank, int num_skeleton_frames, frame *skeleton_frames){
+	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
+	
+	
+	
+}
+
+
 bool is_leader(int rank){
 	return 0 == rank;
 }
@@ -71,23 +79,34 @@ int main(int argc, char** argv) {
 	int min_batch_size = num_skeleton_frames / worker_count;
 	
 	int *frames_per_worker = (int *) malloc(world_size * sizeof(int));
+	int *batch_start = (int *) malloc(world_size * sizeof(int));
 	memset(frames_per_worker, 0, world_size * sizeof(int));
 	int total_assigned = 0;
 	for(int i = 1; i < world_size; i++){
 		frames_per_worker[i] = min_batch_size;
-		if(min_batch_size * worker_count < num_skeleton_frames && i > min_batch_size * worker_count){
+//		if(rank == 0){
+//			printf("%i --- %i, %i, %i, %i\n", i, min_batch_size, worker_count, min_batch_size * worker_count, num_skeleton_frames);
+//		}
+		batch_start[i] = (i == 0) ? 0 : batch_start[i - 1] + frames_per_worker[i - 1];
+		if(i * min_batch_size < (num_skeleton_frames - i)){
 			frames_per_worker[i]++;
 		}
 	}
 	int my_batch_size = frames_per_worker[rank];
-	printf("> %i my_batch_size: %i\n",rank, my_batch_size);
+	int my_batch_start = batch_start[rank];
+	printf("> %i my_batch_size: %i, starting at %i\n",rank, my_batch_size, my_batch_start);
+	
+	// unnecessary, but used for log ordering
+	MPI_Barrier(MPI_COMM_WORLD);
 	
 	if(is_leader(rank)){
 		// receive candidates
 		
-	}else{
+//	}else{
+	}else if(rank == 1){
 		// compute candidates
 		
+		compute_candidate_for_frames(rank, my_batch_size, &(all_skeleton_frames[my_batch_start]));
 		
 	}
 	
