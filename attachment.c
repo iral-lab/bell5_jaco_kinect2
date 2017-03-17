@@ -40,6 +40,7 @@ point * get_more_space_and_copy(int *space_for, point *points, int so_far, frame
 	}
 	int to_allocate = so_far > 0 ? so_far * 2 : (type == SKELETON ? 16 : 64);
 	
+//	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
 	point *temp = (point *) malloc (to_allocate * sizeof(point));
 	
 	if(so_far > 0){
@@ -79,7 +80,7 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 		frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type);
 		current = &(frm->points[frm->num_points]);
 		sscanf(line, "%lf,%lf,%lf", &(current->x), &(current->y), &(current->z));
-		printf("READ LINE: %lf, %lf, %lf\n", current->x, current->y, current->z);
+//		printf("READ LINE: %lf, %lf, %lf\n", current->x, current->y, current->z);
 		
 		frm->num_points++;
 	}
