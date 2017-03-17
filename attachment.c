@@ -31,13 +31,28 @@ double euclid_distance(point *p0, point *p1){
 	return sqrt( (diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z));
 }
 
-void compute_candidate_for_frames(int rank, int num_skeleton_frames, frame *skeleton_frames){
-	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
+
+void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
+	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
-	point p0 = {1,1,1};
-	point p1 = {1,2,2};
-	double dist = euclid_distance(&p0, &p1);
-	printf("distance: %f\n", dist);
+	
+	
+}
+
+
+void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_start, frame *skeleton_frames){
+	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
+//	
+//	point p0 = {1,1,1};
+//	point p1 = {1,2,2};
+//	double dist = euclid_distance(&p0, &p1);
+//	printf("distance: %f\n", dist);
+//	
+
+	for(int i = 0; i < num_skeleton_frames; i++){
+		compute_candidates_for_frame(rank, my_start + i, &(skeleton_frames[i]));
+	}
+	
 	
 }
 
@@ -119,7 +134,7 @@ int main(int argc, char** argv) {
 	}else if(rank == 1){
 		// compute candidates
 		
-		compute_candidate_for_frames(rank, my_batch_size, &(all_skeleton_frames[my_batch_start]));
+		compute_candidate_for_frames(rank, my_batch_size, my_batch_start, &(all_skeleton_frames[my_batch_start]));
 		
 	}
 	
