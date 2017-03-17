@@ -1,4 +1,4 @@
-typedef enum { SKELETON, POINTCLOUD } frame_type;
+typedef enum { SKELETON, POINTCLOUD, OTHER } frame_type;
 
 typedef enum { false, true } bool;
 
@@ -16,7 +16,7 @@ typedef struct point_frame {
 } frame;
 
 
-point * get_more_space_and_copy(int *space_for, point *points, int so_far, frame_type type){
+point * get_more_space_and_copy(int *space_for, point *points, int so_far, frame_type type, int sizeof_item){
 	
 	if((*space_for) > so_far){
 		return points;
@@ -24,10 +24,10 @@ point * get_more_space_and_copy(int *space_for, point *points, int so_far, frame
 	int to_allocate = so_far > 0 ? so_far * 2 : (type == SKELETON ? 16 : 64);
 	
 	//	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
-	point *temp = (point *) malloc (to_allocate * sizeof(point));
+	point *temp = (point *) malloc (to_allocate * sizeof_item);
 	
 	if(points && so_far > 0){
-		memcpy(temp, points, so_far * sizeof(point));
+		memcpy(temp, points, so_far * sizeof_item);
 	}
 	(*space_for) = to_allocate;
 	
@@ -47,7 +47,7 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 	if(frm->points){
 		free(frm->points);
 	}
-	frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type);
+	frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type, sizeof(point));
 	point *current;
 	
 	while ((read = getline(&line, &len, handle)) != -1) {
@@ -60,7 +60,7 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 		}
 		
 		
-		frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type);
+		frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type, sizeof(point));
 		current = &(frm->points[frm->num_points]);
 		sscanf(line, "%lf,%lf,%lf", &(current->x), &(current->y), &(current->z));
 		//		printf("READ LINE: %lf, %lf, %lf\n", current->x, current->y, current->z);
@@ -82,5 +82,6 @@ void get_frame_from(frame *frm, int source){
 	MPI_Recv(&(frm->num_points), 1, MPI_INT, source, SEND_NUM_POINTS, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	frm->points = (point *) malloc (frm->num_points * sizeof(point));
 	MPI_Recv(frm->points, frm->num_points * 3, MPI_DOUBLE, source, SEND_POINTS, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	printf("finished recv: %i\n", frm->num_points);
 }
 

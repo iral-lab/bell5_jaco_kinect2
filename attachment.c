@@ -25,8 +25,23 @@ bool is_leader(int rank){
 	return 0 == rank;
 }
 
-void read_and_broadcast_frames(char **argv){
+void read_frames(FILE *file_handle, frame_type type, int *num_frames, frame **all_frames){
+	
+//	if((*all_frames)){
+//		free((*all_frames));
+//	}
+//	
+//	(*all_frames) = NULL;
 	frame frm;
+	memset(&frm, 0, sizeof(frame));
+	
+	read_frame(file_handle, &frm, SKELETON);
+	send_frame_to(&frm, 1);
+	
+}
+
+void read_and_broadcast_frames(char **argv){
+	
 	FILE *skeleton_handle;
 	FILE *pcl_handle;
 	
@@ -36,10 +51,14 @@ void read_and_broadcast_frames(char **argv){
 	skeleton_handle = fopen(input_skeleton_file, "r");
 	pcl_handle = fopen(input_pcl_file, "r");
 	
-	read_frame(skeleton_handle, &frm, SKELETON);
+	int num_skeleton_frames = 0;
+	frame *all_frames = NULL;
+	read_frames(skeleton_handle, SKELETON, &num_skeleton_frames, &all_frames);
+	
+	
 //	read_frame(pcl_handle, &frm, POINTCLOUD);
 	
-	send_frame_to(&frm, 1);
+//	send_frame_to(&frm, 1);
 	
 	
 	if(skeleton_handle){
