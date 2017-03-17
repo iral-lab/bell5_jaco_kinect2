@@ -4,11 +4,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 
 #define PRECISION_DIGITS 3
 #define MAX_EDGES 5
-#define MAX_PCL_POINTS 100
+
+#define SAMPLE_PCL_POINTS 1
+// rate / 100 ~= sample%
+#define PCL_POINTS_SAMPLE_RATE 30
 
 #define FRAME_DELIMITER '='
 
@@ -63,12 +67,15 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 	point *current;
 	
 	while ((read = getline(&line, &len, handle)) != -1) {
-//		printf("Retrieved line of length %zu :\n", read);
-//		printf("%s", line);
+
 		if(FRAME_DELIMITER == line[0]){
 			printf("%i\n", frm->num_points);
 			break;
+		}else if(SAMPLE_PCL_POINTS && POINTCLOUD == type && rand() % 100 > PCL_POINTS_SAMPLE_RATE){
+			continue;
 		}
+		
+		
 		frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type);
 		current = &(frm->points[frm->num_points]);
 		sscanf(line, "%lf,%lf,%lf", &(current->x), &(current->y), &(current->z));
@@ -95,8 +102,10 @@ void read_and_broadcast_frames(char **argv){
 	char * input_pcl_file = argv[2];
 	
 	skeleton_handle = fopen(input_skeleton_file, "r");
+	pcl_handle = fopen(input_pcl_file, "r");
 	
-	read_frame(skeleton_handle, &frm, SKELETON);
+//	read_frame(skeleton_handle, &frm, SKELETON);
+	read_frame(pcl_handle, &frm, POINTCLOUD);
 	
 	
 	if(skeleton_handle){
@@ -112,6 +121,8 @@ void listen_for_frames(){
 
 int main(int argc, char** argv) {
 	MPI_Init(NULL, NULL);
+	
+	srand(time(NULL));
 	
 	int world_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
