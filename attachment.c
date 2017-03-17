@@ -203,13 +203,40 @@ int main(int argc, char** argv) {
 		read_and_broadcast_frames(argv, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
 	}else{
 		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &skeleton_packed_points, &num_pointcloud_frames, &all_pointcloud_frames, &pointcloud_packed_points);
+		
+		// compute candidate for first num_skeleton_frames / world_size
 	}
+	
+	int worker_count = world_size - 1;
+	int min_batch_size = num_skeleton_frames / worker_count;
+	
+	int *frames_per_worker = (int *) malloc(world_size * sizeof(int));
+	memset(frames_per_worker, 0, world_size * sizeof(int));
+	int total_assigned = 0;
+	for(int i = 1; i < world_size; i++){
+		frames_per_worker[i] = min_batch_size;
+		if(min_batch_size * worker_count < num_skeleton_frames && i > min_batch_size * worker_count){
+			frames_per_worker[i]++;
+		}
+	}
+	int my_batch_size = frames_per_worker[rank];
+	printf("> %i my_batch_size: %i\n",rank, my_batch_size);
+	
+	// compute candidates
+	
+	
+	
+	
 	
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
 	
 	printf("> %i done\n", rank);
+	
+	if(frames_per_worker){
+		free(frames_per_worker);
+	}
 	if(all_skeleton_frames){
 		free(all_skeleton_frames);
 	}
