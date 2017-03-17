@@ -15,19 +15,24 @@ typedef struct point_frame {
 	point *points;
 } frame;
 
+void debug(char * str){
+	printf("%s\n",str);
+	fflush(stdout);
+}
 
-point * get_more_space_and_copy(int *space_for, point *points, int so_far, frame_type type, int sizeof_item){
+
+void * get_more_space_and_copy(int *space_for, void *some_list, int so_far, frame_type type, int sizeof_item){
 	
 	if((*space_for) > so_far){
-		return points;
+		return some_list;
 	}
 	int to_allocate = so_far > 0 ? so_far * 2 : (type == SKELETON ? 16 : 64);
 	
 	//	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
-	point *temp = (point *) malloc (to_allocate * sizeof_item);
+	void *temp = (point *) malloc (to_allocate * sizeof_item);
 	
-	if(points && so_far > 0){
-		memcpy(temp, points, so_far * sizeof_item);
+	if(some_list && so_far > 0){
+		memcpy(temp, some_list, so_far * sizeof_item);
 	}
 	(*space_for) = to_allocate;
 	
@@ -42,18 +47,18 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 	
 	frm->num_points = 0;
 	
-	
 	int space_for_points = 0;
 	if(frm->points){
 		free(frm->points);
 	}
+	
 	frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type, sizeof(point));
 	point *current;
 	
 	while ((read = getline(&line, &len, handle)) != -1) {
 		
 		if(FRAME_DELIMITER == line[0]){
-			printf("%i\n", frm->num_points);
+//			printf("%i\n", frm->num_points);
 			break;
 		}else if(SAMPLE_PCL_POINTS && POINTCLOUD == type && rand() % 100 > PCL_POINTS_SAMPLE_RATE){
 			continue;

@@ -27,20 +27,33 @@ bool is_leader(int rank){
 
 void read_frames(FILE *file_handle, frame_type type, int *num_frames, frame **all_frames){
 	
-//	if((*all_frames)){
-//		free((*all_frames));
-//	}
-//	
-//	(*all_frames) = NULL;
+	if((*all_frames)){
+		free((*all_frames));
+	}
 	frame frm;
-	memset(&frm, 0, sizeof(frame));
 	
-	read_frame(file_handle, &frm, SKELETON);
-	send_frame_to(&frm, 1);
+	(*all_frames) = NULL;
+	int space_for_frames = 0;
+	(*all_frames) = get_more_space_and_copy(&space_for_frames, (*all_frames), (*num_frames), type, sizeof(frame));
 	
+	
+	while(true){
+		memset(&frm, 0, sizeof(frame));
+		read_frame(file_handle, &frm, type);
+		
+		if(frm.num_points > 0){
+			(*all_frames) = get_more_space_and_copy(&space_for_frames, (*all_frames), (*num_frames), type, sizeof(frame));
+			memcpy(&((*all_frames)[(*num_frames)]), &frm, sizeof(frame));
+//			printf("%i read frame with %i points\n", (*num_frames), (*all_frames)[(*num_frames)].num_points);
+			(*num_frames)++;
+		}else{
+			// break once we hit a frame with no points.
+			break;
+		}
+	}
 }
 
-void read_and_broadcast_frames(char **argv){
+void read_and_broadcast_frames(char **argv, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
 	
 	FILE *skeleton_handle;
 	FILE *pcl_handle;
@@ -51,14 +64,12 @@ void read_and_broadcast_frames(char **argv){
 	skeleton_handle = fopen(input_skeleton_file, "r");
 	pcl_handle = fopen(input_pcl_file, "r");
 	
-	int num_skeleton_frames = 0;
-	frame *all_frames = NULL;
-	read_frames(skeleton_handle, SKELETON, &num_skeleton_frames, &all_frames);
+	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames);
+	printf("done reading in %i skeleton frames\n", *num_skeleton_frames);
 	
+	read_frames(pcl_handle, POINTCLOUD, num_pointcloud_frames, all_pointcloud_frames);
+	printf("done reading in %i pointcloud frames\n", *num_pointcloud_frames);
 	
-//	read_frame(pcl_handle, &frm, POINTCLOUD);
-	
-//	send_frame_to(&frm, 1);
 	
 	
 	if(skeleton_handle){
@@ -66,12 +77,7 @@ void read_and_broadcast_frames(char **argv){
 	}
 }
 
-void listen_for_frames(int rank){
-	frame frm;
-	
-	if(1 == rank){
-		get_frame_from(&frm, 0);
-	}
+void listen_for_frames(int rank, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
 	
 }
 
@@ -100,10 +106,15 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	
+	int num_skeleton_frames = 0;
+	frame *all_skeleton_frames = NULL;
+	int num_pointcloud_frames = 0;
+	frame *all_pointcloud_frames = NULL;
+	
 	if(is_leader(rank)){
-		read_and_broadcast_frames(argv);
+		read_and_broadcast_frames(argv, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
 	}else{
-		listen_for_frames(rank);
+		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
 	}
 	
 	
