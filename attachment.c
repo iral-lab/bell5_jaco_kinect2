@@ -31,12 +31,44 @@ double euclid_distance(point *p0, point *p1){
 	return sqrt( (diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z));
 }
 
+typedef struct sort_pair{
+	int i;
+	int j;
+	double val;
+}sort_pair;
+
+void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
+	(*pairs) = (sort_pair *) malloc (num_points * num_points * sizeof(sort_pair));
+	
+	int offset;
+	point *p0, *p1;
+	for(int i = 0; i < num_points; i++){
+		p0 = &(frm->points[i]);
+		for(int j = 0; j < num_points; j++){
+			offset = (i * num_points + j); // i = rows, j = cols
+			(*pairs)[offset].i = i;
+			(*pairs)[offset].j = j;
+			p1 = &(frm->points[j]);
+			if(i == j){
+				(*pairs)[offset].val = 0.0;
+			}else{
+				(*pairs)[offset].val = euclid_distance(p0, p1);
+			}
+//			printf("Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
+		}
+	}
+}
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
 	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
+	int num_points = frm->num_points;
+	sort_pair *pairs;
+	get_pairwise_distances(num_points, &pairs, frm);
 	
 	
+	
+	free(pairs);
 }
 
 
@@ -51,6 +83,7 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 
 	for(int i = 0; i < num_skeleton_frames; i++){
 		compute_candidates_for_frame(rank, my_start + i, &(skeleton_frames[i]));
+		break;
 	}
 	
 	
