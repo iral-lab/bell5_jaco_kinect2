@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
+
 
 #define MIN_PROCESSORS 4
 
@@ -21,10 +23,21 @@
 #include "util.h"
 
 
+double euclid_distance(point *p0, point *p1){
+	double diff_x = p0->x - p1->x;
+	double diff_y = p0->y - p1->y;
+	double diff_z = p0->z - p1->z;
+	
+	return sqrt( (diff_x * diff_x) + (diff_y * diff_y) + (diff_z * diff_z));
+}
+
 void compute_candidate_for_frames(int rank, int num_skeleton_frames, frame *skeleton_frames){
 	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
 	
-	
+	point p0 = {1,1,1};
+	point p1 = {1,2,2};
+	double dist = euclid_distance(&p0, &p1);
+	printf("distance: %f\n", dist);
 	
 }
 
