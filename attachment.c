@@ -25,17 +25,6 @@ bool is_leader(int rank){
 	return 0 == rank;
 }
 
-void send_frame_to(frame *frm, int destination){
-	MPI_Send(&(frm->num_points), 1, MPI_INT, destination, SEND_NUM_POINTS, MPI_COMM_WORLD);
-	MPI_Send(frm->points, frm->num_points * 3, MPI_DOUBLE, destination, SEND_POINTS, MPI_COMM_WORLD);
-}
-
-void get_frame_from(frame *frm, int source){
-	MPI_Recv(&(frm->num_points), 1, MPI_INT, source, SEND_NUM_POINTS, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	frm->points = (point *) malloc (frm->num_points * sizeof(point));
-	MPI_Recv(frm->points, frm->num_points * 3, MPI_DOUBLE, source, SEND_POINTS, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-}
-
 void read_and_broadcast_frames(char **argv){
 	frame frm;
 	FILE *skeleton_handle;
