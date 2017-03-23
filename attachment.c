@@ -37,7 +37,12 @@ typedef struct sort_pair{
 	double val;
 }sort_pair;
 
-void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
+int sort_pairwise_distances(const void *a, const void *b){
+//	printf("COMPARING %f and %f\n",((sort_pair *)a)->val,((sort_pair *)b)->val);
+	return ((sort_pair *)a)->val > ((sort_pair *)b)->val ? 1 : -1;
+}
+
+void get_pairwise_distances(int rank, int num_points, sort_pair **pairs, frame *frm){
 	(*pairs) = (sort_pair *) malloc (num_points * num_points * sizeof(sort_pair));
 	
 	int offset;
@@ -54,8 +59,23 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 			}else{
 				(*pairs)[offset].val = euclid_distance(p0, p1);
 			}
-//			printf("Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
+//			printf("1) Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
 		}
+		
+		// got distances, now sort them inside each row
+//		printf("> %i got distances\n", rank);
+		qsort(&((*pairs)[i * num_points]), num_points, sizeof(sort_pair), sort_pairwise_distances);
+//		printf("> %i sorted\n", rank);
+		for(int j = 0; j < num_points; j++){
+			p1 = &(frm->points[j]);
+//			printf("< %i p1: %f %f %f\n", j, p1->x, p1->y, p1->z);
+			offset = (i * num_points + j); // i = rows, j = cols
+//			printf("offset: %i\n",offset);
+			(*pairs)[offset].i = i;
+			(*pairs)[offset].j = j;
+//			printf("2) Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
+		}
+		
 	}
 }
 
@@ -64,7 +84,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
 	
 	int num_points = frm->num_points;
 	sort_pair *pairs;
-	get_pairwise_distances(num_points, &pairs, frm);
+	get_pairwise_distances(rank, num_points, &pairs, frm);
 	
 	
 	
