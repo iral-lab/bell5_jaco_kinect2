@@ -44,9 +44,14 @@ typedef struct sort_pair{
 }sort_pair;
 
 typedef struct path{
-	short length;
+	short num_points;
 	point points[MAX_VERTICES];
 } path;
+
+typedef struct length_path{
+	short num_points;
+	double lengths[MAX_EDGES];
+} length_path;
 
 int sort_pairwise_distances(const void *a, const void *b){
 //	printf("COMPARING %f and %f\n",((sort_pair *)a)->distance,((sort_pair *)b)->distance);
@@ -105,8 +110,8 @@ void get_anchors(int num_anchors, point **anchors, frame *frm){
 }
 
 void print_path(path *path){
-	printf("Path: (%i long)\n", path->length);
-	for(int i = 0; i < path->length; i++){
+	printf("Path: (%i long)\n", path->num_points);
+	for(int i = 0; i < path->num_points; i++){
 		printf("\t(%i)\t%f\t%f\t%f\n", path->points[i].pid, path->points[i].x, path->points[i].y, path->points[i].z);
 	}
 }
@@ -115,13 +120,14 @@ short get_num_closest(num_points){
 	return MIN(BRANCH_NEIGHBORS, num_points);
 }
 
-bool points_equal(point *p0, point *p1){
-	return p0->x == p1->x && p0->y == p1->y && p0->z == p1->z;
+bool points_are_equal(point *p0, point *p1){
+	return p0->pid == p1->pid; // breaks if two points are exactly the same, highly unlikely
+//	return p0->x == p1->x && p0->y == p1->y && p0->z == p1->z;
 }
 
 bool in_path(path *path, point *point){
-	for(int i = 0; i < path->length; i++){
-		if(points_equal(point, &(path->points[i]))){
+	for(int i = 0; i < path->num_points; i++){
+		if(points_are_equal(point, &(path->points[i]))){
 			return true;
 		}
 	}
@@ -161,7 +167,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 //		printf("OUTER stack now has space for %i, has %i\n", space_on_stack, stack_size);
 	
 		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
-		stack[stack_size].length = 1;
+		stack[stack_size].num_points = 1;
 //		print_path(&(stack[stack_size]));
 		stack_size++;
 	}
@@ -177,7 +183,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	while(stack_size > 0){
 		// get the last item
 		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
-//		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.length);
+//		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.num_points);
 		
 		// decrementing this means we're working on the back of the stack.
 		stack_size--;
@@ -185,7 +191,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 //		printf("\n\nCurrent ");
 //		print_path(&current_path);
 		
-		if(num_vertices == current_path.length){
+		if(num_vertices == current_path.num_points){
 			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
 			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
 //			printf("(now %i paths finished), latest ", (*num_paths)+1);
@@ -195,7 +201,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 		}
 		
 		
-		last_point = &(current_path.points[ current_path.length - 1]);
+		last_point = &(current_path.points[ current_path.num_points - 1]);
 		added = 0;
 		// either stop after added have been added or try all the points
 		for(int i = 1; i < num_points && added < num_closest; i++){
@@ -220,8 +226,8 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
 			// append the nearest point into the path
 			// doing this order avoids extra memcpys into/from a temp
-			memcpy(&(stack[stack_size].points[current_path.length]), nearest_point, sizeof(point));
-			stack[stack_size].length++;
+			memcpy(&(stack[stack_size].points[current_path.num_points]), nearest_point, sizeof(point));
+			stack[stack_size].num_points++;
 			
 //			printf("\tJust pushed on ");
 //			print_path(&(stack[stack_size]));
@@ -239,6 +245,39 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	free(pairs);
 }
 
+bool is_same_path(path *path_1, path *path_2){
+	if(path_1->num_points != path_2->num_points){
+		return false;
+	}
+	
+	for(int i = 0; i < path_1->num_points; i++){
+		if(!points_are_equal(&(path_1->points[i]), &(path_2->points[i]))){
+			return false;
+		}
+	}
+	return true;
+}
+
+void deduplicate_paths(path *paths, int num_paths){
+	for(int i = 0; i < num_paths; i++){
+		for(int j = i+1; j < num_paths; ){
+			
+			if(is_same_path(&(paths[i]), &(paths[j]))){
+				printf("found duplicate\n");
+				if(j < num_paths-1){
+					// shift the remaining paths down one
+					memmove(&(paths[j]), &(paths[j+1]), num_paths - j - 1);
+				}
+				num_paths--;
+				
+			}else{
+				// only move j if we didn't memmove, since that would have moved something else into the jth spot
+				j++;
+			}
+		}
+	}
+	
+}
 
 void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_start, frame *skeleton_frames){
 	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
@@ -254,15 +293,24 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		frame_n = my_start + i;
 		path *paths = NULL;
 		int num_paths = 0;
-		
+		int batch_start = 0;
 		for(int num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
+			batch_start = num_paths;
+			
 			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
+//			printf(">> was %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
+			
+			// de-dupe paths, just in case
+			deduplicate_paths(&(paths[batch_start]), num_paths - batch_start);
+			
 			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
+			
 		}
 		
 		
-		// turn paths to length edges
 		
+		// turn paths to length edges
+		//length_path *length_paths = (length_path *) malloc (num_paths * sizeof()
 		
 		
 		if(paths){
