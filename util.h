@@ -1,4 +1,4 @@
-typedef enum { SKELETON, POINTCLOUD, OTHER } frame_type;
+typedef enum { SKELETON, POINTCLOUD, PATHS, OTHER } frame_type;
 
 typedef enum { false, true } bool;
 
@@ -26,9 +26,9 @@ void * get_more_space_and_copy(int *space_for, void *some_list, int so_far, fram
 	if((*space_for) > so_far){
 		return some_list;
 	}
-	int to_allocate = so_far > 0 ? so_far * 2 : (type == SKELETON ? 16 : 64);
+	int to_allocate = so_far > 0 ? so_far * 2 : (type == SKELETON ? 16 : (type == PATHS ? 128 : 64));
 	
-	//	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
+//	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
 	void *temp = (point *) malloc (to_allocate * sizeof_item);
 	
 	if(some_list && so_far > 0){

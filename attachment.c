@@ -11,6 +11,7 @@
 #define MIN_PROCESSORS 4
 
 #define MAX_EDGES 5
+#define MAX_VERTICES MAX_EDGES + 1
 #define MAX_ANCHORS 3
 
 #define SAMPLE_PCL_POINTS 1
@@ -35,10 +36,15 @@ double euclid_distance(point *p0, point *p1){
 }
 
 typedef struct sort_pair{
-	int i;
-	int j;
+	short i;
+	short j;
 	double val;
 }sort_pair;
+
+typedef struct path{
+	short length;
+	point points[MAX_VERTICES];
+} path;
 
 int sort_pairwise_distances(const void *a, const void *b){
 //	printf("COMPARING %f and %f\n",((sort_pair *)a)->val,((sort_pair *)b)->val);
@@ -95,7 +101,14 @@ void get_anchors(int num_anchors, point **anchors, frame *frm){
 	}
 }
 
-void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
+void print_path(path *path){
+	printf("Path:\n");
+	for(int i = 0; i < path->length; i++){
+		printf("\t%f\t%f\t%f\n", path->points[i].x,path->points[i].y,path->points[i].z);
+	}
+}
+
+void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
 	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
 	int num_points = frm->num_points;
@@ -106,8 +119,25 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
 	point *anchors[num_anchors];
 	get_anchors(num_anchors, anchors, frm);
 	
+	printf("inside compute cands\n");
 	
+	int space_for_paths = 0;
+	(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
+	memset(*paths, 0, sizeof(path) * space_for_paths);
 	
+	int space_on_stack = 0;
+	int stack_size = 0;
+	path *stack = NULL;
+	stack = get_more_space_and_copy(&space_on_stack, stack, 0, PATHS, sizeof(path));
+	memset(stack, 0, sizeof(path) * space_on_stack);
+	printf("stack now has space for %i, has %i\n", space_on_stack, stack_size);
+	
+	for(int i = 0; i < num_anchors; i++){
+		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
+		stack[i].length++;
+//		print_path(&(stack[stack_size]));
+		stack_size++;
+	}
 	
 	
 	free(pairs);
@@ -124,7 +154,19 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 //	
 
 	for(int i = 0; i < num_skeleton_frames; i++){
-		compute_candidates_for_frame(rank, my_start + i, &(skeleton_frames[i]));
+		
+		path *paths = NULL;
+		int num_paths = 0;
+		
+		compute_candidates_for_frame(rank, my_start + i, &(skeleton_frames[i]), &num_paths, &paths);
+		
+		
+		
+		if(paths){
+			free(paths);
+		}
+
+		
 		break;
 	}
 	
