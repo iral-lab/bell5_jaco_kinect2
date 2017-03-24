@@ -11,6 +11,7 @@
 #define MIN_PROCESSORS 4
 
 #define MAX_EDGES 5
+#define MAX_ANCHORS 3
 
 #define SAMPLE_PCL_POINTS 1
 // rate / 100 ~= sample%
@@ -22,6 +23,8 @@
 
 #include "util.h"
 
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 double euclid_distance(point *p0, point *p1){
 	double diff_x = p0->x - p1->x;
@@ -79,12 +82,31 @@ void get_pairwise_distances(int rank, int num_points, sort_pair **pairs, frame *
 	}
 }
 
+int sort_by_y_value(const void *a, const void *b){
+	return ((point *) a)->y > ((point *) b)->y ? 1 : -1;
+}
+
+void get_anchors(int num_anchors, point **anchors, frame *frm){
+	qsort(frm->points, frm->num_points, sizeof(point), sort_by_y_value);
+	
+	for(int i = 0; i < num_anchors; i++){
+		anchors[i] = &(frm->points[i]);
+//		printf("point %i: %f,%f,%f\n", i, anchors[i]->x, anchors[i]->y, anchors[i]->z);
+	}
+}
+
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm){
 	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
 	int num_points = frm->num_points;
 	sort_pair *pairs;
 	get_pairwise_distances(rank, num_points, &pairs, frm);
+	
+	int num_anchors = MIN(MAX_ANCHORS, num_points);
+	point *anchors[num_anchors];
+	get_anchors(num_anchors, anchors, frm);
+	
+	
 	
 	
 	
