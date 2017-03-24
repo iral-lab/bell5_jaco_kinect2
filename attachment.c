@@ -128,16 +128,17 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	int space_on_stack = 0;
 	int stack_size = 0;
 	path *stack = NULL;
-	stack = get_more_space_and_copy(&space_on_stack, stack, 0, PATHS, sizeof(path));
-	memset(stack, 0, sizeof(path) * space_on_stack);
-	printf("stack now has space for %i, has %i\n", space_on_stack, stack_size);
 	
 	for(int i = 0; i < num_anchors; i++){
+		stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
+		printf("stack now has space for %i, has %i\n", space_on_stack, stack_size);
+	
 		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
 		stack[i].length++;
-//		print_path(&(stack[stack_size]));
+		print_path(&(stack[stack_size]));
 		stack_size++;
 	}
+	
 	
 	
 	free(pairs);

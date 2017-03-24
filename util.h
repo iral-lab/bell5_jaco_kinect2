@@ -30,6 +30,7 @@ void * get_more_space_and_copy(int *space_for, void *some_list, int so_far, fram
 	
 //	printf("mallocing from so_far %i to %i\n", so_far, to_allocate);
 	void *temp = (point *) malloc (to_allocate * sizeof_item);
+	memset(temp, 0, to_allocate * sizeof_item);
 	
 	if(some_list && so_far > 0){
 		memcpy(temp, some_list, so_far * sizeof_item);
