@@ -113,6 +113,19 @@ short get_num_closest(num_points){
 	return MIN(BRANCH_NEIGHBORS, num_points);
 }
 
+bool points_equal(point *p0, point *p1){
+	return p0->x == p1->x && p0->y == p1->y && p0->z == p1->z;
+}
+
+bool in_path(path *path, point *point){
+	for(int i = 0; i < path->length; i++){
+		if(points_equal(point, &(path->points[i]))){
+			return true;
+		}
+	}
+	return false;
+}
+
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
 	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
@@ -143,10 +156,10 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	
 	for(int i = 0; i < num_anchors; i++){
 		stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
-		printf("stack now has space for %i, has %i\n", space_on_stack, stack_size);
+		printf("OUTER stack now has space for %i, has %i\n", space_on_stack, stack_size);
 	
 		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
-		stack[i].length++;
+		stack[stack_size].length = 1;
 		print_path(&(stack[stack_size]));
 		stack_size++;
 	}
@@ -157,42 +170,66 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	path current_path;
 	point *last_point;
 	
-	int offset;
+	int offset, added;
+	
 	while(stack_size > 0){
-		memcpy(&current_path, stack, sizeof(path));
+		// get the last item
+		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
 //		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.length);
-		if(stack_size > 1){
-			memmove(stack, &(stack[1]), (stack_size - 1) * sizeof(path));
-//			printf("first on stack: %f,%f,%f of %i\n", stack[0].points[0].x,stack[0].points[0].y,stack[0].points[0].z,stack[0].length);
-		}
+		
+		// decrementing this means we're working on the back of the stack.
 		stack_size--;
 		
-		printf("Current ");
+		printf("\n\nCurrent ");
 		print_path(&current_path);
 		
 		if(MAX_VERTICES == current_path.length){
 			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
 			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
-			printf("Copied ");
+			printf("(now %i paths finished), latest ", (*num_paths)+1);
 			print_path(&((*paths)[*num_paths]));
 			(*num_paths)++;
+			continue;
 		}
 		
 		
 		last_point = &(current_path.points[ current_path.length - 1]);
-		
-		for(int i = 1; i < num_points; i++){
+		added = 0;
+		// either stop after added have been added or try all the points
+		for(int i = 1; i < num_points && added < num_closest; i++){
+			
 			/// start at 1 because 0th 'nearest' is itself with 0 distance
 			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
 			nearest_pair = &(pairs[offset]);
 			nearest_point = &(frm->points[nearest_pair->pid]);
-			printf("nearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
+			printf("\tnearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
 			
-//			if(
+			if(in_path(&current_path, nearest_point)){
+				// point is already in path, skip it
+				printf("\t>>> Skipping point (%i), already in path\n", nearest_point->pid);
+				continue;
+			}
+			
+			
+			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
+			printf("\tINNER stack now has space for %i, has %i\n", space_on_stack, stack_size);
+			
+			// copy current path
+			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
+			// append the nearest point into the path
+			// doing this order avoids extra memcpys into/from a temp
+			memcpy(&(stack[stack_size].points[current_path.length]), nearest_point, sizeof(point));
+			stack[stack_size].length++;
+			
+			printf("\tJust pushed on ");
+			print_path(&(stack[stack_size]));
+			
+			stack_size++;
+			added++;
 			
 		}
 		
-		
+//		exit(1);
 	}
 	
 	
