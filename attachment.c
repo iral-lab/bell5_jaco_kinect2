@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
 	
 	int worker_count = world_size - 1;
 	int min_batch_size = num_skeleton_frames / worker_count;
+	int batch_left_over = num_skeleton_frames - (min_batch_size * worker_count);
 	
 	int *frames_per_worker = (int *) malloc(world_size * sizeof(int));
 	int *batch_start = (int *) malloc(world_size * sizeof(int));
@@ -83,11 +84,9 @@ int main(int argc, char** argv) {
 	int total_assigned = 0;
 	for(int i = 1; i < world_size; i++){
 		frames_per_worker[i] = min_batch_size;
-//		if(rank == 0){
-//			printf("%i --- %i, %i, %i, %i\n", i, min_batch_size, worker_count, min_batch_size * worker_count, num_skeleton_frames);
-//		}
 		batch_start[i] = (i == 0) ? 0 : batch_start[i - 1] + frames_per_worker[i - 1];
-		if(i * min_batch_size < (num_skeleton_frames - i)){
+		
+		if(batch_left_over > 0 && i <= batch_left_over){
 			frames_per_worker[i]++;
 		}
 	}
@@ -102,6 +101,7 @@ int main(int argc, char** argv) {
 	int *candidates_per_worker_in_bytes = NULL;
 	int *candidates_per_worker_displacement = NULL;
 	candidate *candidates = NULL;
+	int num_candidates = 0;
 	
 	if(is_leader(rank)){
 		// receive candidates
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
 		MPI_Gather(&my_batch_size, 1, MPI_INT, candidates_per_worker, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		
 		printf("received candidate counts:\n");
-		int num_candidates = 0;
+		
 		for(int i = 0; i < world_size; i++){
 			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
 			num_candidates += candidates_per_worker[i];
@@ -139,11 +139,30 @@ int main(int argc, char** argv) {
 		compute_candidate_for_frames(rank, my_batch_size, my_batch_start, &(all_skeleton_frames[my_batch_start]));
 		
 	}
-	
+	MPI_Bcast(&num_candidates, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
 	// Now rank0 has all candidates for all frames
+	int min_candidate_batch_size = num_candidates / worker_count;
+	int candidate_batch_left_over = num_candidates - (min_candidate_batch_size * worker_count);
 	
-	
+	int *num_candidates_per_worker = (int *) malloc(world_size * sizeof(int));
+	int *candidates_batch_start = (int *) malloc(world_size * sizeof(int));
+	memset(num_candidates_per_worker, 0, world_size * sizeof(int));
+	int total_candidates_assigned = 0;
+	for(int i = 1; i < world_size; i++){
+		num_candidates_per_worker[i] = min_candidate_batch_size;
+		candidates_batch_start[i] = (i == 0) ? 0 : candidates_batch_start[i - 1] + num_candidates_per_worker[i - 1];
+		
+		
+		if(candidate_batch_left_over > 0 && i <= candidate_batch_left_over){
+			num_candidates_per_worker[i]++;
+		}
+	}
+	int my_candidate_batch_size = num_candidates_per_worker[rank];
+	int my_candidate_batch_start = candidates_batch_start[rank];
+
+	printf("> %i my_candidate_batch_size: %i, starting at %i\n",rank, my_candidate_batch_size, my_candidate_batch_start);
+
 	
 	
 	
