@@ -12,6 +12,8 @@
 
 #define MAX_EDGES 5
 #define MAX_VERTICES MAX_EDGES + 1
+#define MIN_VERTICES 3 // at least 2 edges
+
 #define MAX_ANCHORS 3
 #define BRANCH_NEIGHBORS 3
 
@@ -98,7 +100,7 @@ int sort_by_y_value(const void *a, const void *b){
 void get_anchors(int num_anchors, point **anchors, frame *frm){
 	for(int i = 0; i < num_anchors; i++){
 		anchors[i] = &(frm->points[i]);
-		printf("point %i: (pid: %i) %f,%f,%f\n", i, anchors[i]->pid, anchors[i]->x, anchors[i]->y, anchors[i]->z);
+//		printf("point %i: (pid: %i) %f,%f,%f\n", i, anchors[i]->pid, anchors[i]->x, anchors[i]->y, anchors[i]->z);
 	}
 }
 
@@ -126,8 +128,8 @@ bool in_path(path *path, point *point){
 	return false;
 }
 
-void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
-	printf("> %i cand(f_%i)\n", rank, frame_n);
+void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame *frm, int *num_paths, path **paths){
+//	printf("> %i cand(f_%i) %i vertices\n", rank, frame_n, num_vertices);
 	
 	int num_points = frm->num_points;
 	
@@ -145,7 +147,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 
 	sort_pair *pairs;
 	get_pairwise_distances(rank, num_points, &pairs, frm);
-	printf("inside compute cands\n");
+//	printf("inside compute cands\n");
 	
 	int space_for_paths = 0;
 	(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
@@ -156,11 +158,11 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	
 	for(int i = 0; i < num_anchors; i++){
 		stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
-		printf("OUTER stack now has space for %i, has %i\n", space_on_stack, stack_size);
+//		printf("OUTER stack now has space for %i, has %i\n", space_on_stack, stack_size);
 	
 		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
 		stack[stack_size].length = 1;
-		print_path(&(stack[stack_size]));
+//		print_path(&(stack[stack_size]));
 		stack_size++;
 	}
 	
@@ -180,14 +182,14 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 		// decrementing this means we're working on the back of the stack.
 		stack_size--;
 		
-		printf("\n\nCurrent ");
-		print_path(&current_path);
+//		printf("\n\nCurrent ");
+//		print_path(&current_path);
 		
-		if(MAX_VERTICES == current_path.length){
+		if(num_vertices == current_path.length){
 			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
 			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
-			printf("(now %i paths finished), latest ", (*num_paths)+1);
-			print_path(&((*paths)[*num_paths]));
+//			printf("(now %i paths finished), latest ", (*num_paths)+1);
+//			print_path(&((*paths)[*num_paths]));
 			(*num_paths)++;
 			continue;
 		}
@@ -202,17 +204,17 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
 			nearest_pair = &(pairs[offset]);
 			nearest_point = &(frm->points[nearest_pair->pid]);
-			printf("\tnearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
+//			printf("\tnearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
 			
 			if(in_path(&current_path, nearest_point)){
 				// point is already in path, skip it
-				printf("\t>>> Skipping point (%i), already in path\n", nearest_point->pid);
+//				printf("\t>>> Skipping point (%i), already in path\n", nearest_point->pid);
 				continue;
 			}
 			
 			
 			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
-			printf("\tINNER stack now has space for %i, has %i\n", space_on_stack, stack_size);
+//			printf("\tINNER stack now has space for %i, has %i\n", space_on_stack, stack_size);
 			
 			// copy current path
 			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
@@ -221,8 +223,8 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 			memcpy(&(stack[stack_size].points[current_path.length]), nearest_point, sizeof(point));
 			stack[stack_size].length++;
 			
-			printf("\tJust pushed on ");
-			print_path(&(stack[stack_size]));
+//			printf("\tJust pushed on ");
+//			print_path(&(stack[stack_size]));
 			
 			stack_size++;
 			added++;
@@ -233,7 +235,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	}
 	
 	
-	
+	free(stack);
 	free(pairs);
 }
 
@@ -245,22 +247,27 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 //	point p1 = {1,2,2};
 //	double dist = euclid_distance(&p0, &p1);
 //	printf("distance: %f\n", dist);
-//	
-
+//
+	
+	int frame_n;
 	for(int i = 0; i < num_skeleton_frames; i++){
-		
+		frame_n = my_start + i;
 		path *paths = NULL;
 		int num_paths = 0;
 		
-		compute_candidates_for_frame(rank, my_start + i, &(skeleton_frames[i]), &num_paths, &paths);
+		for(int num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
+			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
+			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
+		}
+		
+		
+		// turn paths to length edges
 		
 		
 		
 		if(paths){
 			free(paths);
 		}
-
-		
 		break;
 	}
 	
