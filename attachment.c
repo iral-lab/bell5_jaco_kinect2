@@ -49,7 +49,7 @@ typedef struct path{
 } path;
 
 typedef struct length_path{
-	short num_points;
+	short num_lengths;
 	double lengths[MAX_EDGES];
 } length_path;
 
@@ -307,10 +307,23 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
 		}
 		
-		
-		
 		// turn paths to length edges
-		//length_path *length_paths = (length_path *) malloc (num_paths * sizeof()
+		length_path *length_paths = (length_path *) malloc (num_paths * sizeof(length_path));
+		memset(length_paths, 0, num_paths * sizeof(length_path));
+		
+		for(int j = 0; j < num_paths; j++){
+			for(int k = 0; k < paths[j].num_points - 1; k++){
+				length_paths[j].lengths[k] = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
+				
+//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", length_paths[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
+				
+				length_paths[j].num_lengths++;
+			}
+//			printf("\n\n");
+		}
+		
+//		printf("> %i %i lengths\n", rank, num_paths);
+		
 		
 		
 		if(paths){
@@ -395,6 +408,8 @@ int main(int argc, char** argv) {
 	
 	if(is_leader(rank)){
 		// receive candidates
+		
+		
 		
 //	}else{
 	}else if(rank == 1){
