@@ -146,23 +146,53 @@ int main(int argc, char** argv) {
 	int candidate_batch_left_over = num_candidates - (min_candidate_batch_size * worker_count);
 	
 	int *num_candidates_per_worker = (int *) malloc(world_size * sizeof(int));
+	int *num_candidates_per_worker_in_bytes = (int *) malloc(world_size * sizeof(int));
+	int *num_candidates_per_worker_displacement = (int *) malloc(world_size * sizeof(int));
 	int *candidates_batch_start = (int *) malloc(world_size * sizeof(int));
+	
+	memset(num_candidates_per_worker_in_bytes, 0, world_size * sizeof(int));
+	memset(num_candidates_per_worker_displacement, 0, world_size * sizeof(int));
 	memset(num_candidates_per_worker, 0, world_size * sizeof(int));
+	memset(candidates_batch_start, 0, world_size * sizeof(int));
+	
 	int total_candidates_assigned = 0;
 	for(int i = 1; i < world_size; i++){
 		num_candidates_per_worker[i] = min_candidate_batch_size;
-		candidates_batch_start[i] = (i == 0) ? 0 : candidates_batch_start[i - 1] + num_candidates_per_worker[i - 1];
 		
+		candidates_batch_start[i] = (i == 0) ? 0 : candidates_batch_start[i - 1] + num_candidates_per_worker[i - 1];
+		num_candidates_per_worker_displacement[i] = candidates_batch_start[i] * sizeof(candidate);
 		
 		if(candidate_batch_left_over > 0 && i <= candidate_batch_left_over){
 			num_candidates_per_worker[i]++;
 		}
+		
+		num_candidates_per_worker_in_bytes[i] = num_candidates_per_worker[i] * sizeof(candidate);
 	}
 	int my_candidate_batch_size = num_candidates_per_worker[rank];
 	int my_candidate_batch_start = candidates_batch_start[rank];
 
 	printf("> %i my_candidate_batch_size: %i, starting at %i\n",rank, my_candidate_batch_size, my_candidate_batch_start);
-
+	if(!is_leader(rank)){
+		candidates = (candidate *) malloc (num_candidates_per_worker_in_bytes[rank]);
+	}
+	
+	MPI_Scatterv(candidates, num_candidates_per_worker_in_bytes, num_candidates_per_worker_displacement, MPI_BYTE, candidates, num_candidates_per_worker_in_bytes[rank], MPI_BYTE, 0, MPI_COMM_WORLD);
+//	
+//	if(rank == 1){
+//		
+//		for(int i = 0; i < 28 && i < my_candidate_batch_size; i++){
+//			printf("\n\nCand: %i\n", i);
+//			for(int j = 0; j < candidates[i].num_lengths; j++){
+//				printf("\t%f", candidates[i].lengths[j]);
+//			}
+//
+//		}
+//	}
+	
+	// now each worker has (1/n)th of the candidates and all the frames.
+	// time to score my candidates against all frames
+	
+	
 	
 	
 	
@@ -173,6 +203,15 @@ int main(int argc, char** argv) {
 	
 	printf("> %i done\n", rank);
 	
+	if(num_candidates_per_worker_displacement){
+		free(num_candidates_per_worker_displacement);
+	}
+	if(num_candidates_per_worker_in_bytes){
+		free(num_candidates_per_worker_in_bytes);
+	}
+	if(candidates){
+		free(candidates);
+	}
 	if(candidates_per_worker_displacement){
 		free(candidates_per_worker_displacement);
 	}
