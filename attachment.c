@@ -44,7 +44,7 @@ void score_candidates_against_frame(score *score, frame *pcl_frame, frame *skele
 
 
 
-void score_candidates_against_frames(score *scores, int my_batch_start, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
+void score_candidates_against_frames(score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
 	
 	int scored_so_far = 0;
 	// consider swapping loops here for speedup, but likely enough inner computation to destroy cache anyways
@@ -53,7 +53,7 @@ void score_candidates_against_frames(score *scores, int my_batch_start, int num_
 		for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
 			memcpy(&(scores[scored_so_far].candidate), &(candidates[candidate_i]), sizeof(candidate));
 			
-			scores[scored_so_far].frame_i = my_batch_start + frame_i;
+			scores[scored_so_far].frame_i = frame_i;
 			scores[scored_so_far].score = 0.0;
 			
 			score_candidates_against_frame(&(scores[scored_so_far]), &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
 	int total_scores = my_candidate_batch_size * num_pointcloud_frames;
 	score *scores = (score *) malloc (total_scores * sizeof(score));
 	
-	score_candidates_against_frames(scores, my_batch_start, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
+	score_candidates_against_frames(scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
 	
 	
 	
