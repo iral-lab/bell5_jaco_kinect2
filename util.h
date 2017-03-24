@@ -8,6 +8,7 @@ typedef struct a_point{
 	double x;
 	double y;
 	double z;
+	int pid; // used for maintaining references between points
 } point;
 
 typedef struct point_frame {
