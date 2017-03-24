@@ -34,9 +34,31 @@ typedef struct score{
 	double *scores; // will store each frame's score in order
 }score;
 
-
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
 	candidate *candidate = &(score->candidate);
+	
+	int num_points = skeleton_frame->num_points;
+	
+	// sort skeleton points by their y value
+	qsort(skeleton_frame->points, skeleton_frame->num_points, sizeof(point), sort_by_y_value);
+	
+	for(int i = 0; i < num_points; i++){
+		skeleton_frame->points[i].pid = i;
+	}
+	
+//	sort_pair *pairs;
+//	get_pairwise_distances(num_points, &pairs, skeleton_frame);
+	
+	int max_path_vertices = candidate->num_lengths + 1;
+	short num_closest = get_num_closest(num_points);
+	
+	
+	int space_on_stack = 0;
+	int stack_size = 0;
+	path *stack = initialize_stack_with_anchors(skeleton_frame, &stack_size, &space_on_stack);
+	
+	
+	
 	
 }
 

@@ -30,7 +30,7 @@ int sort_pairwise_distances(const void *a, const void *b){
 	return ((sort_pair *)a)->distance > ((sort_pair *)b)->distance ? 1 : -1;
 }
 
-void get_pairwise_distances(int rank, int num_points, sort_pair **pairs, frame *frm){
+void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	(*pairs) = (sort_pair *) malloc (num_points * num_points * sizeof(sort_pair));
 	
 	int offset;
@@ -106,6 +106,26 @@ bool in_path(path *path, point *point){
 	return false;
 }
 
+
+path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on_stack){
+	int num_points = frame->num_points;
+	
+	int num_anchors = MIN(MAX_ANCHORS, num_points);
+	point *anchors[num_anchors];
+	get_anchors(num_anchors, anchors, frame);
+	path *stack = NULL;
+	
+	for(int i = 0; i < num_anchors; i++){
+		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(path));
+		
+		memcpy(&(stack[*stack_size].points[0] ), anchors[i], sizeof(point));
+		stack[*stack_size].num_points = 1;
+		(*stack_size)++;
+	}
+	return stack;
+}
+
+
 void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame *frm, int *num_paths, path **paths){
 	//	printf("> %i cand(f_%i) %i vertices\n", rank, frame_n, num_vertices);
 	
@@ -118,13 +138,8 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 		frm->points[i].pid = i;
 	}
 	
-	int num_anchors = MIN(MAX_ANCHORS, num_points);
-	point *anchors[num_anchors];
-	get_anchors(num_anchors, anchors, frm);
-	
-	
 	sort_pair *pairs;
-	get_pairwise_distances(rank, num_points, &pairs, frm);
+	get_pairwise_distances(num_points, &pairs, frm);
 	//	printf("inside compute cands\n");
 	
 	int space_for_paths = 0;
@@ -132,17 +147,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
-	path *stack = NULL;
-	
-	for(int i = 0; i < num_anchors; i++){
-		stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
-		//		printf("OUTER stack now has space for %i, has %i\n", space_on_stack, stack_size);
-		
-		memcpy(&(stack[stack_size].points[0] ), anchors[i], sizeof(point));
-		stack[stack_size].num_points = 1;
-		//		print_path(&(stack[stack_size]));
-		stack_size++;
-	}
+	path *stack = initialize_stack_with_anchors(frm, &stack_size, &space_on_stack);
 	
 	short num_closest = get_num_closest(num_points);
 	sort_pair *nearest_pair;
