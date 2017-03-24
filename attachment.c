@@ -140,6 +140,23 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	}
 	
 	
+	path current_path;
+	while(stack_size > 0){
+		memcpy(&current_path, stack, sizeof(path));
+//		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.length);
+		if(stack_size > 1){
+			memmove(stack, &(stack[1]), (stack_size - 1) * sizeof(path));
+//			printf("first on stack: %f,%f,%f of %i\n", stack[0].points[0].x,stack[0].points[0].y,stack[0].points[0].z,stack[0].length);
+		}
+		stack_size--;
+		
+		
+		
+		
+		
+	}
+	
+	
 	
 	free(pairs);
 }
