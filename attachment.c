@@ -13,6 +13,7 @@
 #define MAX_EDGES 5
 #define MAX_VERTICES MAX_EDGES + 1
 #define MAX_ANCHORS 3
+#define BRANCH_NEIGHBORS 3
 
 #define SAMPLE_PCL_POINTS 1
 // rate / 100 ~= sample%
@@ -36,9 +37,8 @@ double euclid_distance(point *p0, point *p1){
 }
 
 typedef struct sort_pair{
-	short i;
-	short j;
-	double val;
+	int pid; // pid referencing which point the distance is to
+	double distance;
 }sort_pair;
 
 typedef struct path{
@@ -47,8 +47,8 @@ typedef struct path{
 } path;
 
 int sort_pairwise_distances(const void *a, const void *b){
-//	printf("COMPARING %f and %f\n",((sort_pair *)a)->val,((sort_pair *)b)->val);
-	return ((sort_pair *)a)->val > ((sort_pair *)b)->val ? 1 : -1;
+//	printf("COMPARING %f and %f\n",((sort_pair *)a)->distance,((sort_pair *)b)->distance);
+	return ((sort_pair *)a)->distance > ((sort_pair *)b)->distance ? 1 : -1;
 }
 
 void get_pairwise_distances(int rank, int num_points, sort_pair **pairs, frame *frm){
@@ -56,35 +56,38 @@ void get_pairwise_distances(int rank, int num_points, sort_pair **pairs, frame *
 	
 	int offset;
 	point *p0, *p1;
+	sort_pair *this_pair;
 	for(int i = 0; i < num_points; i++){
 		p0 = &(frm->points[i]);
 		for(int j = 0; j < num_points; j++){
 			offset = (i * num_points + j); // i = rows, j = cols
-			(*pairs)[offset].i = i;
-			(*pairs)[offset].j = j;
+			
 			p1 = &(frm->points[j]);
+			(*pairs)[offset].pid = p1->pid;
 			if(i == j){
-				(*pairs)[offset].val = 0.0;
+				(*pairs)[offset].distance = 0.0;
 			}else{
-				(*pairs)[offset].val = euclid_distance(p0, p1);
+				(*pairs)[offset].distance = euclid_distance(p0, p1);
 			}
-//			printf("1) Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
+//			printf("1) Dist bet (%i) %f,%f,%f and (%i) %f,%f,%f = %f\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
 		}
 		
 		// got distances, now sort them inside each row
-//		printf("> %i got distances\n", rank);
-		qsort(&((*pairs)[i * num_points]), num_points, sizeof(sort_pair), sort_pairwise_distances);
-//		printf("> %i sorted\n", rank);
-		for(int j = 0; j < num_points; j++){
-			p1 = &(frm->points[j]);
-//			printf("< %i p1: %f %f %f\n", j, p1->x, p1->y, p1->z);
-			offset = (i * num_points + j); // i = rows, j = cols
-//			printf("offset: %i\n",offset);
-			(*pairs)[offset].i = i;
-			(*pairs)[offset].j = j;
-//			printf("2) Dist bet %f,%f,%f and %f,%f,%f = %f\n", p0->x, p0->y, p0->z, p1->x, p1->y, p1->z, (*pairs)[offset].val);
-		}
 		
+		qsort(&((*pairs)[i * num_points]), num_points, sizeof(sort_pair), sort_pairwise_distances);
+		
+		/*
+		 // to check sort worked
+		for(int j = 0; j < num_points; j++){
+			offset = (i * num_points + j); // i = rows, j = cols
+			this_pair = &((*pairs)[offset]);
+			
+			p1 = &(frm->points[ this_pair->pid ]);
+			
+			printf("2) Dist bet (%i) %f,%f,%f and (%i) %f,%f,%f = %f\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
+		}
+		printf("\n\n");
+		 */
 	}
 }
 
@@ -93,37 +96,46 @@ int sort_by_y_value(const void *a, const void *b){
 }
 
 void get_anchors(int num_anchors, point **anchors, frame *frm){
-	qsort(frm->points, frm->num_points, sizeof(point), sort_by_y_value);
-	
 	for(int i = 0; i < num_anchors; i++){
 		anchors[i] = &(frm->points[i]);
-//		printf("point %i: %f,%f,%f\n", i, anchors[i]->x, anchors[i]->y, anchors[i]->z);
+		printf("point %i: (pid: %i) %f,%f,%f\n", i, anchors[i]->pid, anchors[i]->x, anchors[i]->y, anchors[i]->z);
 	}
 }
 
 void print_path(path *path){
-	printf("Path:\n");
+	printf("Path: (%i long)\n", path->length);
 	for(int i = 0; i < path->length; i++){
 		printf("\t%f\t%f\t%f\n", path->points[i].x,path->points[i].y,path->points[i].z);
 	}
+}
+
+short get_num_closest(num_points){
+	return MIN(BRANCH_NEIGHBORS, num_points);
 }
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
 	printf("> %i cand(f_%i)\n", rank, frame_n);
 	
 	int num_points = frm->num_points;
-	sort_pair *pairs;
-	get_pairwise_distances(rank, num_points, &pairs, frm);
+	
+	// sort points by their y value
+	qsort(frm->points, frm->num_points, sizeof(point), sort_by_y_value);
+	
+	for(int i = 0; i < num_points; i++){
+		frm->points[i].pid = i;
+	}
 	
 	int num_anchors = MIN(MAX_ANCHORS, num_points);
 	point *anchors[num_anchors];
 	get_anchors(num_anchors, anchors, frm);
 	
+
+	sort_pair *pairs;
+	get_pairwise_distances(rank, num_points, &pairs, frm);
 	printf("inside compute cands\n");
 	
 	int space_for_paths = 0;
 	(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
-	memset(*paths, 0, sizeof(path) * space_for_paths);
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
@@ -139,8 +151,12 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 		stack_size++;
 	}
 	
-	
+	short num_closest = get_num_closest(num_points);
+	point *nearest;
 	path current_path;
+	point *last_point;
+	
+	int offset;
 	while(stack_size > 0){
 		memcpy(&current_path, stack, sizeof(path));
 //		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.length);
@@ -150,8 +166,29 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 		}
 		stack_size--;
 		
+		printf("Current ");
+		print_path(&current_path);
+		
+		if(MAX_VERTICES == current_path.length){
+			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
+			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
+			printf("Copied ");
+			print_path(&((*paths)[*num_paths]));
+			(*num_paths)++;
+		}
 		
 		
+		last_point = &(current_path.points[ current_path.length - 1]);
+		
+		for(int i = 1; i < num_points; i++){
+			/// start at 1 because 0th 'nearest' is itself with 0 distance
+//			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
+//			nearest = pairs[offset];
+//			printf("nearest to current's last: (%i) ")
+			
+//			if(
+			
+		}
 		
 		
 	}
