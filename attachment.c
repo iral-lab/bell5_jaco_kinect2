@@ -28,6 +28,49 @@
 #include "util.h"
 #include "compute_candidates.h"
 
+
+typedef struct score{
+	short frame_i;
+	candidate candidate;
+	double score;
+}score;
+
+
+void score_candidates_against_frame(score *score, frame *pcl_frame, frame *skeleton_frame){
+	candidate *candidate = &(score->candidate);
+	
+	
+}
+
+
+
+void score_candidates_against_frames(score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
+	
+	int scored_so_far = 0;
+	// consider swapping loops here for speedup, but likely enough inner computation to destroy cache anyways
+	for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
+		
+		for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
+			memcpy(&(scores[scored_so_far].candidate), &(candidates[candidate_i]), sizeof(candidate));
+			
+			scores[scored_so_far].frame_i = frame_i;
+			scores[scored_so_far].score = 0.0;
+			
+			score_candidates_against_frame(&(scores[scored_so_far]), &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+			
+			scored_so_far++;
+		}
+		
+	}
+	
+}
+
+
+
+
+
+
+
 bool is_leader(int rank){
 	return 0 == rank;
 }
@@ -192,7 +235,10 @@ int main(int argc, char** argv) {
 	// now each worker has (1/n)th of the candidates and all the frames.
 	// time to score my candidates against all frames
 	
+	int total_scores = my_candidate_batch_size * num_pointcloud_frames;
+	score *scores = (score *) malloc (total_scores * sizeof(score));
 	
+	score_candidates_against_frames(scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
 	
 	
 	
@@ -202,7 +248,9 @@ int main(int argc, char** argv) {
 	
 	
 	printf("> %i done\n", rank);
-	
+	if(scores){
+		free(scores);
+	}
 	if(num_candidates_per_worker_displacement){
 		free(num_candidates_per_worker_displacement);
 	}
