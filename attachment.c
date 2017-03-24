@@ -105,7 +105,7 @@ void get_anchors(int num_anchors, point **anchors, frame *frm){
 void print_path(path *path){
 	printf("Path: (%i long)\n", path->length);
 	for(int i = 0; i < path->length; i++){
-		printf("\t%f\t%f\t%f\n", path->points[i].x,path->points[i].y,path->points[i].z);
+		printf("\t(%i)\t%f\t%f\t%f\n", path->points[i].pid, path->points[i].x, path->points[i].y, path->points[i].z);
 	}
 }
 
@@ -152,7 +152,8 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	}
 	
 	short num_closest = get_num_closest(num_points);
-	point *nearest;
+	sort_pair *nearest_pair;
+	point *nearest_point;
 	path current_path;
 	point *last_point;
 	
@@ -182,9 +183,10 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 		
 		for(int i = 1; i < num_points; i++){
 			/// start at 1 because 0th 'nearest' is itself with 0 distance
-//			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
-//			nearest = pairs[offset];
-//			printf("nearest to current's last: (%i) ")
+			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
+			nearest_pair = &(pairs[offset]);
+			nearest_point = &(frm->points[nearest_pair->pid]);
+			printf("nearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
 			
 //			if(
 			
