@@ -30,16 +30,14 @@
 
 
 typedef struct score{
-	short frame_i;
 	candidate candidate;
-	double score;
+	double *scores; // will store each frame's score in order
 }score;
 
 
-void score_candidates_against_frame(score *score, frame *pcl_frame, frame *skeleton_frame){
+void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
 	candidate *candidate = &(score->candidate);
 	
-	printf("scoring candidate against frame %i\n", score->frame_i);
 }
 
 
@@ -47,20 +45,19 @@ void score_candidates_against_frame(score *score, frame *pcl_frame, frame *skele
 void score_candidates_against_frames(score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
 	
 	int scored_so_far = 0;
-	// consider swapping loops here for speedup, but likely enough inner computation to destroy cache anyways
-	for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
+	
+	for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
+		memcpy(&(scores[scored_so_far].candidate), &(candidates[candidate_i]), sizeof(candidate));
+		scores[scored_so_far].scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
 		
-		for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
-			memcpy(&(scores[scored_so_far].candidate), &(candidates[candidate_i]), sizeof(candidate));
-			
-			scores[scored_so_far].frame_i = frame_i;
-			scores[scored_so_far].score = 0.0;
-			
-			score_candidates_against_frame(&(scores[scored_so_far]), &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+		for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
+			printf("scoring candidate %i against frame %i\n", candidate_i, frame_i);
+			score_candidates_against_frame(&(scores[scored_so_far]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
 			
 			scored_so_far++;
+			break;
 		}
-		
+		break;
 	}
 	
 }
@@ -115,6 +112,13 @@ int main(int argc, char** argv) {
 		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &skeleton_packed_points, &num_pointcloud_frames, &all_pointcloud_frames, &pointcloud_packed_points);
 		
 		// compute candidate for first num_skeleton_frames / world_size
+	}
+	
+	if(num_pointcloud_frames != num_skeleton_frames){
+		if(is_leader(rank)){
+			printf("Invalid frame counts, unequal. %i PCL, %i skeleton\n", num_pointcloud_frames, num_skeleton_frames);
+		}
+		exit(1);
 	}
 	
 	int worker_count = world_size - 1;
