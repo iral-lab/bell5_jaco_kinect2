@@ -48,10 +48,10 @@ typedef struct path{
 	point points[MAX_VERTICES];
 } path;
 
-typedef struct length_path{
+typedef struct candidate{
 	short num_lengths;
 	double lengths[MAX_EDGES];
-} length_path;
+} candidate;
 
 int sort_pairwise_distances(const void *a, const void *b){
 //	printf("COMPARING %f and %f\n",((sort_pair *)a)->distance,((sort_pair *)b)->distance);
@@ -287,12 +287,13 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 //	double dist = euclid_distance(&p0, &p1);
 //	printf("distance: %f\n", dist);
 //
+	path *paths = NULL;
+	int num_paths = 0;
 	
 	int frame_n;
 	for(int i = 0; i < num_skeleton_frames; i++){
 		frame_n = my_start + i;
-		path *paths = NULL;
-		int num_paths = 0;
+		
 		int batch_start = 0;
 		for(int num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
 			batch_start = num_paths;
@@ -304,35 +305,39 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 			// if there is a duplication, something went wrong in path generation above.
 //			deduplicate_paths(&(paths[batch_start]), num_paths - batch_start);
 			
-			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
+//			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
 		}
 		
-		// turn paths to length edges
-		length_path *length_paths = (length_path *) malloc (num_paths * sizeof(length_path));
-		memset(length_paths, 0, num_paths * sizeof(length_path));
-		
-		for(int j = 0; j < num_paths; j++){
-			for(int k = 0; k < paths[j].num_points - 1; k++){
-				length_paths[j].lengths[k] = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
-				
-//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", length_paths[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
-				
-				length_paths[j].num_lengths++;
-			}
-//			printf("\n\n");
-		}
-		
-//		printf("> %i %i lengths\n", rank, num_paths);
 		
 		
-		
-		if(paths){
-			free(paths);
-		}
-		break;
+//		break;
 	}
 	
+	// turn paths to length edges
+	candidate *candidates = (candidate *) malloc (num_paths * sizeof(candidate));
+	memset(candidates, 0, num_paths * sizeof(candidate));
 	
+	for(int j = 0; j < num_paths; j++){
+		for(int k = 0; k < paths[j].num_points - 1; k++){
+			candidates[j].lengths[k] = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
+			
+			//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", candidates[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
+			
+			candidates[j].num_lengths++;
+		}
+		//			printf("\n\n");
+	}
+	
+//	printf("> %i %i lengths\n", rank, num_paths);
+
+	// gather the number of candidates
+	MPI_Gather(&num_paths, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	
+	MPI_Gatherv(candidates, num_paths * sizeof(candidate), MPI_BYTE, NULL, 0, NULL, MPI_BYTE, 0, MPI_COMM_WORLD);
+	
+	if(paths){
+		free(paths);
+	}
 }
 
 
@@ -406,15 +411,38 @@ int main(int argc, char** argv) {
 	// unnecessary, but used for log ordering
 	MPI_Barrier(MPI_COMM_WORLD);
 	
+	int *candidates_per_worker = NULL;
+	int *candidates_per_worker_in_bytes = NULL;
+	int *candidates_per_worker_displacement = NULL;
+	candidate *candidates = NULL;
+	
 	if(is_leader(rank)){
 		// receive candidates
+		candidates_per_worker = (int *) malloc (world_size * sizeof(int));
+		candidates_per_worker_in_bytes = (int *) malloc (world_size * sizeof(int));
+		candidates_per_worker_displacement = (int *) malloc (world_size * sizeof(int));
+		
+		MPI_Gather(&my_batch_size, 1, MPI_INT, candidates_per_worker, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		
+		printf("received candidate counts:\n");
+		int num_candidates = 0;
+		for(int i = 0; i < world_size; i++){
+			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
+			num_candidates += candidates_per_worker[i];
+			candidates_per_worker_in_bytes[i] = candidates_per_worker[i] * sizeof(candidate);
+			printf("From %i: %i for %i bytes\n", i, candidates_per_worker[i], candidates_per_worker_in_bytes[i]);
+		}
+		
+		candidates = (candidate *) malloc (num_candidates * sizeof(candidate));
+		memset(candidates, 0, num_candidates * sizeof(candidate));
+		
+		MPI_Gatherv(NULL, 0, MPI_BYTE, candidates, candidates_per_worker_in_bytes, candidates_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
+		printf("received %i candidates via gatherv\n", num_candidates);
 		
 		
 		
-//	}else{
-	}else if(rank == 1){
+	}else{
 		// compute candidates
-		
 		compute_candidate_for_frames(rank, my_batch_size, my_batch_start, &(all_skeleton_frames[my_batch_start]));
 		
 	}
@@ -427,6 +455,15 @@ int main(int argc, char** argv) {
 	
 	printf("> %i done\n", rank);
 	
+	if(candidates_per_worker_displacement){
+		free(candidates_per_worker_displacement);
+	}
+	if(candidates_per_worker_in_bytes){
+		free(candidates_per_worker_in_bytes);
+	}
+	if(candidates_per_worker){
+		free(candidates_per_worker);
+	}
 	if(frames_per_worker){
 		free(frames_per_worker);
 	}
