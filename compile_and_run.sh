@@ -1,3 +1,5 @@
+reset
+
 PROG="attachment"
 CORES="4"
 COMP="mpicc -o $PROG attachment.c"
