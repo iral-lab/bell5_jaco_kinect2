@@ -300,11 +300,11 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
 //			printf(">> was %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
 			
-			// de-dupe paths, just in case
-			deduplicate_paths(&(paths[batch_start]), num_paths - batch_start);
+			// de-dupe paths, exceedingly unlikely, since there won't be duplicated skeleton points.
+			// if there is a duplication, something went wrong in path generation above.
+//			deduplicate_paths(&(paths[batch_start]), num_paths - batch_start);
 			
 			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
-			
 		}
 		
 		
