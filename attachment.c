@@ -17,6 +17,8 @@
 #define MAX_ANCHORS 3
 #define BRANCH_NEIGHBORS 3
 
+#define LAMBDA_SCALAR 1.1
+
 #define SAMPLE_PCL_POINTS 1
 // rate / 100 ~= sample%
 #define PCL_POINTS_SAMPLE_RATE 30
@@ -105,10 +107,13 @@ double get_error_to_path(path *path, frame *pcl_frame){
 
 double score_path(path *path, frame *pcl_frame){
 	double error = get_error_to_path(path, pcl_frame);
+	// want the error to be a penalty, more error => lower score
+	error *= -100;
 	
-	
-	
-	return error;
+	int edge_count = path->num_points - 1;
+	double edge_penalty = expf(LAMBDA_SCALAR * edge_count);
+	double total_penalty = error - edge_penalty;
+	return total_penalty;
 }
 
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
