@@ -38,8 +38,77 @@ typedef struct score{
 	double *scores; // will store each frame's score in order
 }score;
 
+double v_dot(point *u, point *v){
+	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
+}
+double v_norm(point *v){
+	return sqrt(v_dot(v,v));
+}
+void vector_between(point *u, point *v, point *vector){
+	vector->x = u->x - v->x;
+	vector->y = u->y - v->y;
+	vector->z = u->z - v->z;
+}
+double v_dist(point *u, point *v){
+	point vector;
+	vector_between(u,v,&vector);
+	return v_norm(&vector);
+}
+
+double distance_to_segment(point *p, point *s0, point *s1){
+	
+	point v;
+	vector_between(s1, s0, &v);
+	point w;
+	vector_between(p, s0, &w);
+	double c1 = v_dot(&w, &v);
+	if(c1 < 0){
+		return v_dist(p, s0);
+	}
+	double c2 = v_dot(&v, &v);
+	if(c2 <= c1){
+		return v_dist(p, s1);
+	}
+	double b = c1 / c2;
+	
+	v.x = s0->x + b * v.x;
+	v.y = s0->y + b * v.y;
+	v.z = s0->z + b * v.z;
+	
+	return v_dist(p, &v);
+}
+
+double get_error_to_path(path *path, frame *pcl_frame){
+	double error = 0.0;
+	
+	point *p,*p0,*p1;
+	double best_distance, this_distance;
+	
+	for(int i = 0; i < pcl_frame->num_points; i++){
+		p = &(pcl_frame->points[i]);
+		best_distance = 99999;
+		
+		for(int j = 0; j < path->num_points - 1; j++){
+			p0 = &(path->points[j]);
+			p1 = &(path->points[j+1]);
+			
+			this_distance = distance_to_segment(p, p0, p1);
+			if(this_distance < best_distance){
+				best_distance = this_distance;
+			}
+		}
+		
+		error += best_distance;
+	}
+	return error;
+}
+
 double score_path(path *path, frame *pcl_frame){
-	return 0.0;
+	double error = get_error_to_path(path, pcl_frame);
+	
+	
+	
+	return error;
 }
 
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
@@ -96,18 +165,19 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			
 			printf("FINALIZED PATH with score of %f\n", paths[num_paths].score);
 			print_path(&(paths[num_paths].path));
+			printf("\n\n");
 			
 			num_paths++;
 			continue;
 		}
-		print_path(&current_path);
+//		print_path(&current_path);
 		
 		last_point = &(current_path.points[ current_path.num_points - 1]);
 		added = 0;
 		desired_length = candidate->lengths[current_path.num_points-1];
 		for(int i = 0; i < num_closest && added < num_points; i++){
 			
-			printf("looking for a point %f away from %f,%f,%f\n", desired_length, last_point->x, last_point->y, last_point->z);
+//			printf("looking for a point %f away from %f,%f,%f\n", desired_length, last_point->x, last_point->y, last_point->z);
 			
 			// adds the point that is the closest to the current length away from the last point
 			
@@ -146,7 +216,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 				exit(1);
 			}
 			
-			printf("adding pid %i at %f,%f,%f, which is %f away, error %f\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
+//			printf("adding pid %i at %f,%f,%f, which is %f away, error %f\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
 			
 			// standard ending
 			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
