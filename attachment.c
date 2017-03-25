@@ -377,7 +377,12 @@ int main(int argc, char** argv) {
 		printf("ROOT: received %i candidates via gatherv\n", num_candidates);
 		
 		validate_candidates(rank, num_candidates, candidates);
+		printf("ROOT: all candidates valid\n");
 		
+		printf("ROOT: randomizing candidates\n");
+		randomize_array(candidates, num_candidates, sizeof(candidate));
+		
+		validate_candidates(rank, num_candidates, candidates);
 		printf("ROOT: all candidates valid\n");
 		
 	}else{

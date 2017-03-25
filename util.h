@@ -21,6 +21,19 @@ void debug(char * str){
 	fflush(stdout);
 }
 
+void randomize_array(void *list, int n, int size){
+	if(n < 2){
+		return;
+	}
+	void *temp = (void *) malloc(size);
+	int random;
+	for(int i = 0; i < n; i++){
+		random = rand() % n;
+		memcpy(temp, &(list[i * size]), size);
+		memcpy(&(list[i * size]), &(list[random * size]), size);
+		memcpy(&(list[random * size]), temp, size);
+	}
+}
 
 void * get_more_space_and_copy(int *space_for, void *some_list, int so_far, frame_type type, int sizeof_item){
 	
