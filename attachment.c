@@ -28,15 +28,28 @@
 #include "util.h"
 #include "compute_candidates.h"
 
+typedef struct scored_path{
+	path path;
+	double score;
+}scored_path;
 
 typedef struct score{
 	candidate candidate;
 	double *scores; // will store each frame's score in order
 }score;
 
+double score_path(path *path, frame *pcl_frame){
+	return 0.0;
+}
+
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
 	candidate *candidate = &(score->candidate);
-	
+	printf("Candidate:\n");
+	for(int i = 0; i < candidate->num_lengths; i++){
+		printf("\t%f\n", candidate->lengths[i]);
+	}
+		   
+		   
 	int num_points = skeleton_frame->num_points;
 	
 	// sort skeleton points by their y value
@@ -46,18 +59,112 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		skeleton_frame->points[i].pid = i;
 	}
 	
-//	sort_pair *pairs;
-//	get_pairwise_distances(num_points, &pairs, skeleton_frame);
+	sort_pair *pairs;
+	get_pairwise_distances(num_points, &pairs, skeleton_frame);
 	
 	int max_path_vertices = candidate->num_lengths + 1;
 	short num_closest = get_num_closest(num_points);
+	
+	int space_for_paths = 0;
+	int num_paths = 0;
+	scored_path *paths = get_more_space_and_copy(&space_for_paths, NULL, num_paths, PATHS, sizeof(scored_path));
 	
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
 	path *stack = initialize_stack_with_anchors(skeleton_frame, &stack_size, &space_on_stack);
+	path current_path;
+	point *last_point;
+	point *other_point;
+	point new_point;
+	sort_pair *other_pair;
 	
+	int offset, added;
+	double desired_length;
 	
+	int added_pids[num_closest];
+	
+	while(stack_size > 0){
+		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
+		stack_size--;
+		
+		if(current_path.num_points == max_path_vertices){
+			paths = get_more_space_and_copy(&space_for_paths, paths, num_paths, PATHS, sizeof(scored_path));
+			memcpy( &(paths[num_paths]), &current_path, sizeof(path));
+			
+			paths[num_paths].score = score_path(&current_path, pcl_frame);
+			
+			printf("FINALIZED PATH with score of %f\n", paths[num_paths].score);
+			print_path(&(paths[num_paths].path));
+			
+			num_paths++;
+			continue;
+		}
+		print_path(&current_path);
+		
+		last_point = &(current_path.points[ current_path.num_points - 1]);
+		added = 0;
+		desired_length = candidate->lengths[current_path.num_points-1];
+		for(int i = 0; i < num_closest && added < num_points; i++){
+			
+			printf("looking for a point %f away from %f,%f,%f\n", desired_length, last_point->x, last_point->y, last_point->z);
+			
+			// adds the point that is the closest to the current length away from the last point
+			
+			
+			point *best_point = NULL;
+			double smallest_error = 9999;
+			double best_points_distance = 0;
+			double error;
+			bool already_added;
+			for(int j = 1; j < num_points; j++){
+				// start at 1 since 0 is itself
+				offset = (last_point->pid * num_points + j);
+				other_pair = &(pairs[offset]);
+				already_added = false;
+				for(int k = 0; k < added; k++){
+					if(other_pair->pid == added_pids[k]){
+						already_added = true;
+						break;
+					}
+				}
+				if(already_added){
+					continue;
+				}
+				
+				error = fabs(other_pair->distance - desired_length);
+				if(error < smallest_error){
+					other_point = &(skeleton_frame->points[other_pair->pid]);
+					smallest_error = error;
+					best_point = other_point;
+					best_points_distance = other_pair->distance;
+				}
+			}
+			
+			if(!best_point){
+				printf("SOMETHING WENT WRONG, no point was selected\n");
+				exit(1);
+			}
+			
+			printf("adding pid %i at %f,%f,%f, which is %f away, error %f\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
+			
+			// standard ending
+			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
+			
+			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
+			
+			memcpy(&(stack[stack_size].points[current_path.num_points]), best_point, sizeof(point));
+			stack[stack_size].num_points++;
+
+			stack_size++;
+			
+			added_pids[added] = best_point->pid;
+			added++;
+			
+		}
+		
+		
+	}
 	
 	
 }
@@ -264,8 +371,9 @@ int main(int argc, char** argv) {
 	int total_scores = my_candidate_batch_size * num_pointcloud_frames;
 	score *scores = (score *) malloc (total_scores * sizeof(score));
 	
-	score_candidates_against_frames(scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
-	
+	if(rank == 1){
+		score_candidates_against_frames(scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
+	}
 	
 	
 	
