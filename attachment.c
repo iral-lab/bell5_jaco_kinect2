@@ -118,12 +118,7 @@ double score_path(path *path, frame *pcl_frame){
 
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
 	candidate *candidate = &(score->candidate);
-	printf("Candidate:\n");
-	for(int i = 0; i < candidate->num_lengths; i++){
-		printf("\t%f\n", candidate->lengths[i]);
-	}
-		   
-		   
+	
 	int num_points = skeleton_frame->num_points;
 	
 	// sort skeleton points by their y value
@@ -158,19 +153,25 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	
 	int added_pids[num_closest];
 	
+	double best_score = -999999999;
+	double temp_score;
+	
 	while(stack_size > 0){
 		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
 		stack_size--;
 		
 		if(current_path.num_points == max_path_vertices){
-			paths = get_more_space_and_copy(&space_for_paths, paths, num_paths, PATHS, sizeof(scored_path));
-			memcpy( &(paths[num_paths]), &current_path, sizeof(path));
+//			paths = get_more_space_and_copy(&space_for_paths, paths, num_paths, PATHS, sizeof(scored_path));
+//			memcpy( &(paths[num_paths]), &current_path, sizeof(path));
 			
-			paths[num_paths].score = score_path(&current_path, pcl_frame);
+//			paths[num_paths].score = score_path(&current_path, pcl_frame);
 			
-			printf("FINALIZED PATH with score of %f\n", paths[num_paths].score);
-			print_path(&(paths[num_paths].path));
-			printf("\n\n");
+			temp_score = score_path(&current_path, pcl_frame);
+			best_score = MAX(best_score, temp_score);
+			
+//			printf("FINALIZED PATH with score of %f\n", paths[num_paths].score);
+//			print_path(&(paths[num_paths].path));
+//			printf("\n\n");
 			
 			num_paths++;
 			continue;
@@ -241,33 +242,30 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		
 	}
 	
-	
+	// now find the best score among all paths and just assign that score to this candidate/frame combo
+	score->scores[frame_i] = best_score;
 }
 
 
 
-void score_candidates_against_frames(score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
-	
-	int scored_so_far = 0;
+void score_candidates_against_frames(int rank, score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
 	
 	for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
-		memcpy(&(scores[scored_so_far].candidate), &(candidates[candidate_i]), sizeof(candidate));
-		scores[scored_so_far].scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
+		
+		memcpy(&(scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
+		scores[candidate_i].scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
 		
 		for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
-			printf("scoring candidate %i against frame %i\n", candidate_i, frame_i);
-			score_candidates_against_frame(&(scores[scored_so_far]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
 			
-			scored_so_far++;
-			break;
+			score_candidates_against_frame(&(scores[candidate_i]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+			printf("%i scoring candidate %i against frame %i >> %f\n", rank, candidate_i, frame_i, scores[candidate_i].scores[frame_i]);
+			
+//			break;
 		}
-		break;
+//		break;
 	}
 	
 }
-
-
-
 
 
 
@@ -316,6 +314,7 @@ int main(int argc, char** argv) {
 		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &skeleton_packed_points, &num_pointcloud_frames, &all_pointcloud_frames, &pointcloud_packed_points);
 		
 		// compute candidate for first num_skeleton_frames / world_size
+		
 	}
 	
 	if(num_pointcloud_frames != num_skeleton_frames){
@@ -362,28 +361,24 @@ int main(int argc, char** argv) {
 		
 		MPI_Gather(&my_batch_size, 1, MPI_INT, candidates_per_worker, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		
-		printf("received candidate counts:\n");
+		printf("ROOT: received candidate counts:\n");
 		
 		for(int i = 0; i < world_size; i++){
 			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
 			num_candidates += candidates_per_worker[i];
 			candidates_per_worker_in_bytes[i] = candidates_per_worker[i] * sizeof(candidate);
-			printf("From %i: %i for %i bytes\n", i, candidates_per_worker[i], candidates_per_worker_in_bytes[i]);
+			printf("ROOT: From %i: %i for %i bytes\n", i, candidates_per_worker[i], candidates_per_worker_in_bytes[i]);
 		}
 		
 		candidates = (candidate *) malloc (num_candidates * sizeof(candidate));
 		memset(candidates, 0, num_candidates * sizeof(candidate));
 		
 		MPI_Gatherv(NULL, 0, MPI_BYTE, candidates, candidates_per_worker_in_bytes, candidates_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
-		printf("received %i candidates via gatherv\n", num_candidates);
+		printf("ROOT: received %i candidates via gatherv\n", num_candidates);
 		
-//		for(int i = 0; i < 28 && i < num_candidates; i++){
-//			printf("\n\nCand: %i\n", i);
-//			for(int j = 0; j < candidates[i].num_lengths; j++){
-//				printf("\t%f", candidates[i].lengths[j]);
-//			}
-//			
-//		}
+		validate_candidates(rank, num_candidates, candidates);
+		
+		printf("ROOT: all candidates valid\n");
 		
 	}else{
 		// compute candidates
@@ -428,30 +423,19 @@ int main(int argc, char** argv) {
 	}
 	
 	MPI_Scatterv(candidates, num_candidates_per_worker_in_bytes, num_candidates_per_worker_displacement, MPI_BYTE, candidates, num_candidates_per_worker_in_bytes[rank], MPI_BYTE, 0, MPI_COMM_WORLD);
-//	
-//	if(rank == 1){
-//		
-//		for(int i = 0; i < 28 && i < my_candidate_batch_size; i++){
-//			printf("\n\nCand: %i\n", i);
-//			for(int j = 0; j < candidates[i].num_lengths; j++){
-//				printf("\t%f", candidates[i].lengths[j]);
-//			}
-//
-//		}
-//	}
+	
+	validate_candidates(rank, my_candidate_batch_size, candidates);
+	printf("%i PASSED candidate validation\n", rank);
+	
+	MPI_Barrier(MPI_COMM_WORLD);
 	
 	// now each worker has (1/n)th of the candidates and all the frames.
 	// time to score my candidates against all frames
+	// one score per candidate, as it will have its scores for each frame internally
+	score *scores = (score *) malloc (my_candidate_batch_size * sizeof(score));
 	
-	int total_scores = my_candidate_batch_size * num_pointcloud_frames;
-	score *scores = (score *) malloc (total_scores * sizeof(score));
-	
-	if(rank == 1){
-		score_candidates_against_frames(scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
-	}
-	
-	
-	
+	score_candidates_against_frames(rank, scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
+
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
