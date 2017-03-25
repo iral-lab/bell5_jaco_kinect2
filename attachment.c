@@ -38,7 +38,13 @@ typedef struct scored_path{
 typedef struct score{
 	candidate candidate;
 	double *scores; // will store each frame's score in order
+	double num_scores;
 }score;
+
+typedef struct final_score{
+	candidate candidate;
+	double score;
+}final_score;
 
 double v_dot(point *u, point *v){
 	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
@@ -114,6 +120,11 @@ double score_path(path *path, frame *pcl_frame){
 	double edge_penalty = expf(LAMBDA_SCALAR * edge_count);
 	double total_penalty = error - edge_penalty;
 	return total_penalty;
+}
+
+int sort_by_score(const void *a, const void *b){
+	// returns higher scores as better
+	return ((final_score *) a)->score < ((final_score *) b)->score ? 1 : -1;
 }
 
 void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
@@ -253,11 +264,13 @@ void score_candidates_against_frames(int rank, score *scores, int num_candidates
 	for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
 		
 		memcpy(&(scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
+		scores[candidate_i].num_scores = 0;//num_pointcloud_frames;
 		scores[candidate_i].scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
 		
 		for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 			
 			score_candidates_against_frame(&(scores[candidate_i]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+			scores[candidate_i].num_scores++;
 			printf("%i scoring candidate %i against frame %i >> %f\n", rank, candidate_i, frame_i, scores[candidate_i].scores[frame_i]);
 			
 //			break;
@@ -268,7 +281,18 @@ void score_candidates_against_frames(int rank, score *scores, int num_candidates
 }
 
 
-
+double compute_final_score(int num_scores, double *scores){
+	if(num_scores == 0){
+		return 0;
+	}
+	
+	// basic, compute average.
+	double sum = 0.0;
+	for(int i = 0; i < num_scores; i++){
+		sum += scores[i];
+	}
+	return sum / num_scores;
+}
 
 bool is_leader(int rank){
 	return 0 == rank;
@@ -406,6 +430,13 @@ int main(int argc, char** argv) {
 	memset(num_candidates_per_worker, 0, world_size * sizeof(int));
 	memset(candidates_batch_start, 0, world_size * sizeof(int));
 	
+	int *final_candidates_per_worker_bytes = (int *) malloc (world_size * sizeof(int));
+	int *final_candidates_per_worker_displacement = (int *) malloc (world_size * sizeof(int));
+	memset(final_candidates_per_worker_bytes, 0, world_size * sizeof(int));
+	memset(final_candidates_per_worker_displacement, 0, world_size * sizeof(int));
+	
+	
+	
 	int total_candidates_assigned = 0;
 	for(int i = 1; i < world_size; i++){
 		num_candidates_per_worker[i] = min_candidate_batch_size;
@@ -416,6 +447,9 @@ int main(int argc, char** argv) {
 		if(candidate_batch_left_over > 0 && i <= candidate_batch_left_over){
 			num_candidates_per_worker[i]++;
 		}
+		
+		final_candidates_per_worker_bytes[i] = num_candidates_per_worker[i] * sizeof(double);
+		final_candidates_per_worker_displacement[i] = final_candidates_per_worker_displacement[i-1] + final_candidates_per_worker_bytes[i-1];
 		
 		num_candidates_per_worker_in_bytes[i] = num_candidates_per_worker[i] * sizeof(candidate);
 	}
@@ -438,16 +472,59 @@ int main(int argc, char** argv) {
 	// time to score my candidates against all frames
 	// one score per candidate, as it will have its scores for each frame internally
 	score *scores = (score *) malloc (my_candidate_batch_size * sizeof(score));
+	memset(scores, 0, my_candidate_batch_size * sizeof(score));
 	
 	score_candidates_against_frames(rank, scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
-
+	
+	printf("%i finished scoring\n", rank); fflush(stdout);
+	
+	final_score *final_scores;
+	if(is_leader(rank)){
+		final_scores = (final_score *) malloc (num_candidates * sizeof(final_score));
+		memset(final_scores, 0, num_candidates * sizeof(final_score));
+	}else{
+		final_scores = (final_score *) malloc (my_candidate_batch_size * sizeof(final_score));
+		memset(final_scores, 0, my_candidate_batch_size * sizeof(final_score));
+		
+		for(int i = 0; i < my_candidate_batch_size; i++){
+			memcpy(&(final_scores[i].candidate), &(scores[i].candidate), sizeof(candidate));
+			final_scores[i].score = compute_final_score(scores[i].num_scores, scores[i].scores);
+		}
+		printf("%i final scores computed\n", rank);
+	}
+	MPI_Gatherv(final_scores, my_candidate_batch_size, MPI_DOUBLE, final_scores, final_candidates_per_worker_bytes, final_candidates_per_worker_displacement, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	
+	if(is_leader(rank)){
+		printf("Received final scores.\n");
+		
+		qsort(final_scores, num_candidates, sizeof(final_score), sort_by_score);
+		
+		printf("final scores sorted\n");
+		
+		for(int i = 0; i < num_candidates; i++){
+			if(final_scores[i].score == 0){
+				continue;
+			}
+			printf("cand %i => %f\n", i, final_scores[i].score);
+		}
+	}
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
-	
 	printf("> %i done\n", rank);
+	
+	
+	if(final_candidates_per_worker_bytes){
+		free(final_candidates_per_worker_bytes);
+	}
+	if(final_candidates_per_worker_displacement){
+		free(final_candidates_per_worker_displacement);
+	}
 	if(scores){
 		free(scores);
+	}
+	if(final_scores){
+		free(final_scores);
 	}
 	if(num_candidates_per_worker_displacement){
 		free(num_candidates_per_worker_displacement);
