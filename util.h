@@ -192,6 +192,23 @@ void receive_and_unpack(int *num_frames, frame **frames, point **points){
 	
 }
 
+void validate_frames(int rank, int num_frames, frame *frames){
+	for(int k = 0; k < num_frames; k++){
+		frame *frm = &(frames[k]);
+		for(int j = 0; j < frm->num_points; j++){
+			if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
+				printf("%i HAS INVALID FRAME\n", rank);
+				printf("Frame points %i\n", frm->num_points);
+				for(int i = 0; i < frm->num_points; i++){
+					printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
+				}
+				exit(1);
+			}
+		}
+	}
+	
+}
+
 
 void read_and_broadcast_frames(char **argv, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
 	
@@ -206,41 +223,16 @@ void read_and_broadcast_frames(char **argv, int *num_skeleton_frames, frame **al
 	
 	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames);
 	printf("done reading in %i skeleton frames\n", *num_skeleton_frames);
-	
-	for(int k = 0; k < (*num_skeleton_frames); k++){
-		frame *frm = &((*all_skeleton_frames)[k]);
-		for(int j = 0; j < frm->num_points; j++){
-			if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
-				printf("HAS INVALID FRAME\n");
-				printf("Frame points %i\n", frm->num_points);
-				for(int i = 0; i < frm->num_points; i++){
-					printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
-				}
-				exit(1);
-			}
-		}
-	}
 
-	
 	read_frames(pcl_handle, POINTCLOUD, num_pointcloud_frames, all_pointcloud_frames);
 	printf("done reading in %i pointcloud frames\n", *num_pointcloud_frames);
 	
 	
-	for(int k = 0; k < (*num_pointcloud_frames); k++){
-		frame *frm = &((*all_pointcloud_frames)[k]);
-		for(int j = 0; j < frm->num_points; j++){
-			if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
-				printf("HAS INVALID FRAME\n");
-				printf("Frame points %i\n", frm->num_points);
-				for(int i = 0; i < frm->num_points; i++){
-					printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
-				}
-				exit(1);
-			}
-		}
-	}
+	printf("0 validating skeleton\n");
+	validate_frames(0, *num_skeleton_frames, *all_skeleton_frames);
 	
-	
+	printf("0 validating pcl\n");
+	validate_frames(0, *num_pointcloud_frames, *all_pointcloud_frames);
 	
 	
 	MPI_Bcast(num_skeleton_frames, 1, MPI_INT, 0, MPI_COMM_WORLD);
