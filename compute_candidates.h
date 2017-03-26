@@ -20,6 +20,11 @@ typedef struct path{
 	point points[MAX_VERTICES];
 } path;
 
+typedef struct stateless_path{
+	short num_points;
+	point *points[MAX_VERTICES];
+} stateless_path;
+
 typedef struct candidate{
 	short num_lengths;
 	double lengths[MAX_EDGES];
@@ -143,6 +148,25 @@ path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on
 		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(path));
 		
 		memcpy(&(stack[*stack_size].points[0] ), anchors[i], sizeof(point));
+		stack[*stack_size].num_points = 1;
+		(*stack_size)++;
+	}
+	return stack;
+}
+
+
+stateless_path* initialize_stack_with_anchors_stateless(frame *frame, int *stack_size, int *space_on_stack){
+	int num_points = frame->num_points;
+	
+	int num_anchors = MIN(MAX_ANCHORS, num_points);
+	point *anchors[num_anchors];
+	get_anchors(num_anchors, anchors, frame);
+	stateless_path *stack = NULL;
+	int i;
+	for(i = 0; i < num_anchors; i++){
+		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(stateless_path));
+		
+		stack[*stack_size].points[0] = anchors[i];
 		stack[*stack_size].num_points = 1;
 		(*stack_size)++;
 	}

@@ -100,7 +100,7 @@ double distance_to_segment(point *p, point *s0, point *s1){
 	return v_dist(p, &v);
 }
 
-double get_error_to_path(path *path, frame *pcl_frame){
+double get_error_to_path(stateless_path *path, frame *pcl_frame){
 	double error = 0.0;
 	
 	point *p,*p0,*p1;
@@ -111,8 +111,8 @@ double get_error_to_path(path *path, frame *pcl_frame){
 		best_distance = 99999;
 		
 		for(j = 0; j < path->num_points - 1; j++){
-			p0 = &(path->points[j]);
-			p1 = &(path->points[j+1]);
+			p0 = path->points[j];
+			p1 = path->points[j+1];
 			
 			this_distance = distance_to_segment(p, p0, p1);
 			if(this_distance < best_distance){
@@ -125,7 +125,7 @@ double get_error_to_path(path *path, frame *pcl_frame){
 	return error;
 }
 
-double score_path(path *path, frame *pcl_frame){
+double score_path(stateless_path *path, frame *pcl_frame){
 	double error = get_error_to_path(path, pcl_frame);
 	// want the error to be a penalty, more error => lower score
 	error *= -1;
@@ -168,8 +168,8 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
-	path *stack = initialize_stack_with_anchors(skeleton_frame, &stack_size, &space_on_stack);
-	path current_path;
+	stateless_path *stack = initialize_stack_with_anchors_stateless(skeleton_frame, &stack_size, &space_on_stack);
+	stateless_path current_path;
 	point *last_point;
 	point *other_point;
 	point new_point;
@@ -188,19 +188,29 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	double best_points_distance = 0;
 	double error;
 	
+	clock_t start, diff;
+	clock_t all_start = clock(), all_diff;
+	int scoring_time_spent = 0;
+	int total_time_spent = 0;
 	while(stack_size > 0){
-		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
+		memcpy(&current_path, &(stack[stack_size-1]), sizeof(stateless_path));
 		stack_size--;
 		
 		if(current_path.num_points == max_path_vertices){
+			start = clock();
+			
 			temp_score = score_path(&current_path, pcl_frame);
+			
+			diff = clock() - start;
+			scoring_time_spent += diff * 1000 / CLOCKS_PER_SEC;
+			
 			best_score = MAX(best_score, temp_score);
 			
 			continue;
 		}
 //		print_path(&current_path);
 		
-		last_point = &(current_path.points[ current_path.num_points - 1]);
+		last_point = current_path.points[ current_path.num_points - 1];
 		added = 0;
 		memset(added_pids, 0, num_points * sizeof(bool));
 		desired_length = candidate->lengths[current_path.num_points-1];
@@ -248,7 +258,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			
 			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
 			
-			memcpy(&(stack[stack_size].points[current_path.num_points]), best_point, sizeof(point));
+			stack[stack_size].points[current_path.num_points] = best_point;
 			stack[stack_size].num_points++;
 
 			stack_size++;
@@ -260,6 +270,11 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		
 		
 	}
+	
+	all_diff = clock() - all_start;
+	total_time_spent += all_diff * 1000 / CLOCKS_PER_SEC;
+	//printf("Scoring took %d seconds %d milliseconds\n", scoring_time_spent/1000, scoring_time_spent%1000);
+	//printf("all took %d seconds %d milliseconds\n", total_time_spent/1000, total_time_spent%1000);
 	
 	// now find the best score among all paths and just assign that score to this candidate/frame combo
 	score->scores[frame_i] = best_score;
