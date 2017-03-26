@@ -25,7 +25,7 @@
 
 #define FRAME_DELIMITER '='
 
-#define EXPECTED_ARG_COUNT 3
+#define EXPECTED_ARG_COUNT 4
 
 #include "util.h"
 #include "compute_candidates.h"
@@ -61,6 +61,18 @@ double v_dist(point *u, point *v){
 	point vector;
 	vector_between(u,v,&vector);
 	return v_norm(&vector);
+}
+
+void compute_candidate_total_lengths(final_score *final_scores, int num_candidates){
+	candidate *candidate;
+	for(int i = 0; i < num_candidates; i++){
+		candidate = &(final_scores[i].candidate);
+		candidate->total_length = 0.0;
+		for(int j = 0; j < candidate->num_lengths; j++){
+			candidate->total_length += candidate->lengths[j];
+			
+		}
+	}
 }
 
 double distance_to_segment(point *p, point *s0, point *s1){
@@ -315,7 +327,7 @@ int main(int argc, char** argv) {
 	
 	if(argc < EXPECTED_ARG_COUNT){
 		if(is_leader(rank)){
-			printf("Usage: ./attachment skeleton.csv pointcloud.csv\n");
+			printf("Usage: ./attachment skeleton.csv pointcloud.csv output.csv\n");
 		}
 		return 1;
 	}else if(world_size < MIN_PROCESSORS){
@@ -501,14 +513,40 @@ int main(int argc, char** argv) {
 		
 		qsort(final_scores, num_candidates, sizeof(final_score), sort_by_score);
 		
+		compute_candidate_total_lengths(final_scores, num_candidates);
+		
 		printf("final scores sorted\n");
 		
+		char *output_file = argv[3];
+		FILE *output_handle = fopen(output_file, "w");
+		fprintf(output_handle, "score,num_edges,total_length");
+		for(int i = 0; i < MAX_EDGES; i++){
+			fprintf(output_handle,",length_%i",i);
+		}
+		fprintf(output_handle, "\n");
+		
+		candidate *cand;
 		for(int i = 0; i < num_candidates; i++){
 			if(final_scores[i].score == 0){
 				continue;
 			}
+			cand = &(final_scores[i].candidate);
 			printf("cand %i => %f\n", i, final_scores[i].score);
+			fprintf(output_handle, "%f,%i,%f", final_scores[i].score, cand->num_lengths, cand->total_length);
+			int j;
+			for(j = 0; j < cand->num_lengths; j++){
+				fprintf(output_handle, ",%f", cand->lengths[j]);
+			}
+			// pad out lengths to keep alignment consistent
+			for(;j < MAX_EDGES; j++){
+				fprintf(output_handle, ",0.0");
+			}
+			fprintf(output_handle, "\n");
 		}
+		if(output_handle){
+			fclose(output_handle);
+		}
+		
 	}
 	
 	MPI_Barrier(MPI_COMM_WORLD);

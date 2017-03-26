@@ -23,6 +23,7 @@ typedef struct path{
 typedef struct candidate{
 	short num_lengths;
 	double lengths[MAX_EDGES];
+	double total_length;
 } candidate;
 
 
