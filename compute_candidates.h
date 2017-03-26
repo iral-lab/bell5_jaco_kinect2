@@ -29,13 +29,14 @@ typedef struct candidate{
 
 
 void validate_candidates(int rank, int num_candidates, candidate *candidates){
-	for(int i = 0; i < num_candidates; i++){
+	int i,j;
+	for(i = 0; i < num_candidates; i++){
 		
 		if(candidates[i].num_lengths == 0){
 			printf("found invalid candidate\n");
 			exit(1);
 		}
-		for(int j = 0; j < candidates[i].num_lengths; j++){
+		for(j = 0; j < candidates[i].num_lengths; j++){
 			if(candidates[i].lengths[j] == 0){
 				printf("Invalid length of 0\n");
 				exit(1);
@@ -52,13 +53,13 @@ int sort_pairwise_distances(const void *a, const void *b){
 
 void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	(*pairs) = (sort_pair *) malloc (num_points * num_points * sizeof(sort_pair));
-	
+	int i,j;
 	int offset;
 	point *p0, *p1;
 	sort_pair *this_pair;
-	for(int i = 0; i < num_points; i++){
+	for(i = 0; i < num_points; i++){
 		p0 = &(frm->points[i]);
-		for(int j = 0; j < num_points; j++){
+		for(j = 0; j < num_points; j++){
 			offset = (i * num_points + j); // i = rows, j = cols
 			
 			p1 = &(frm->points[j]);
@@ -95,7 +96,8 @@ int sort_by_y_value(const void *a, const void *b){
 }
 
 void get_anchors(int num_anchors, point **anchors, frame *frm){
-	for(int i = 0; i < num_anchors; i++){
+	int i;
+	for(i = 0; i < num_anchors; i++){
 		anchors[i] = &(frm->points[i]);
 		//		printf("point %i: (pid: %i) %f,%f,%f\n", i, anchors[i]->pid, anchors[i]->x, anchors[i]->y, anchors[i]->z);
 	}
@@ -103,7 +105,8 @@ void get_anchors(int num_anchors, point **anchors, frame *frm){
 
 void print_path(path *path){
 	printf("Path: (%i long)\n", path->num_points);
-	for(int i = 0; i < path->num_points; i++){
+	int i;
+	for(i = 0; i < path->num_points; i++){
 		printf("\t(%i)\t%f\t%f\t%f\n", path->points[i].pid, path->points[i].x, path->points[i].y, path->points[i].z);
 	}
 }
@@ -118,7 +121,8 @@ bool points_are_equal(point *p0, point *p1){
 }
 
 bool in_path(path *path, point *point){
-	for(int i = 0; i < path->num_points; i++){
+	int i;
+	for(i = 0; i < path->num_points; i++){
 		if(points_are_equal(point, &(path->points[i]))){
 			return true;
 		}
@@ -134,8 +138,8 @@ path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on
 	point *anchors[num_anchors];
 	get_anchors(num_anchors, anchors, frame);
 	path *stack = NULL;
-	
-	for(int i = 0; i < num_anchors; i++){
+	int i;
+	for(i = 0; i < num_anchors; i++){
 		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(path));
 		
 		memcpy(&(stack[*stack_size].points[0] ), anchors[i], sizeof(point));
@@ -148,11 +152,11 @@ path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on
 
 void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame *frm, int *num_paths, path **paths){
 	//	printf("> %i cand(f_%i) %i vertices\n", rank, frame_n, num_vertices);
-	
-	for(int j = 0; j < frm->num_points; j++){
+	int i,j;
+	for(j = 0; j < frm->num_points; j++){
 		if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
 			printf("Frame points %i\n", frm->num_points);
-			for(int i = 0; i < frm->num_points; i++){
+			for(i = 0; i < frm->num_points; i++){
 				printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
 			}
 			exit(1);
@@ -165,7 +169,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	// sort points by their y value
 	qsort(frm->points, frm->num_points, sizeof(point), sort_by_y_value);
 	
-	for(int i = 0; i < num_points; i++){
+	for(i = 0; i < num_points; i++){
 		frm->points[i].pid = i;
 	}
 	
@@ -199,7 +203,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 //		printf("\n\nCurrent ");
 //		print_path(&current_path);
 //		
-		for(int i = 0; i < current_path.num_points; i++){
+		for(i = 0; i < current_path.num_points; i++){
 			if(current_path.points[i].x == 0 || current_path.points[i].y == 0 || current_path.points[i].z == 0){
 				printf("found invalid path point, zero:\n");
 				print_path(&current_path);
@@ -222,7 +226,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 		last_point = &(current_path.points[ current_path.num_points - 1]);
 		added = 0;
 		// either stop after added have been added or try all the points
-		for(int i = 1; i < num_points && added < num_closest; i++){
+		for(i = 1; i < num_points && added < num_closest; i++){
 			
 			/// start at 1 because 0th 'nearest' is itself with 0 distance
 			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
@@ -274,8 +278,8 @@ bool is_same_path(path *path_1, path *path_2){
 	if(path_1->num_points != path_2->num_points){
 		return false;
 	}
-	
-	for(int i = 0; i < path_1->num_points; i++){
+	int i;
+	for(i = 0; i < path_1->num_points; i++){
 		if(!points_are_equal(&(path_1->points[i]), &(path_2->points[i]))){
 			return false;
 		}
@@ -284,8 +288,9 @@ bool is_same_path(path *path_1, path *path_2){
 }
 
 void deduplicate_paths(path *paths, int num_paths){
-	for(int i = 0; i < num_paths; i++){
-		for(int j = i+1; j < num_paths; ){
+	int i,j;
+	for(i = 0; i < num_paths; i++){
+		for(j = i+1; j < num_paths; ){
 			
 			if(is_same_path(&(paths[i]), &(paths[j]))){
 				printf("found duplicate\n");
@@ -314,13 +319,13 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	//
 	path *paths = NULL;
 	int num_paths = 0;
-	
+	int i,num_vertices;
 	int frame_n;
-	for(int i = 0; i < num_skeleton_frames; i++){
+	for(i = 0; i < num_skeleton_frames; i++){
 		frame_n = my_start + i;
 		
 		int batch_start = 0;
-		for(int num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
+		for(num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
 			batch_start = num_paths;
 			
 			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
@@ -341,9 +346,9 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	// turn paths to length edges
 	candidate *candidates = (candidate *) malloc (num_paths * sizeof(candidate));
 	memset(candidates, 0, num_paths * sizeof(candidate));
-	
-	for(int j = 0; j < num_paths; j++){
-		for(int k = 0; k < paths[j].num_points - 1; k++){
+	int j,k;
+	for(j = 0; j < num_paths; j++){
+		for(k = 0; k < paths[j].num_points - 1; k++){
 			candidates[j].lengths[k] = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
 			
 			if(candidates[j].lengths[k] == 0){

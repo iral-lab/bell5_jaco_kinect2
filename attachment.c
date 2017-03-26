@@ -66,10 +66,11 @@ double v_dist(point *u, point *v){
 
 void compute_candidate_total_lengths(final_score *final_scores, int num_candidates){
 	candidate *candidate;
-	for(int i = 0; i < num_candidates; i++){
+	int i,j;
+	for(i = 0; i < num_candidates; i++){
 		candidate = &(final_scores[i].candidate);
 		candidate->total_length = 0.0;
-		for(int j = 0; j < candidate->num_lengths; j++){
+		for(j = 0; j < candidate->num_lengths; j++){
 			candidate->total_length += candidate->lengths[j];
 			
 		}
@@ -104,12 +105,12 @@ double get_error_to_path(path *path, frame *pcl_frame){
 	
 	point *p,*p0,*p1;
 	double best_distance, this_distance;
-	
-	for(int i = 0; i < pcl_frame->num_points; i++){
+	int i,j;
+	for(i = 0; i < pcl_frame->num_points; i++){
 		p = &(pcl_frame->points[i]);
 		best_distance = 99999;
 		
-		for(int j = 0; j < path->num_points - 1; j++){
+		for(j = 0; j < path->num_points - 1; j++){
 			p0 = &(path->points[j]);
 			p1 = &(path->points[j+1]);
 			
@@ -149,8 +150,8 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	
 	// sort skeleton points by their y value
 	qsort(skeleton_frame->points, skeleton_frame->num_points, sizeof(point), sort_by_y_value);
-	
-	for(int i = 0; i < num_points; i++){
+	int i,j,k;
+	for(i = 0; i < num_points; i++){
 		skeleton_frame->points[i].pid = i;
 	}
 	
@@ -207,7 +208,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		last_point = &(current_path.points[ current_path.num_points - 1]);
 		added = 0;
 		desired_length = candidate->lengths[current_path.num_points-1];
-		for(int i = 0; i < num_closest && added < num_points; i++){
+		for(i = 0; i < num_closest && added < num_points; i++){
 			
 //			printf("looking for a point %f away from %f,%f,%f\n", desired_length, last_point->x, last_point->y, last_point->z);
 			
@@ -219,12 +220,12 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			double best_points_distance = 0;
 			double error;
 			bool already_added;
-			for(int j = 1; j < num_points; j++){
+			for(j = 1; j < num_points; j++){
 				// start at 1 since 0 is itself
 				offset = (last_point->pid * num_points + j);
 				other_pair = &(pairs[offset]);
 				already_added = false;
-				for(int k = 0; k < added; k++){
+				for(k = 0; k < added; k++){
 					if(other_pair->pid == added_pids[k]){
 						already_added = true;
 						break;
@@ -275,14 +276,14 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 
 
 void score_candidates_against_frames(int rank, score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
-	
-	for(int candidate_i = 0; candidate_i < num_candidates; candidate_i++){
+	int candidate_i, frame_i;
+	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
 		
 		memcpy(&(scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
 		scores[candidate_i].num_scores = 0;//num_pointcloud_frames;
 		scores[candidate_i].scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
 		
-		for(int frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
+		for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 			
 			score_candidates_against_frame(&(scores[candidate_i]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
 			scores[candidate_i].num_scores++;
@@ -307,7 +308,8 @@ double compute_final_score(int num_scores, double *scores){
 	
 	// basic, compute average.
 	double sum = 0.0;
-	for(int i = 0; i < num_scores; i++){
+	int i;
+	for(i = 0; i < num_scores; i++){
 		sum += scores[i];
 	}
 	return sum / num_scores;
@@ -366,7 +368,7 @@ int main(int argc, char** argv) {
 		}
 		exit(1);
 	}
-	
+	int i,j;
 	int worker_count = world_size - 1;
 	int min_batch_size = num_skeleton_frames / worker_count;
 	int batch_left_over = num_skeleton_frames - (min_batch_size * worker_count);
@@ -377,7 +379,7 @@ int main(int argc, char** argv) {
 	memset(batch_start, 0, world_size * sizeof(int));
 	
 	int total_assigned = 0;
-	for(int i = 1; i < world_size; i++){
+	for(i = 1; i < world_size; i++){
 		frames_per_worker[i] = min_batch_size;
 		batch_start[i] = (i == 0) ? 0 : batch_start[i - 1] + frames_per_worker[i - 1];
 		
@@ -408,7 +410,7 @@ int main(int argc, char** argv) {
 		
 		printf("ROOT: received candidate counts:\n");
 		
-		for(int i = 0; i < world_size; i++){
+		for(i = 0; i < world_size; i++){
 			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
 			num_candidates += candidates_per_worker[i];
 			candidates_per_worker_in_bytes[i] = candidates_per_worker[i] * sizeof(candidate);
@@ -459,7 +461,7 @@ int main(int argc, char** argv) {
 	
 	
 	int total_candidates_assigned = 0;
-	for(int i = 1; i < world_size; i++){
+	for(i = 1; i < world_size; i++){
 		num_candidates_per_worker[i] = min_candidate_batch_size;
 		
 		candidates_batch_start[i] = (i == 0) ? 0 : candidates_batch_start[i - 1] + num_candidates_per_worker[i - 1];
@@ -507,7 +509,7 @@ int main(int argc, char** argv) {
 		final_scores = (final_score *) malloc (my_candidate_batch_size * sizeof(final_score));
 		memset(final_scores, 0, my_candidate_batch_size * sizeof(final_score));
 		
-		for(int i = 0; i < my_candidate_batch_size; i++){
+		for(i = 0; i < my_candidate_batch_size; i++){
 			memcpy(&(final_scores[i].candidate), &(scores[i].candidate), sizeof(candidate));
 			final_scores[i].score = compute_final_score(scores[i].num_scores, scores[i].scores);
 		}
@@ -527,20 +529,20 @@ int main(int argc, char** argv) {
 		char *output_file = argv[3];
 		FILE *output_handle = fopen(output_file, "w");
 		fprintf(output_handle, "score,num_edges,total_length");
-		for(int i = 0; i < MAX_EDGES; i++){
+		for(i = 0; i < MAX_EDGES; i++){
 			fprintf(output_handle,",length_%i",i);
 		}
 		fprintf(output_handle, "\n");
 		
 		candidate *cand;
-		for(int i = 0; i < num_candidates; i++){
+		for(i = 0; i < num_candidates; i++){
 			if(final_scores[i].score == 0){
 				continue;
 			}
 			cand = &(final_scores[i].candidate);
 			printf("cand %i => %f\n", i, final_scores[i].score);
 			fprintf(output_handle, "%f,%i,%f", final_scores[i].score, cand->num_lengths, cand->total_length);
-			int j;
+			
 			for(j = 0; j < cand->num_lengths; j++){
 				fprintf(output_handle, ",%f", cand->lengths[j]);
 			}

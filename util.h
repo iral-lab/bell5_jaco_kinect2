@@ -27,7 +27,8 @@ void randomize_array(void *list, int n, int size){
 	}
 	void *temp = (void *) malloc(size);
 	int random;
-	for(int i = 0; i < n; i++){
+	int i;
+	for(i = 0; i < n; i++){
 		random = rand() % n;
 		memcpy(temp, &(list[i * size]), size);
 		memcpy(&(list[i * size]), &(list[random * size]), size);
@@ -141,7 +142,8 @@ void pack_and_send(int num_frames, frame *frames){
 	/// collect number of points, send
 	
 	int point_count = 0;
-	for(int i = 0; i < num_frames; i++){
+	int i;
+	for(i = 0; i < num_frames; i++){
 		point_count += frames[i].num_points;
 	}
 	//	printf("total points: %i\n", point_count);
@@ -154,7 +156,7 @@ void pack_and_send(int num_frames, frame *frames){
 	int *points_per_frame = (int *) malloc (point_count * sizeof(int));
 	point *points = (point *) malloc (point_count * sizeof(point));
 	int point_i = 0;
-	for(int i = 0; i < num_frames; i++){
+	for(i = 0; i < num_frames; i++){
 		memcpy(&(points[point_i]), frames[i].points, frames[i].num_points * sizeof(point));
 		
 		points_per_frame[i] = frames[i].num_points;
@@ -190,8 +192,8 @@ void receive_and_unpack(int rank, int *num_frames, frame **frames, point **point
 	
 	// build frames
 	int point_i = 0;
-	
-	for(int i = 0; i < (*num_frames); i++){
+	int i;
+	for(i = 0; i < (*num_frames); i++){
 		
 		(*frames)[i].num_points = points_per_frame[i];
 		(*frames)[i].points = &((*points)[point_i]);
@@ -202,13 +204,14 @@ void receive_and_unpack(int rank, int *num_frames, frame **frames, point **point
 }
 
 void validate_frames(int rank, int num_frames, frame *frames){
-	for(int k = 0; k < num_frames; k++){
+	int i,j,k;
+	for(k = 0; k < num_frames; k++){
 		frame *frm = &(frames[k]);
-		for(int j = 0; j < frm->num_points; j++){
+		for(j = 0; j < frm->num_points; j++){
 			if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
 				printf("%i HAS INVALID FRAME %i\n", rank, j);
 				printf("Frame points %i\n", frm->num_points);
-				for(int i = 0; i < frm->num_points; i++){
+				for(i = 0; i < frm->num_points; i++){
 					printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
 				}
 				exit(1);
