@@ -490,6 +490,12 @@ int main(int argc, char** argv) {
 	validate_candidates(rank, my_candidate_batch_size, candidates);
 	printf("%i PASSED candidate validation\n", rank);
 	
+	double total_length_count = 0;
+	for(i = 0; i < my_candidate_batch_size; i++){
+		total_length_count += candidates[i].num_lengths;
+	}
+	printf("%i length count: %i / %i = %f\n", rank, (int)total_length_count, my_candidate_batch_size, (my_candidate_batch_size > 0 ? total_length_count / my_candidate_batch_size : 0.0));
+	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
 	// now each worker has (1/n)th of the candidates and all the frames.
