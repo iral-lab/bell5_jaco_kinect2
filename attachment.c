@@ -7,7 +7,7 @@
 #include <time.h>
 #include <math.h>
 
-#define SHORT_TEST_RUN 0
+#define SHORT_TEST_RUN 1
 
 #define MIN_PROCESSORS 4
 
@@ -236,6 +236,9 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 					smallest_error = error;
 					best_point = other_point;
 					best_points_distance = other_pair->distance;
+				}else{
+					// once a point is even further away, it can't provide a lower error.
+					break;
 				}
 			}
 			
