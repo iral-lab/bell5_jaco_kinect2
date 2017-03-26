@@ -114,11 +114,13 @@ double get_error_to_path(path *path, frame *pcl_frame){
 double score_path(path *path, frame *pcl_frame){
 	double error = get_error_to_path(path, pcl_frame);
 	// want the error to be a penalty, more error => lower score
-	error *= -100;
+	error *= -1;
 	
-	int edge_count = path->num_points - 1;
-	double edge_penalty = expf(LAMBDA_SCALAR * edge_count);
-	double total_penalty = error - edge_penalty;
+	
+	// not putting the edge-count penalty here, will use it later on.
+//	int edge_count = path->num_points - 1;
+//	double edge_penalty = expf(LAMBDA_SCALAR * edge_count);
+	double total_penalty = error; // - edge_penalty;
 	return total_penalty;
 }
 
@@ -271,7 +273,7 @@ void score_candidates_against_frames(int rank, score *scores, int num_candidates
 			
 			score_candidates_against_frame(&(scores[candidate_i]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
 			scores[candidate_i].num_scores++;
-			printf("%i scoring candidate %i against frame %i >> %f\n", rank, candidate_i, frame_i, scores[candidate_i].scores[frame_i]);
+			printf("%i scoring candidate %i/%i (%i edges) against frame %i >> %f\n", rank, candidate_i, num_candidates, scores[candidate_i].candidate.num_lengths, frame_i, scores[candidate_i].scores[frame_i]);
 			
 //			break;
 		}
