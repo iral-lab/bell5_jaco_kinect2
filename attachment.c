@@ -374,6 +374,8 @@ int main(int argc, char** argv) {
 	int *frames_per_worker = (int *) malloc(world_size * sizeof(int));
 	int *batch_start = (int *) malloc(world_size * sizeof(int));
 	memset(frames_per_worker, 0, world_size * sizeof(int));
+	memset(batch_start, 0, world_size * sizeof(int));
+	
 	int total_assigned = 0;
 	for(int i = 1; i < world_size; i++){
 		frames_per_worker[i] = min_batch_size;
