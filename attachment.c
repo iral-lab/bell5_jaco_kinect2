@@ -183,24 +183,20 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	double best_score = -999999999;
 	double temp_score;
 	
+	point *best_point = NULL;
+	double smallest_error = 9999;
+	double best_points_distance = 0;
+	double error;
+	bool already_added;
+	
 	while(stack_size > 0){
 		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
 		stack_size--;
 		
 		if(current_path.num_points == max_path_vertices){
-//			paths = get_more_space_and_copy(&space_for_paths, paths, num_paths, PATHS, sizeof(scored_path));
-//			memcpy( &(paths[num_paths]), &current_path, sizeof(path));
-			
-//			paths[num_paths].score = score_path(&current_path, pcl_frame);
-			
 			temp_score = score_path(&current_path, pcl_frame);
 			best_score = MAX(best_score, temp_score);
 			
-//			printf("FINALIZED PATH with score of %f\n", paths[num_paths].score);
-//			print_path(&(paths[num_paths].path));
-//			printf("\n\n");
-			
-			num_paths++;
 			continue;
 		}
 //		print_path(&current_path);
@@ -216,11 +212,11 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			// adds the point that is the closest to the current length away from the last point
 			
 			
-			point *best_point = NULL;
-			double smallest_error = 9999;
-			double best_points_distance = 0;
-			double error;
-			bool already_added;
+			best_point = NULL;
+			smallest_error = 9999;
+			best_points_distance = 0;
+			error;
+			already_added;
 			for(j = 1; j < num_points; j++){
 				// start at 1 since 0 is itself
 				offset = (last_point->pid * num_points + j);
