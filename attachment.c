@@ -7,6 +7,7 @@
 #include <time.h>
 #include <math.h>
 
+#define SHORT_TEST_RUN 0
 
 #define MIN_PROCESSORS 4
 
@@ -287,9 +288,13 @@ void score_candidates_against_frames(int rank, score *scores, int num_candidates
 			scores[candidate_i].num_scores++;
 			printf("%i scoring candidate %i/%i (%i edges) against frame %i >> %f\n", rank, candidate_i, num_candidates, scores[candidate_i].candidate.num_lengths, frame_i, scores[candidate_i].scores[frame_i]);
 			
-//			break;
+			if(SHORT_TEST_RUN){
+				break;
+			}
 		}
-//		break;
+		if(SHORT_TEST_RUN){
+			break;
+		}
 	}
 	
 }
