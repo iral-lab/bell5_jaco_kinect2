@@ -545,7 +545,7 @@ int main(int argc, char** argv) {
 				continue;
 			}
 			cand = &(final_scores[i].candidate);
-			printf("cand %i => %f\n", i, final_scores[i].score);
+//			printf("cand %i => %f\n", i, final_scores[i].score);
 			fprintf(output_handle, "%f,%i,%f", final_scores[i].score, cand->num_lengths, cand->total_length);
 			
 			for(j = 0; j < cand->num_lengths; j++){

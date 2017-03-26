@@ -266,12 +266,12 @@ void listen_for_frames(int rank, int *num_skeleton_frames, frame **all_skeleton_
 //		printf("%i > %i skeleton frames, %i pointcloud frames\n", rank, *num_skeleton_frames, *num_pointcloud_frames);
 	
 	receive_and_unpack(rank, num_skeleton_frames, all_skeleton_frames, skeleton_packed_points);
-	printf("> %i Finished rebuilding %i skeleton frames\n", rank, *num_skeleton_frames);
+//	printf("> %i Finished rebuilding %i skeleton frames\n", rank, *num_skeleton_frames);
 	validate_frames(rank, *num_skeleton_frames, *all_skeleton_frames);
 	
 	
 	receive_and_unpack(rank, num_pointcloud_frames, all_pointcloud_frames, pointcloud_packed_points);
-	printf("> %i Finished rebuilding %i pointcloud frames\n", rank, *num_pointcloud_frames);
+//	printf("> %i Finished rebuilding %i pointcloud frames\n", rank, *num_pointcloud_frames);
 	validate_frames(rank, *num_pointcloud_frames, *all_pointcloud_frames);
 	
 }
