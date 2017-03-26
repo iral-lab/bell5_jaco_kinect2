@@ -187,7 +187,6 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	double smallest_error = 9999;
 	double best_points_distance = 0;
 	double error;
-	bool already_added;
 	
 	while(stack_size > 0){
 		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
@@ -215,8 +214,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			best_point = NULL;
 			smallest_error = 9999;
 			best_points_distance = 0;
-			error;
-			already_added;
+			
 			for(j = 1; j < num_points; j++){
 				// start at 1 since 0 is itself
 				offset = (last_point->pid * num_points + j);
