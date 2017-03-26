@@ -278,6 +278,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 void score_candidates_against_frames(int rank, score *scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
 	int candidate_i, frame_i;
 	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
+		printf("%i scoring candidate %i/%i (%i edges)\n", rank, candidate_i, num_candidates, scores[candidate_i].candidate.num_lengths);
 		
 		memcpy(&(scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
 		scores[candidate_i].num_scores = 0;//num_pointcloud_frames;
@@ -287,7 +288,6 @@ void score_candidates_against_frames(int rank, score *scores, int num_candidates
 			
 			score_candidates_against_frame(&(scores[candidate_i]), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
 			scores[candidate_i].num_scores++;
-			printf("%i scoring candidate %i/%i (%i edges) against frame %i >> %f\n", rank, candidate_i, num_candidates, scores[candidate_i].candidate.num_lengths, frame_i, scores[candidate_i].scores[frame_i]);
 			
 			if(SHORT_TEST_RUN){
 				break;
