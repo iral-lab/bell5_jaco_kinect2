@@ -453,10 +453,10 @@ int main(int argc, char** argv) {
 	memset(num_candidates_per_worker, 0, world_size * sizeof(int));
 	memset(candidates_batch_start, 0, world_size * sizeof(int));
 	
-	int *final_candidates_per_worker_bytes = (int *) malloc (world_size * sizeof(int));
-	int *final_candidates_per_worker_displacement = (int *) malloc (world_size * sizeof(int));
-	memset(final_candidates_per_worker_bytes, 0, world_size * sizeof(int));
-	memset(final_candidates_per_worker_displacement, 0, world_size * sizeof(int));
+	int *final_scores_per_worker_bytes = (int *) malloc (world_size * sizeof(int));
+	int *final_scores_per_worker_displacement = (int *) malloc (world_size * sizeof(int));
+	memset(final_scores_per_worker_bytes, 0, world_size * sizeof(int));
+	memset(final_scores_per_worker_displacement, 0, world_size * sizeof(int));
 	
 	
 	
@@ -471,8 +471,8 @@ int main(int argc, char** argv) {
 			num_candidates_per_worker[i]++;
 		}
 		
-		final_candidates_per_worker_bytes[i] = num_candidates_per_worker[i] * sizeof(double);
-		final_candidates_per_worker_displacement[i] = final_candidates_per_worker_displacement[i-1] + final_candidates_per_worker_bytes[i-1];
+		final_scores_per_worker_bytes[i] = num_candidates_per_worker[i] * sizeof(final_score);
+		final_scores_per_worker_displacement[i] = final_scores_per_worker_displacement[i-1] + final_scores_per_worker_bytes[i-1];
 		
 		num_candidates_per_worker_in_bytes[i] = num_candidates_per_worker[i] * sizeof(candidate);
 	}
@@ -512,12 +512,17 @@ int main(int argc, char** argv) {
 		for(i = 0; i < my_candidate_batch_size; i++){
 			memcpy(&(final_scores[i].candidate), &(scores[i].candidate), sizeof(candidate));
 			final_scores[i].score = compute_final_score(scores[i].num_scores, scores[i].scores);
+			
+			if(final_scores[i].score == 0){
+				continue;
+			}
 		}
 		printf("%i final scores computed\n", rank);
 	}
-	MPI_Gatherv(final_scores, my_candidate_batch_size, MPI_DOUBLE, final_scores, final_candidates_per_worker_bytes, final_candidates_per_worker_displacement, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(final_scores, my_candidate_batch_size, MPI_BYTE, final_scores, final_scores_per_worker_bytes, final_scores_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
 	
 	if(is_leader(rank)){
+		candidate *cand;
 		printf("Received final scores.\n");
 		
 		qsort(final_scores, num_candidates, sizeof(final_score), sort_by_score);
@@ -534,7 +539,6 @@ int main(int argc, char** argv) {
 		}
 		fprintf(output_handle, "\n");
 		
-		candidate *cand;
 		for(i = 0; i < num_candidates; i++){
 			if(final_scores[i].score == 0){
 				continue;
@@ -563,11 +567,11 @@ int main(int argc, char** argv) {
 	printf("> %i done\n", rank);
 	
 	
-	if(final_candidates_per_worker_bytes){
-		free(final_candidates_per_worker_bytes);
+	if(final_scores_per_worker_bytes){
+		free(final_scores_per_worker_bytes);
 	}
-	if(final_candidates_per_worker_displacement){
-		free(final_candidates_per_worker_displacement);
+	if(final_scores_per_worker_displacement){
+		free(final_scores_per_worker_displacement);
 	}
 	if(scores){
 		free(scores);
