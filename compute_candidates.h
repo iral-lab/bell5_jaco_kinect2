@@ -116,6 +116,15 @@ void print_path(path *path){
 	}
 }
 
+void print_candidate(candidate *cand){
+	printf("Candidate: (%i long)\n", cand->num_lengths);
+	int i;
+	for(i = 0; i < cand->num_lengths; i++){
+		printf("\t%i", cand->lengths[i]);
+	}
+	printf("\n");
+}
+
 short get_num_closest(num_points){
 	return MIN(BRANCH_NEIGHBORS, num_points);
 }
@@ -298,31 +307,33 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	free(pairs);
 }
 
-bool is_same_path(path *path_1, path *path_2){
-	if(path_1->num_points != path_2->num_points){
+bool is_same_candidate(candidate *cand_1, candidate *cand_2){
+	if(cand_1->num_lengths != cand_2->num_lengths){
 		return false;
 	}
 	int i;
-	for(i = 0; i < path_1->num_points; i++){
-		if(!points_are_equal(&(path_1->points[i]), &(path_2->points[i]))){
+	for(i = 0; i < cand_1->num_lengths; i++){
+		if(cand_1->lengths[i] != cand_2->lengths[i]){
 			return false;
 		}
 	}
 	return true;
 }
 
-void deduplicate_paths(path *paths, int num_paths){
+void deduplicate_candidates(int *num_candidates, candidate *candidates){
 	int i,j;
-	for(i = 0; i < num_paths; i++){
-		for(j = i+1; j < num_paths; ){
+	int num_duplicates = 0;
+	int was_count = *num_candidates;
+	for(i = 0; i < *num_candidates; i++){
+		for(j = i+1; j < *num_candidates; ){
 			
-			if(is_same_path(&(paths[i]), &(paths[j]))){
-				printf("found duplicate\n");
-				if(j < num_paths-1){
+			if(is_same_candidate(&(candidates[i]), &(candidates[j]))){
+				num_duplicates++;
+				if(j < (*num_candidates)-1){
 					// shift the remaining paths down one
-					memmove(&(paths[j]), &(paths[j+1]), num_paths - j - 1);
+					memmove(&(candidates[j]), &(candidates[j+1]), ((*num_candidates) - j - 1) * sizeof(candidate));
 				}
-				num_paths--;
+				(*num_candidates)--;
 				
 			}else{
 				// only move j if we didn't memmove, since that would have moved something else into the jth spot
@@ -330,7 +341,7 @@ void deduplicate_paths(path *paths, int num_paths){
 			}
 		}
 	}
-	
+	printf("Found %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
 }
 
 void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_start, frame *skeleton_frames){
@@ -354,10 +365,6 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 			
 			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
 			//			printf(">> was %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
-			
-			// de-dupe paths, exceedingly unlikely, since there won't be duplicated skeleton points.
-			// if there is a duplication, something went wrong in path generation above.
-			//			deduplicate_paths(&(paths[batch_start]), num_paths - batch_start);
 			
 			//			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
 		}
@@ -392,8 +399,6 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		}
 		//			printf("\n\n");
 	}
-	
-	//	printf("> %i %i lengths\n", rank, num_paths);
 	
 	// gather the number of candidates
 	MPI_Gather(&num_paths, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);

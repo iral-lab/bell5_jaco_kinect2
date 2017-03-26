@@ -443,6 +443,11 @@ int main(int argc, char** argv) {
 		
 		printf("ROOT: all candidates valid\n");
 		
+		// de-dupe candidates, as some frames might have same overlap, which would be good
+		deduplicate_candidates(&num_candidates, candidates);
+		
+		printf("ROOT: deduping done\n");
+		
 		printf("ROOT: randomizing candidates\n");
 		randomize_array(candidates, num_candidates, sizeof(candidate));
 		
