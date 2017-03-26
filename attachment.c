@@ -516,9 +516,12 @@ int main(int argc, char** argv) {
 	}else{
 		final_scores = (final_score *) malloc (my_candidate_batch_size * sizeof(final_score));
 		memset(final_scores, 0, my_candidate_batch_size * sizeof(final_score));
-	
+		clock_t start = clock(), diff;
 		score_candidates_against_frames(rank, final_scores, my_candidate_batch_size, candidates, num_pointcloud_frames, all_pointcloud_frames, num_skeleton_frames, all_skeleton_frames);
 		
+		diff = clock() - start;
+		int msec = diff * 1000 / CLOCKS_PER_SEC;
+		printf("%i Scoring taken %d seconds %d milliseconds\n", rank, msec/1000, msec%1000);
 	}
 	
 	
