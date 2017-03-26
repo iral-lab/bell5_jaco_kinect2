@@ -12,7 +12,7 @@ double euclid_distance(point *p0, point *p1){
 
 typedef struct sort_pair{
 	int pid; // pid referencing which point the distance is to
-	double distance;
+	short distance;
 }sort_pair;
 
 typedef struct path{
@@ -27,8 +27,8 @@ typedef struct stateless_path{
 
 typedef struct candidate{
 	short num_lengths;
-	double lengths[MAX_EDGES];
-	double total_length;
+	short lengths[MAX_EDGES];
+	short total_length;
 } candidate;
 
 
@@ -42,8 +42,8 @@ void validate_candidates(int rank, int num_candidates, candidate *candidates){
 			exit(1);
 		}
 		for(j = 0; j < candidates[i].num_lengths; j++){
-			if(candidates[i].lengths[j] == 0){
-				printf("Invalid length of 0\n");
+			if(candidates[i].lengths[j] <= 0){
+				printf("\n\nInvalid length of <= 0\n");
 				exit(1);
 			}
 		}
@@ -52,7 +52,7 @@ void validate_candidates(int rank, int num_candidates, candidate *candidates){
 
 
 int sort_pairwise_distances(const void *a, const void *b){
-	//	printf("COMPARING %f and %f\n",((sort_pair *)a)->distance,((sort_pair *)b)->distance);
+	//	printf("COMPARING %i and %i\n",((sort_pair *)a)->distance,((sort_pair *)b)->distance);
 	return ((sort_pair *)a)->distance > ((sort_pair *)b)->distance ? 1 : -1;
 }
 
@@ -70,11 +70,11 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 			p1 = &(frm->points[j]);
 			(*pairs)[offset].pid = p1->pid;
 			if(i == j){
-				(*pairs)[offset].distance = 0.0;
+				(*pairs)[offset].distance = 0;
 			}else{
-				(*pairs)[offset].distance = euclid_distance(p0, p1);
+				(*pairs)[offset].distance = floorf(euclid_distance(p0, p1));
 			}
-			//			printf("1) Dist bet (%i) %f,%f,%f and (%i) %f,%f,%f = %f\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
+//			printf("1) Dist bet (%i) %i,%i,%i and (%i) %i,%i,%i = %i\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
 		}
 		
 		// got distances, now sort them inside each row
@@ -96,7 +96,7 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	}
 }
 
-int sort_by_y_value(const void *a, const void *b){
+ int sort_by_y_value(const void *a, const void *b){
 	return ((point *) a)->y > ((point *) b)->y ? 1 : -1;
 }
 
@@ -112,7 +112,7 @@ void print_path(path *path){
 	printf("Path: (%i long)\n", path->num_points);
 	int i;
 	for(i = 0; i < path->num_points; i++){
-		printf("\t(%i)\t%f\t%f\t%f\n", path->points[i].pid, path->points[i].x, path->points[i].y, path->points[i].z);
+		printf("\t(%i)\t%i\t%i\t%i\n", path->points[i].pid, path->points[i].x, path->points[i].y, path->points[i].z);
 	}
 }
 
@@ -181,7 +181,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 		if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
 			printf("Frame points %i\n", frm->num_points);
 			for(i = 0; i < frm->num_points; i++){
-				printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
+				printf("%i %i %i\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
 			}
 			exit(1);
 		}
@@ -232,7 +232,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 				printf("found invalid path point, zero:\n");
 				print_path(&current_path);
 				
-				printf("last point: %f %f %f\n", nearest_point->x, nearest_point->y, nearest_point->z);
+				printf("last point: %i %i %i\n", nearest_point->x, nearest_point->y, nearest_point->z);
 				exit(1);
 			}
 		}
@@ -266,8 +266,8 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 			
 			
 			if(nearest_point->x == 0 || nearest_point->y == 0 || nearest_point->z == 0){
-				printf("offset %i, pair %i %f\n", offset, nearest_pair->pid, nearest_pair->distance);
-				printf("%i %f %f %f\n", frm->num_points, frm->points[nearest_pair->pid].x, frm->points[nearest_pair->pid].y, frm->points[nearest_pair->pid].z);
+				printf("offset %i, pair %i %i\n", offset, nearest_pair->pid, nearest_pair->distance);
+				printf("%i %i %i %i\n", frm->num_points, frm->points[nearest_pair->pid].x, frm->points[nearest_pair->pid].y, frm->points[nearest_pair->pid].z);
 				printf("nearest_point is zero\n");
 				exit(1);
 			}
@@ -371,14 +371,19 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	candidate *candidates = (candidate *) malloc (num_paths * sizeof(candidate));
 	memset(candidates, 0, num_paths * sizeof(candidate));
 	int j,k;
+	double value;
 	for(j = 0; j < num_paths; j++){
 		for(k = 0; k < paths[j].num_points - 1; k++){
-			candidates[j].lengths[k] = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
 			
-			if(candidates[j].lengths[k] == 0){
-				printf("%i Just added a zero-length candidate\n", rank);
-				printf("%f, %f, %f\n",paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z);
-				printf("%f, %f, %f\n",paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
+			// value as a floating point 'meters'
+			value = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
+			
+			candidates[j].lengths[k] = floorf(value);
+			
+			if(candidates[j].lengths[k] <= 0){
+				printf("%i Just added a length <= 0 candidate\n", rank);
+				printf("%i, %i, %i\n",paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z);
+				printf("%i, %i, %i\n",paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
 				exit(1);
 			}
 			//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", candidates[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);

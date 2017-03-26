@@ -4,10 +4,11 @@ typedef enum { false, true } bool;
 
 typedef enum { SEND_NUM_POINTS, SEND_POINTS, NUM_SEND_TYPES } send_flag;
 
+// stored in terms of millimeters
 typedef struct a_point{
-	double x;
-	double y;
-	double z;
+	short x;
+	short y;
+	short z;
 	int pid; // used for maintaining references between points
 } point;
 
@@ -71,6 +72,7 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 	frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type, sizeof(point));
 	point *current;
 	
+	double temp_x, temp_y, temp_z;
 	while ((read = getline(&line, &len, handle)) != -1) {
 		
 		if(FRAME_DELIMITER == line[0]){
@@ -83,8 +85,12 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 		
 		frm->points = get_more_space_and_copy(&space_for_points, frm->points, frm->num_points, type, sizeof(point));
 		current = &(frm->points[frm->num_points]);
-		sscanf(line, "%lf,%lf,%lf", &(current->x), &(current->y), &(current->z));
-		//		printf("READ LINE: %lf, %lf, %lf\n", current->x, current->y, current->z);
+		sscanf(line, "%lf,%lf,%lf", &temp_x, &temp_y, &temp_z);
+		current->x = floorf(temp_x * UNIT_SCALAR);
+		current->z = floorf(temp_y * UNIT_SCALAR);
+		current->y = floorf(temp_z * UNIT_SCALAR);
+		
+//		printf("READ LINE: %i, %i, %i\n", current->x, current->y, current->z);
 		
 		frm->num_points++;
 	}
@@ -212,7 +218,7 @@ void validate_frames(int rank, int num_frames, frame *frames){
 				printf("%i HAS INVALID FRAME %i\n", rank, j);
 				printf("Frame points %i\n", frm->num_points);
 				for(i = 0; i < frm->num_points; i++){
-					printf("%f %f %f\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
+					printf("%i %i %i\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
 				}
 				exit(1);
 			}

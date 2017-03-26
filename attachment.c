@@ -9,6 +9,9 @@
 
 #define SHORT_TEST_RUN 1
 
+// define in terms of millimeters instead of meters
+#define UNIT_SCALAR 1000
+
 #define MIN_PROCESSORS 4
 
 #define MAX_EDGES 6
@@ -33,18 +36,18 @@
 
 typedef struct scored_path{
 	path path;
-	double score;
+	int score;
 }scored_path;
 
 typedef struct score{
 	candidate candidate;
-	double *scores; // will store each frame's score in order
-	double num_scores;
+	int *scores; // will store each frame's score in order
+	short num_scores;
 }score;
 
 typedef struct final_score{
 	candidate candidate;
-	double score;
+	int score;
 }final_score;
 
 double v_dot(point *u, point *v){
@@ -100,21 +103,22 @@ double distance_to_segment(point *p, point *s0, point *s1){
 	return v_dist(p, &v);
 }
 
-double get_error_to_path(stateless_path *path, frame *pcl_frame){
-	double error = 0.0;
+int get_error_to_path(stateless_path *path, frame *pcl_frame){
+	int error = 0;
 	
 	point *p,*p0,*p1;
-	double best_distance, this_distance;
+	int best_distance, this_distance;
 	int i,j;
 	for(i = 0; i < pcl_frame->num_points; i++){
 		p = &(pcl_frame->points[i]);
-		best_distance = 99999;
+		best_distance = 999999999;
 		
 		for(j = 0; j < path->num_points - 1; j++){
 			p0 = path->points[j];
 			p1 = path->points[j+1];
 			
-			this_distance = distance_to_segment(p, p0, p1);
+			this_distance = floorf(distance_to_segment(p, p0, p1));
+			
 			if(this_distance < best_distance){
 				best_distance = this_distance;
 			}
@@ -125,17 +129,9 @@ double get_error_to_path(stateless_path *path, frame *pcl_frame){
 	return error;
 }
 
-double score_path(stateless_path *path, frame *pcl_frame){
-	double error = get_error_to_path(path, pcl_frame);
+int score_path(stateless_path *path, frame *pcl_frame){
 	// want the error to be a penalty, more error => lower score
-	error *= -1;
-	
-	
-	// not putting the edge-count penalty here, will use it later on.
-//	int edge_count = path->num_points - 1;
-//	double edge_penalty = expf(LAMBDA_SCALAR * edge_count);
-	double total_penalty = error; // - edge_penalty;
-	return total_penalty;
+	return get_error_to_path(path, pcl_frame) * -1;
 }
 
 int sort_by_score(const void *a, const void *b){
@@ -176,17 +172,17 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	sort_pair *other_pair;
 	
 	int offset, added;
-	double desired_length;
+	int desired_length;
 	
 	bool added_pids[num_points];
 	
-	double best_score = -999999999;
-	double temp_score;
+	int best_score = -999999999;
+	int temp_score;
 	
 	point *best_point = NULL;
-	double smallest_error = 9999;
-	double best_points_distance = 0;
-	double error;
+	int smallest_error = 999999999;
+	int best_points_distance = 0;
+	int error;
 	
 	clock_t start, diff;
 	clock_t all_start = clock(), all_diff;
@@ -216,13 +212,13 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		desired_length = candidate->lengths[current_path.num_points-1];
 		for(i = 0; i < num_closest && added < num_points; i++){
 			
-//			printf("looking for a point %f away from %f,%f,%f\n", desired_length, last_point->x, last_point->y, last_point->z);
+//			printf("looking for a point %i away from %i,%i,%i\n", desired_length, last_point->x, last_point->y, last_point->z);
 			
 			// adds the point that is the closest to the current length away from the last point
 			
 			
 			best_point = NULL;
-			smallest_error = 9999;
+			smallest_error = 999999999;
 			best_points_distance = 0;
 			
 			for(j = 1; j < num_points; j++){
@@ -234,7 +230,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 					continue;
 				}
 				
-				error = fabs(other_pair->distance - desired_length);
+				error = abs(other_pair->distance - desired_length);
 				if(error < smallest_error){
 					other_point = &(skeleton_frame->points[other_pair->pid]);
 					smallest_error = error;
@@ -251,7 +247,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 				exit(1);
 			}
 			
-//			printf("adding pid %i at %f,%f,%f, which is %f away, error %f\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
+//			printf("adding pid %i at %i,%i,%i, which is %i away, error %i\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
 			
 			// standard ending
 			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
@@ -282,18 +278,18 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 
 
 
-double compute_final_score(int num_scores, double *scores){
+int compute_final_score(int num_scores, int *scores){
 	if(num_scores == 0){
 		return 0;
 	}
 	
 	// basic, compute average.
-	double sum = 0.0;
+	int sum = 0;
 	int i;
 	for(i = 0; i < num_scores; i++){
 		sum += scores[i];
 	}
-	return sum / num_scores;
+	return floorf(sum / num_scores);
 }
 
 void score_candidates_against_frames(int rank, final_score *final_scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
@@ -302,11 +298,11 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 	score score;
 	memset(&score, 0, sizeof(score));
 	
-	score.scores = (double *) malloc (num_pointcloud_frames * sizeof(double));
+	score.scores = (int *) malloc (num_pointcloud_frames * sizeof(int));
 	
 	
 	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
-		memset(score.scores, 0, num_pointcloud_frames * sizeof(double));
+		memset(score.scores, 0, num_pointcloud_frames * sizeof(int));
 		memcpy(&(score.candidate), &(candidates[candidate_i]), sizeof(candidate));
 		
 		score.num_scores = 0;
@@ -444,6 +440,7 @@ int main(int argc, char** argv) {
 		printf("ROOT: received %i candidates via gatherv\n", num_candidates);
 		
 		validate_candidates(rank, num_candidates, candidates);
+		
 		printf("ROOT: all candidates valid\n");
 		
 		printf("ROOT: randomizing candidates\n");
@@ -553,7 +550,7 @@ int main(int argc, char** argv) {
 		
 		char *output_file = argv[3];
 		FILE *output_handle = fopen(output_file, "w");
-		fprintf(output_handle, "score,num_edges,total_length");
+		fprintf(output_handle, "score,num_edges,total_length_mm");
 		for(i = 0; i < MAX_EDGES; i++){
 			fprintf(output_handle,",length_%i",i);
 		}
@@ -565,10 +562,10 @@ int main(int argc, char** argv) {
 			}
 			cand = &(final_scores[i].candidate);
 //			printf("cand %i => %f\n", i, final_scores[i].score);
-			fprintf(output_handle, "%f,%i,%f", final_scores[i].score, cand->num_lengths, cand->total_length);
+			fprintf(output_handle, "%i,%i,%i", final_scores[i].score, cand->num_lengths, cand->total_length);
 			
 			for(j = 0; j < cand->num_lengths; j++){
-				fprintf(output_handle, ",%f", cand->lengths[j]);
+				fprintf(output_handle, ",%i", cand->lengths[j]);
 			}
 			// pad out lengths to keep alignment consistent
 			for(;j < MAX_EDGES; j++){
