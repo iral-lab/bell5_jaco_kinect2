@@ -178,7 +178,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	int offset, added;
 	double desired_length;
 	
-	int added_pids[num_closest];
+	bool added_pids[num_points];
 	
 	double best_score = -999999999;
 	double temp_score;
@@ -207,6 +207,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		
 		last_point = &(current_path.points[ current_path.num_points - 1]);
 		added = 0;
+		memset(added_pids, 0, num_points * sizeof(bool));
 		desired_length = candidate->lengths[current_path.num_points-1];
 		for(i = 0; i < num_closest && added < num_points; i++){
 			
@@ -224,14 +225,8 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 				// start at 1 since 0 is itself
 				offset = (last_point->pid * num_points + j);
 				other_pair = &(pairs[offset]);
-				already_added = false;
-				for(k = 0; k < added; k++){
-					if(other_pair->pid == added_pids[k]){
-						already_added = true;
-						break;
-					}
-				}
-				if(already_added){
+				
+				if(added_pids[other_pair->pid]){
 					continue;
 				}
 				
@@ -261,7 +256,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 
 			stack_size++;
 			
-			added_pids[added] = best_point->pid;
+			added_pids[best_point->pid] = true;
 			added++;
 			
 		}
@@ -334,7 +329,8 @@ bool is_leader(int rank){
 int main(int argc, char** argv) {
 	MPI_Init(NULL, NULL);
 	
-	srand(time(NULL));
+//	srand(time(NULL));
+	srand(1);
 	
 	int world_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
