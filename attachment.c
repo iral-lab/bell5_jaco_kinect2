@@ -157,10 +157,6 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	int max_path_vertices = candidate->num_lengths + 1;
 	short num_closest = get_num_closest(num_points);
 	
-	int space_for_paths = 0;
-	int num_paths = 0;
-	scored_path *paths = get_more_space_and_copy(&space_for_paths, NULL, num_paths, PATHS, sizeof(scored_path));
-	
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
