@@ -308,6 +308,7 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 		score.num_scores = 0;
 		
 		printf("%i scoring candidate %i/%i (%i edges)\n", rank, candidate_i, num_candidates, score.candidate.num_lengths);
+		fflush(stdout);
 		
 		for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 			
@@ -540,6 +541,7 @@ int main(int argc, char** argv) {
 	
 	
 	printf("%i finished scoring\n", rank); fflush(stdout);
+	fflush(stdout);
 	
 	MPI_Gatherv(final_scores, my_candidate_batch_size, MPI_BYTE, final_scores, final_scores_per_worker_bytes, final_scores_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
 	
