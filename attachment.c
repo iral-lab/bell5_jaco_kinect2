@@ -14,7 +14,7 @@
 
 #define MIN_PROCESSORS 4
 
-#define MAX_EDGES 6
+#define MAX_EDGES 5
 #define MAX_VERTICES MAX_EDGES + 1
 #define MIN_VERTICES 3 // at least 2 edges
 
