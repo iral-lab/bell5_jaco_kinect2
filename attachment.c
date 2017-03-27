@@ -270,6 +270,10 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	
 	// now find the best score among all paths and just assign that score to this candidate/frame combo
 	score->scores[frame_i] = best_score;
+	
+	if(stack){
+		free(stack);
+	}
 }
 
 
