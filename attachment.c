@@ -80,7 +80,7 @@ void compute_candidate_total_lengths(final_score *final_scores, int num_candidat
 	}
 }
 
-double distance_to_segment(point *p, point *s0, point *s1){
+short distance_to_segment(point *p, point *s0, point *s1){
 	
 	point v;
 	vector_between(s1, s0, &v);
@@ -88,11 +88,11 @@ double distance_to_segment(point *p, point *s0, point *s1){
 	vector_between(p, s0, &w);
 	double c1 = v_dot(&w, &v);
 	if(c1 < 0){
-		return v_dist(p, s0);
+		return floorf(v_dist(p, s0));
 	}
 	double c2 = v_dot(&v, &v);
 	if(c2 <= c1){
-		return v_dist(p, s1);
+		return floorf(v_dist(p, s1));
 	}
 	double b = c1 / c2;
 	
@@ -100,7 +100,7 @@ double distance_to_segment(point *p, point *s0, point *s1){
 	v.y = s0->y + b * v.y;
 	v.z = s0->z + b * v.z;
 	
-	return v_dist(p, &v);
+	return floorf(v_dist(p, &v));
 }
 
 int get_error_to_path(stateless_path *path, frame *pcl_frame){
@@ -117,7 +117,7 @@ int get_error_to_path(stateless_path *path, frame *pcl_frame){
 			p0 = path->points[j];
 			p1 = path->points[j+1];
 			
-			this_distance = floorf(distance_to_segment(p, p0, p1));
+			this_distance = distance_to_segment(p, p0, p1);
 			
 			if(this_distance < best_distance){
 				best_distance = this_distance;
@@ -407,9 +407,7 @@ int main(int argc, char** argv) {
 	int my_batch_size = frames_per_worker[rank];
 	int my_batch_start = batch_start[rank];
 	printf("> %i my_batch_size: %i, starting at %i\n",rank, my_batch_size, my_batch_start);
-	
-	// unnecessary, but used for log ordering
-	MPI_Barrier(MPI_COMM_WORLD);
+	fflush(stdout);
 	
 	int *candidates_per_worker = NULL;
 	int *candidates_per_worker_in_bytes = NULL;
@@ -426,6 +424,7 @@ int main(int argc, char** argv) {
 		MPI_Gather(&my_batch_size, 1, MPI_INT, candidates_per_worker, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		
 		printf("ROOT: received candidate counts:\n");
+		fflush(stdout);
 		
 		for(i = 0; i < world_size; i++){
 			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
@@ -439,21 +438,26 @@ int main(int argc, char** argv) {
 		
 		MPI_Gatherv(NULL, 0, MPI_BYTE, candidates, candidates_per_worker_in_bytes, candidates_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
 		printf("ROOT: received %i candidates via gatherv\n", num_candidates);
+		fflush(stdout);
 		
 		validate_candidates(rank, num_candidates, candidates);
 		
 		printf("ROOT: all candidates valid\n");
+		fflush(stdout);
 		
 		// de-dupe candidates, as some frames might have same overlap, which would be good
 		deduplicate_candidates(&num_candidates, candidates);
 		
 		printf("ROOT: deduping done\n");
+		fflush(stdout);
 		
 		printf("ROOT: randomizing candidates\n");
+		fflush(stdout);
 		randomize_array(candidates, num_candidates, sizeof(candidate));
 		
 		validate_candidates(rank, num_candidates, candidates);
 		printf("ROOT: all candidates valid\n");
+		fflush(stdout);
 		
 	}else{
 		// compute candidates
@@ -576,7 +580,7 @@ int main(int argc, char** argv) {
 			}
 			// pad out lengths to keep alignment consistent
 			for(;j < MAX_EDGES; j++){
-				fprintf(output_handle, ",0.0");
+				fprintf(output_handle, ",0");
 			}
 			fprintf(output_handle, "\n");
 		}
