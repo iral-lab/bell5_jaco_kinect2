@@ -286,7 +286,7 @@ unsigned int compute_final_penalty(unsigned int num_penalties, unsigned int *pen
 	unsigned int sum = 0;
 	int i;
 	for(i = 0; i < num_penalties; i++){
-		printf("sum %i, num %i val %i\n", sum, num_penalties, penalties[i]);
+//		printf("sum %i, num %i val %i\n", sum, num_penalties, penalties[i]);
 		sum += penalties[i];
 	}
 	return floorf(sum / num_penalties);
