@@ -12,7 +12,9 @@
 // define in terms of millimeters instead of meters
 #define UNIT_SCALAR 1000
 
-#define MIN_PROCESSORS 4
+#define BIG_NUMBER 999999999
+
+#define MIN_PROCESSORS 2
 
 #define MAX_EDGES 5
 #define MAX_VERTICES MAX_EDGES + 1
@@ -36,18 +38,18 @@
 
 typedef struct scored_path{
 	path path;
-	int score;
+	unsigned int penalty;
 }scored_path;
 
 typedef struct score{
 	candidate candidate;
-	int *scores; // will store each frame's score in order
-	short num_scores;
+	unsigned int *penalties; // will store each frame's score in order
+	unsigned short num_penalties;
 }score;
 
 typedef struct final_score{
 	candidate candidate;
-	int score;
+	unsigned int penalty;
 }final_score;
 
 double v_dot(point *u, point *v){
@@ -103,15 +105,15 @@ short distance_to_segment(point *p, point *s0, point *s1){
 	return floorf(v_dist(p, &v));
 }
 
-int get_error_to_path(stateless_path *path, frame *pcl_frame){
-	int error = 0;
+unsigned int get_error_to_path(stateless_path *path, frame *pcl_frame){
+	unsigned int error = 0;
 	
 	point *p,*p0,*p1;
 	int best_distance, this_distance;
 	int i,j;
 	for(i = 0; i < pcl_frame->num_points; i++){
 		p = &(pcl_frame->points[i]);
-		best_distance = 999999999;
+		best_distance = BIG_NUMBER;
 		
 		for(j = 0; j < path->num_points - 1; j++){
 			p0 = path->points[j];
@@ -129,17 +131,12 @@ int get_error_to_path(stateless_path *path, frame *pcl_frame){
 	return error;
 }
 
-int score_path(stateless_path *path, frame *pcl_frame){
-	// want the error to be a penalty, more error => lower score
-	return get_error_to_path(path, pcl_frame) * -1;
+int sort_by_penalty(const void *a, const void *b){
+	// returns lower scores as better
+	return ((final_score *) a)->penalty < ((final_score *) b)->penalty ? -1 : 1;
 }
 
-int sort_by_score(const void *a, const void *b){
-	// returns higher scores as better
-	return ((final_score *) a)->score < ((final_score *) b)->score ? 1 : -1;
-}
-
-void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
+unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
 	candidate *candidate = &(score->candidate);
 	
 	int num_points = skeleton_frame->num_points;
@@ -172,13 +169,13 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	
 	bool added_pids[num_points];
 	
-	int best_score = -999999999;
-	int temp_score;
+	unsigned int best_score = BIG_NUMBER;
+	unsigned int temp_score;
 	
 	point *best_point = NULL;
-	int smallest_error = 999999999;
-	int best_points_distance = 0;
-	int error;
+	unsigned int smallest_error = BIG_NUMBER;
+	unsigned int best_points_distance = 0;
+	unsigned int error;
 	
 	clock_t start, diff;
 	clock_t all_start = clock(), all_diff;
@@ -191,12 +188,14 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 		if(current_path.num_points == max_path_vertices){
 			start = clock();
 			
-			temp_score = score_path(&current_path, pcl_frame);
+			temp_score = get_error_to_path(&current_path, pcl_frame);
 			
 			diff = clock() - start;
 			scoring_time_spent += diff * 1000 / CLOCKS_PER_SEC;
 			
-			best_score = MAX(best_score, temp_score);
+			if(temp_score < best_score){
+				best_score = temp_score;
+			}
 			
 			continue;
 		}
@@ -214,7 +213,7 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 			
 			
 			best_point = NULL;
-			smallest_error = 999999999;
+			smallest_error = BIG_NUMBER;
 			best_points_distance = 0;
 			
 			for(j = 1; j < num_points; j++){
@@ -268,28 +267,29 @@ void score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame,
 	//printf("Scoring took %d seconds %d milliseconds\n", scoring_time_spent/1000, scoring_time_spent%1000);
 	//printf("all took %d seconds %d milliseconds\n", total_time_spent/1000, total_time_spent%1000);
 	
-	// now find the best score among all paths and just assign that score to this candidate/frame combo
-	score->scores[frame_i] = best_score;
 	
 	if(stack){
 		free(stack);
 	}
+	
+	return best_score;
 }
 
 
 
-int compute_final_score(int num_scores, int *scores){
-	if(num_scores == 0){
+unsigned int compute_final_penalty(unsigned int num_penalties, unsigned int *penalties){
+	if(num_penalties == 0){
 		return 0;
 	}
 	
 	// basic, compute average.
-	int sum = 0;
+	unsigned int sum = 0;
 	int i;
-	for(i = 0; i < num_scores; i++){
-		sum += scores[i];
+	for(i = 0; i < num_penalties; i++){
+		printf("sum %i, num %i val %i\n", sum, num_penalties, penalties[i]);
+		sum += penalties[i];
 	}
-	return floorf(sum / num_scores);
+	return floorf(sum / num_penalties);
 }
 
 void score_candidates_against_frames(int rank, final_score *final_scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
@@ -298,36 +298,44 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 	score score;
 	memset(&score, 0, sizeof(score));
 	
-	score.scores = (int *) malloc (num_pointcloud_frames * sizeof(int));
+	score.penalties = (unsigned int *) malloc (num_pointcloud_frames * sizeof(unsigned int));
 	
+	unsigned int value;
 	
 	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
-		memset(score.scores, 0, num_pointcloud_frames * sizeof(int));
+		memset(score.penalties, 0, num_pointcloud_frames * sizeof(unsigned int));
 		memcpy(&(score.candidate), &(candidates[candidate_i]), sizeof(candidate));
 		
-		score.num_scores = 0;
-		
-		printf("%i scoring candidate %i/%i (%i edges)\n", rank, candidate_i, num_candidates, score.candidate.num_lengths);
-		fflush(stdout);
+		score.num_penalties = 0;
 		
 		for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 			
-			score_candidates_against_frame(&(score), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
-			score.num_scores++;
+			value = score_candidates_against_frame(&(score), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+			
+			if(value <= 0){
+				printf("%i HAS ZERO OR NEG PENALTY: %i\n", rank, value);
+				exit(1);
+			}
+			
+			score.penalties[score.num_penalties] = value;
+			score.num_penalties++;
 			
 			if(SHORT_TEST_RUN){
 				break;
 			}
 		}
 		memcpy(&(final_scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
-		final_scores[candidate_i].score = compute_final_score(score.num_scores, score.scores);
+		final_scores[candidate_i].penalty = compute_final_penalty(score.num_penalties, score.penalties);
+		
+		printf("%i scoring candidate %i/%i (%i edges) = %i\n", rank, candidate_i, num_candidates, score.candidate.num_lengths, final_scores[candidate_i].penalty);
+		fflush(stdout);
 		
 		if(SHORT_TEST_RUN){
 			break;
 		}
 	}
 	
-	free(score.scores);
+	free(score.penalties);
 }
 
 
@@ -553,7 +561,7 @@ int main(int argc, char** argv) {
 		candidate *cand;
 		printf("Received final scores.\n");
 		
-		qsort(final_scores, num_candidates, sizeof(final_score), sort_by_score);
+		qsort(final_scores, num_candidates, sizeof(final_score), sort_by_penalty);
 		
 		compute_candidate_total_lengths(final_scores, num_candidates);
 		
@@ -568,12 +576,12 @@ int main(int argc, char** argv) {
 		fprintf(output_handle, "\n");
 		
 		for(i = 0; i < num_candidates; i++){
-			if(final_scores[i].score == 0){
+			if(final_scores[i].penalty == 0){
 				continue;
 			}
 			cand = &(final_scores[i].candidate);
 //			printf("cand %i => %f\n", i, final_scores[i].score);
-			fprintf(output_handle, "%i,%i,%i", final_scores[i].score, cand->num_lengths, cand->total_length);
+			fprintf(output_handle, "%i,%i,%i", final_scores[i].penalty, cand->num_lengths, cand->total_length);
 			
 			for(j = 0; j < cand->num_lengths; j++){
 				fprintf(output_handle, ",%i", cand->lengths[j]);
