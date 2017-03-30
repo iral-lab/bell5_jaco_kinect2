@@ -429,6 +429,8 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		//			printf("\n\n");
 	}
 	
+	deduplicate_candidates(&num_paths, candidates);
+	
 	// gather the number of candidates
 	MPI_Gather(&num_paths, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
