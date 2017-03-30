@@ -20,6 +20,8 @@
 #define MAX_VERTICES MAX_EDGES + 1
 #define MIN_VERTICES 3 // at least 2 edges
 
+#define MAX_POINTS_IN_SKELETON_FRAME 15
+
 #define MAX_ANCHORS 3
 #define BRANCH_NEIGHBORS 3
 

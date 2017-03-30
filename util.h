@@ -242,6 +242,14 @@ void read_and_broadcast_frames(char **argv, int *num_skeleton_frames, frame **al
 	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames);
 	printf("done reading in %i skeleton frames\n", *num_skeleton_frames);
 	
+	int i;
+	for(i = 0; i < (*num_skeleton_frames); i++){
+		if((*all_skeleton_frames)[i].num_points > MAX_POINTS_IN_SKELETON_FRAME){
+			printf("Too many points in a skeleton frame %i (planned for max %i)\n", (*all_skeleton_frames)[i].num_points, MAX_POINTS_IN_SKELETON_FRAME);
+			exit(1);
+		}
+	}
+	
 	read_frames(pcl_handle, POINTCLOUD, num_pointcloud_frames, all_pointcloud_frames);
 	printf("done reading in %i pointcloud frames\n", *num_pointcloud_frames);
 	
