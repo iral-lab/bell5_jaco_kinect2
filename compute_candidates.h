@@ -17,7 +17,9 @@ typedef struct sort_pair{
 
 typedef struct path{
 	short num_points;
-	point points[MAX_VERTICES];
+	point points[MAX_POINTS_IN_SKELETON_FRAME];
+	bool visited_points[MAX_POINTS_IN_SKELETON_FRAME];
+	short num_visited;
 } path;
 
 typedef struct stateless_path{
@@ -100,11 +102,26 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	return ((point *) a)->y > ((point *) b)->y ? 1 : -1;
 }
 
-void get_anchors(int num_anchors, point **anchors, frame *frm){
+void get_anchors(int *num_anchors, point ***anchors, frame *frm){
+	// assumes frm points are already sorted by y value
+	short anchor_threshold = 40; // 4 centimeters
+	short bottom_most = 0;
 	int i;
-	for(i = 0; i < num_anchors; i++){
-		anchors[i] = &(frm->points[i]);
-		//		printf("point %i: (pid: %i) %f,%f,%f\n", i, anchors[i]->pid, anchors[i]->x, anchors[i]->y, anchors[i]->z);
+	for(i = 0; i < frm->num_points; i++){
+		if(i == 0){
+			bottom_most = frm->points[i].y;
+			(*num_anchors)++;
+			continue;
+		}
+		
+		if(abs(frm->points[i].y - bottom_most) <= anchor_threshold){
+			(*num_anchors)++;
+		}
+	}
+	(*anchors) = (point **) malloc ((*num_anchors) * sizeof(point *));
+	for(i = 0; i < *num_anchors; i++){
+		(*anchors)[i] = &(frm->points[i]);
+//		printf("point %i: (pid: %i) %i,%i,%i\n", i, (*anchors)[i]->pid, (*anchors)[i]->x, (*anchors)[i]->y, (*anchors)[i]->z);
 	}
 }
 
@@ -148,17 +165,26 @@ bool in_path(path *path, point *point){
 path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on_stack){
 	int num_points = frame->num_points;
 	
-	int num_anchors = MIN(MAX_ANCHORS, num_points);
-	point *anchors[num_anchors];
-	get_anchors(num_anchors, anchors, frame);
+	int num_anchors = 0;
+	point **anchors = NULL;
+	get_anchors(&num_anchors, &anchors, frame);
 	path *stack = NULL;
-	int i;
+	int i,j;
 	for(i = 0; i < num_anchors; i++){
 		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(path));
 		
 		memcpy(&(stack[*stack_size].points[0] ), anchors[i], sizeof(point));
 		stack[*stack_size].num_points = 1;
+		
+		// don't let anchors connect to anchors
+		for(j = 0; j < num_anchors; j++){
+			stack[*stack_size].visited_points[anchors[j]->pid] = true;
+			stack[*stack_size].num_visited++;
+		}
 		(*stack_size)++;
+	}
+	if(anchors){
+		free(anchors);
 	}
 	return stack;
 }
@@ -167,9 +193,9 @@ path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on
 stateless_path* initialize_stack_with_anchors_stateless(frame *frame, int *stack_size, int *space_on_stack){
 	int num_points = frame->num_points;
 	
-	int num_anchors = MIN(MAX_ANCHORS, num_points);
-	point *anchors[num_anchors];
-	get_anchors(num_anchors, anchors, frame);
+	int num_anchors = 0;
+	point **anchors = NULL;
+	get_anchors(&num_anchors, &anchors, frame);
 	stateless_path *stack = NULL;
 	int i;
 	for(i = 0; i < num_anchors; i++){
@@ -179,16 +205,19 @@ stateless_path* initialize_stack_with_anchors_stateless(frame *frame, int *stack
 		stack[*stack_size].num_points = 1;
 		(*stack_size)++;
 	}
+	if(anchors){
+		free(anchors);
+	}
 	return stack;
 }
 
 
-void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame *frm, int *num_paths, path **paths){
-	//	printf("> %i cand(f_%i) %i vertices\n", rank, frame_n, num_vertices);
+void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
+	//	printf("> %i cand(f_%i)\n", rank, frame_n);
 	int i,j;
+//	printf("Frame points %i\n", frm->num_points);
 	for(j = 0; j < frm->num_points; j++){
 		if(frm->points[j].x == 0 || frm->points[j].y == 0 || frm->points[j].z == 0){
-			printf("Frame points %i\n", frm->num_points);
 			for(i = 0; i < frm->num_points; i++){
 				printf("%i %i %i\n", frm->points[i].x, frm->points[i].y,frm->points[i].z);
 			}
@@ -223,7 +252,7 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 	path current_path;
 	point *last_point;
 	
-	int offset, added;
+	int offset;
 	
 	while(stack_size > 0){
 		// get the last item
@@ -235,7 +264,8 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 		
 //		printf("\n\nCurrent ");
 //		print_path(&current_path);
-//		
+//		printf("already visited: %i\n", current_path.num_visited);
+
 		for(i = 0; i < current_path.num_points; i++){
 			if(current_path.points[i].x == 0 || current_path.points[i].y == 0 || current_path.points[i].z == 0){
 				printf("found invalid path point, zero:\n");
@@ -246,20 +276,22 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 			}
 		}
 		
-		if(num_vertices == current_path.num_points){
+		if(num_points == current_path.num_visited){
+			// only done once we've visited all points. Path is considered minimized since we minimized during creation
 			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
 			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
-			//			printf("(now %i paths finished), latest ", (*num_paths)+1);
-			//			print_path(&((*paths)[*num_paths]));
+			
+//			printf("(now %i paths finished), latest ", (*num_paths)+1);
+//			print_path(&((*paths)[*num_paths]));
+			
 			(*num_paths)++;
 			continue;
 		}
 		
 		
 		last_point = &(current_path.points[ current_path.num_points - 1]);
-		added = 0;
-		// either stop after added have been added or try all the points
-		for(i = 1; i < num_points && added < num_closest; i++){
+		
+		for(i = 1; i < num_points; i++){
 			
 			/// start at 1 because 0th 'nearest' is itself with 0 distance
 			offset = (last_point->pid * num_points + i); // pid = rows, i = cols
@@ -267,9 +299,12 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 			nearest_point = &(frm->points[nearest_pair->pid]);
 			//			printf("\tnearest to last_point (%i): (%i) %f,%f,%f at dist %f\n", last_point->pid, nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z, nearest_pair->distance);
 			
-			if(in_path(&current_path, nearest_point)){
-				// point is already in path, skip it
-				//				printf("\t>>> Skipping point (%i), already in path\n", nearest_point->pid);
+//			printf("trying %i    %i %i %i\n", nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z);
+			
+//			if(in_path(&current_path, nearest_point)){
+			if(current_path.visited_points[nearest_point->pid]){
+				// point has already been visited
+//				printf("\t>>> Skipping point (%i), already visited\n", nearest_point->pid);
 				continue;
 			}
 			
@@ -291,11 +326,17 @@ void compute_candidates_for_frame(int rank, int frame_n, int num_vertices, frame
 			memcpy(&(stack[stack_size].points[current_path.num_points]), nearest_point, sizeof(point));
 			stack[stack_size].num_points++;
 			
+			stack[stack_size].visited_points[nearest_point->pid] = true;
+			stack[stack_size].num_visited++;
 			//			printf("\tJust pushed on ");
 			//			print_path(&(stack[stack_size]));
 			
+			// do the point-dropping, in case
+			
+			
+			
+			
 			stack_size++;
-			added++;
 			
 		}
 		
@@ -354,24 +395,14 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	//
 	path *paths = NULL;
 	int num_paths = 0;
-	int i,num_vertices;
+	int i;
 	int frame_n;
 	for(i = 0; i < num_skeleton_frames; i++){
 		frame_n = my_start + i;
 		
-		int batch_start = 0;
-		for(num_vertices = MIN_VERTICES; num_vertices <= MAX_VERTICES; num_vertices++){
-			batch_start = num_paths;
-			
-			compute_candidates_for_frame(rank, frame_n, num_vertices, &(skeleton_frames[i]), &num_paths, &paths);
-			//			printf(">> was %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
-			
-			//			printf(">> %i cand(f_%i) %i vertices => now %i paths\n", rank, frame_n, num_vertices, num_paths);
-		}
+		compute_candidates_for_frame(rank, frame_n, &(skeleton_frames[i]), &num_paths, &paths);
 		
-		
-		
-		//		break;
+		break;
 	}
 	
 	// turn paths to length edges
@@ -382,9 +413,7 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	for(j = 0; j < num_paths; j++){
 		for(k = 0; k < paths[j].num_points - 1; k++){
 			
-			// value as a floating point 'meters'
 			value = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
-			
 			candidates[j].lengths[k] = floorf(value);
 			
 			if(candidates[j].lengths[k] <= 0){
