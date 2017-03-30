@@ -87,8 +87,8 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 		current = &(frm->points[frm->num_points]);
 		sscanf(line, "%lf,%lf,%lf", &temp_x, &temp_y, &temp_z);
 		current->x = floorf(temp_x * UNIT_SCALAR);
-		current->z = floorf(temp_y * UNIT_SCALAR);
-		current->y = floorf(temp_z * UNIT_SCALAR);
+		current->y = floorf(temp_y * UNIT_SCALAR);
+		current->z = floorf(temp_z * UNIT_SCALAR);
 		
 //		printf("READ LINE: %i, %i, %i\n", current->x, current->y, current->z);
 		
