@@ -228,16 +228,18 @@ void validate_frames(int rank, int num_frames, frame *frames){
 }
 
 
-void read_and_broadcast_frames(char **argv, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
+void read_and_broadcast_frames(char * input_skeleton_file, char * input_pcl_file, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
 	
-	FILE *skeleton_handle;
-	FILE *pcl_handle;
+	FILE *skeleton_handle = fopen(input_skeleton_file, "r");
+	FILE *pcl_handle = fopen(input_pcl_file, "r");
 	
-	char * input_skeleton_file = argv[1];
-	char * input_pcl_file = argv[2];
-	
-	skeleton_handle = fopen(input_skeleton_file, "r");
-	pcl_handle = fopen(input_pcl_file, "r");
+	if(!skeleton_handle){
+		printf("Skeleton file does not exist: %s\n", input_skeleton_file);
+		exit(1);
+	}else if(!pcl_handle){
+		printf("PCL file does not exist: %s\n", input_pcl_file);
+		exit(1);
+	}
 	
 	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames);
 	printf("done reading in %i skeleton frames\n", *num_skeleton_frames);

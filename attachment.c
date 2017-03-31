@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <assert.h>
 
 #define SHORT_TEST_RUN 1
 
@@ -34,7 +35,7 @@
 
 #define FRAME_DELIMITER '='
 
-#define EXPECTED_ARG_COUNT 4
+#define EXPECTED_ARG_COUNT 5
 
 #include "util.h"
 #include "compute_candidates.h"
@@ -304,8 +305,77 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 }
 
 
+
 bool is_leader(int rank){
 	return 0 == rank;
+}
+
+void get_best_candidate_from_output(candidate *best_cand, int best_length, char *output_file){
+	FILE *output_handle = fopen(output_file, "r");
+	candidate cand;
+	
+	if(!output_handle){
+		printf("Output file does not exist: %s\n", output_file);
+		exit(1);
+	}
+	
+	char * line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	
+	unsigned int score;
+	unsigned int best_score = BIG_NUMBER;
+	
+	unsigned int num_lengths;
+	unsigned int total_length;
+	unsigned int length_0;
+	unsigned int length_1;
+	unsigned int length_2;
+	unsigned int length_3;
+	unsigned int length_4;
+	
+	// the output-file reader needs to be correct, this was written to have this number
+	assert(5 == MAX_EDGES);
+	
+	while ((read = getline(&line, &len, output_handle)) != -1) {
+		//			printf("line: %s\n", line);
+		sscanf(line, "%i,%i,%i,%i,%i,%i,%i,%i", &score, &(num_lengths), &(total_length), &(length_0), &(length_1), &(length_2), &(length_3), &(length_4));
+		
+		cand.num_lengths = (unsigned short) num_lengths;
+		cand.total_length = (unsigned short) total_length;
+		cand.lengths[0] = (unsigned short) length_0;
+		cand.lengths[1] = (unsigned short) length_1;
+		cand.lengths[2] = (unsigned short) length_2;
+		cand.lengths[3] = (unsigned short) length_3;
+		cand.lengths[4] = (unsigned short) length_4;
+		
+		//			printf("READ LINE: %i, %i \n", score, cand.num_lengths);
+		
+		if(cand.num_lengths == best_length && score < best_score){
+			memset(best_cand, 0, sizeof(candidate));
+			memcpy(best_cand, &cand, sizeof(candidate));
+			best_score = score;
+			printf("NEW BEST: %i, %hu, %hu \n", best_score, best_cand->total_length, best_cand->num_lengths);
+		}
+		
+	}
+	
+	if(output_handle){
+		fclose(output_handle);
+	}
+}
+
+void do_best_robot_output(int rank, unsigned short best_length, int my_batch_size, int my_batch_start, int num_skeleton_frames, frame *all_skeleton_frames, int num_pointcloud_frames, frame *all_pointcloud_frames, char *output_file){
+	
+	candidate cand;
+	memset(&cand,0,sizeof(candidate));
+	
+	if(is_leader(rank)){
+		get_best_candidate_from_output(&cand, best_length, output_file);
+		printf("best cand: %i\n", cand.total_length);
+	}
+	
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 int main(int argc, char** argv) {
@@ -324,7 +394,7 @@ int main(int argc, char** argv) {
 	
 	if(argc < EXPECTED_ARG_COUNT){
 		if(is_leader(rank)){
-			printf("Usage: ./attachment skeleton.csv pointcloud.csv output.csv\n");
+			printf("Usage: ./attachment run|(best n) skeleton.csv pointcloud.csv output.csv\n");
 		}
 		return 1;
 	}else if(world_size < MIN_PROCESSORS){
@@ -334,6 +404,8 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	
+	int i,j;
+	
 	int num_skeleton_frames = 0;
 	frame *all_skeleton_frames = NULL;
 	point *skeleton_packed_points = NULL;
@@ -342,9 +414,34 @@ int main(int argc, char** argv) {
 	frame *all_pointcloud_frames = NULL;
 	point *pointcloud_packed_points = NULL;
 	
+	char * input_skeleton_file;
+	char * input_pcl_file;
+	char * output_file;
+	
+	bool output_best = false;
+	unsigned short best_length = 0;
+	
+	if(strcmp(argv[1], "run") == 0){
+		input_skeleton_file = argv[2];
+		input_pcl_file = argv[3];
+		output_file = argv[4];
+	}else if(strcmp(argv[1], "best") == 0){
+		output_best = true;
+		best_length = atoi(argv[2]);
+		if(best_length == 0){
+			printf("Invalid best length: %s\n", argv[2]);
+			exit(1);
+		}
+		input_skeleton_file = argv[3];
+		input_pcl_file = argv[4];
+		output_file = argv[5];
+	}else{
+		printf("Invalid run-type stated: %s\n", argv[1]);
+		exit(1);
+	}
 	
 	if(is_leader(rank)){
-		read_and_broadcast_frames(argv, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
+		read_and_broadcast_frames(input_skeleton_file, input_pcl_file, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
 	}else{
 		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &skeleton_packed_points, &num_pointcloud_frames, &all_pointcloud_frames, &pointcloud_packed_points);
 		
@@ -358,7 +455,6 @@ int main(int argc, char** argv) {
 		}
 		exit(1);
 	}
-	int i,j;
 	int worker_count = world_size - 1;
 	int min_batch_size = num_skeleton_frames / worker_count;
 	int batch_left_over = num_skeleton_frames - (min_batch_size * worker_count);
@@ -381,6 +477,11 @@ int main(int argc, char** argv) {
 	int my_batch_start = batch_start[rank];
 	printf("> %i my_batch_size: %i, starting at %i\n",rank, my_batch_size, my_batch_start);
 	fflush(stdout);
+	
+	if(output_best){
+		do_best_robot_output(rank, best_length, my_batch_size, my_batch_start, num_skeleton_frames, all_skeleton_frames, num_pointcloud_frames, all_pointcloud_frames, output_file);
+		exit(0);
+	}
 	
 	int *candidates_per_worker = NULL;
 	int *candidates_per_worker_in_bytes = NULL;
@@ -539,7 +640,6 @@ int main(int argc, char** argv) {
 		
 		printf("final scores sorted\n");
 		
-		char *output_file = argv[3];
 		FILE *output_handle = fopen(output_file, "w");
 		fprintf(output_handle, "score,num_edges,total_length_mm");
 		for(i = 0; i < MAX_EDGES; i++){
