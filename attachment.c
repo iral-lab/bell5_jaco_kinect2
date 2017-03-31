@@ -418,11 +418,13 @@ int main(int argc, char** argv) {
 		printf("ROOT: all candidates valid\n");
 		fflush(stdout);
 		
-		// de-dupe candidates, as some frames might have same overlap, which would be good
-		deduplicate_candidates(rank, &num_candidates, candidates, 0, true);
-		
-		printf("ROOT: deduping done\n");
-		fflush(stdout);
+//		 removing final de-dupe since with 500k candidates this is REALLY expensive.
+//		It is good enough to have deduping on workers beforehand and after, to avoid this big cross
+//		de-dupe candidates, as some frames might have same overlap, which would be good
+//		deduplicate_candidates(rank, &num_candidates, candidates, 0, true);
+//		
+//		printf("ROOT: deduping done\n");
+//		fflush(stdout);
 		
 		printf("ROOT: randomizing candidates\n");
 		fflush(stdout);
@@ -506,6 +508,9 @@ int main(int argc, char** argv) {
 		final_scores = (final_score *) malloc (num_candidates * sizeof(final_score));
 		memset(final_scores, 0, num_candidates * sizeof(final_score));
 	}else{
+		printf("%i doing pre-score deduping\n",rank);
+		deduplicate_candidates(rank, &my_candidate_batch_size, candidates, 0, true);
+		
 		final_scores = (final_score *) malloc (my_candidate_batch_size * sizeof(final_score));
 		memset(final_scores, 0, my_candidate_batch_size * sizeof(final_score));
 		clock_t start = clock(), diff;
