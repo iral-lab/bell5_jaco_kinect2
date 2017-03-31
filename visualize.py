@@ -47,73 +47,22 @@ def csv_reader(input_file):
 		if len(batch) > 0:
 			yield batch
 
-
-def paths_reader(input_file):
-	with open(input_file, 'r') as handle:
-		next_line = handle.readline()
-		# skip first line header
-		next_line = handle.readline()
-		batch = {}
-		last_frame = None
-		while next_line:
-			line = next_line.strip()
-			next_line = handle.readline()
-			parts = line.split("\t")
-			frame, edge_count = parts[0:2]
-			path = parts[2:]
-			frame = int(frame)
-			edge_count = int(edge_count)
-			
-			if last_frame and not frame == last_frame:
-				yield batch
-				batch = {}
-			
-			points = []
-			for point in path:
-				points.append( tuple( [float(x) * SCALE for x in point.split(',')]))
-			batch[edge_count] = points
-			last_frame = frame
-		if len(batch) > 0:
-			yield batch
-
-def values_reader(input_file):
-	with open(input_file, 'r') as handle:
-		next_line = handle.readline()
-		schema = []
-		while next_line:
-			line = next_line.strip().split("\t")
-			parts = line[1:]
-			next_line = handle.readline()
-			if 'Frame' == line[0]:
-				schema = [int(x) for x in parts]
-				continue
-			
-			pairs = [(float(parts[i]), i) for i in range(len(parts))]
-			ordered = sorted(pairs, reverse = True)
-			best_pair = ordered[0]
-			best_edge_count = schema[ best_pair[1] ]
-			
-			yield best_edge_count
-
-def get_frames(skeleton_csv, pcl_csv, paths_csv, best_values):
+def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	skeleton_reader = csv_reader(skeleton_csv)
 	pcl_reader = csv_reader(pcl_csv)
-	path_reader = paths_reader(paths_csv)
-	value_reader = values_reader(best_values)
+	path_reader = csv_reader(paths_csv)
 	
 	
 	skeleton_frame = skeleton_reader.next()
 	pcl_frame = pcl_reader.next()
 	path_frame = path_reader.next()
-	value = value_reader.next()
 	
-	while skeleton_frame and pcl_frame and path_frame and value:
-		frame = (skeleton_frame, pcl_frame, path_frame, value)
+	while skeleton_frame and pcl_frame and path_frame:
+		frame = (skeleton_frame, pcl_frame, path_frame)
 		yield frame
 		skeleton_frame = skeleton_reader.next()
 		pcl_frame = pcl_reader.next()
 		path_frame = path_reader.next()
-		value = value_reader.next()
 
 FRAME_N = 0
 DIM = 1536
@@ -197,10 +146,10 @@ def generate_line(p0, p1):
 	return line
 	
 
-def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_values):
+def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 	# edge_count_to_show = 4
 	frame_n = 0
-	for skeleton_frame, pcl_frame, path_frame, edge_count_to_show in get_frames(skeleton_csv, pcl_csv, best_paths_csv, best_values):
+	for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_frame_csv):
 		frame_n += 1
 		
 		if EDGE_COUNT_OVERRIDE:
@@ -225,13 +174,11 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_va
 		for point in skeleton_frame:
 			cluster_points.put( (POINT, point, SKELETON_COLOR, BIG) )
 		
-		this_path = path_frame[edge_count_to_show]
-		
-		for point in this_path:
+		for point in path_frame:
 			cluster_points.put( (POINT, point, LINE_COLOR, BIG) )
 		
 		
-		endpoints = [(this_path[i], this_path[i+1]) for i in range(len(this_path)-1)]
+		endpoints = [(path_frame[i], path_frame[i+1]) for i in range(len(path_frame)-1)]
 		for line in [generate_line(p0,p1) for p0,p1 in endpoints]:
 			for point in line:
 				cluster_points.put( (POINT, point, LINE_COLOR, SMALL) )
@@ -241,17 +188,17 @@ def process_files(skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_va
 
 if '__main__' == __name__:
 	if len(sys.argv) < 3:
-		print "python",sys.argv[0],"skeleton.csv pcl.csv best_paths.csv best_values.csv"
+		print "python",sys.argv[0],"skeleton.csv pcl.csv best_frame_robots_[i]"
 		exit()
 	
-	skeleton_csv, pcl_csv, best_paths_csv, best_values_csv = sys.argv[1:5]
-	
+	skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
+
 	cluster_points = multiprocessing.Queue()
 	
 	# -0.572,-0.343,1.101	 -0.398,-0.562,1.183	 -0.364,-0.436,1.223	 -0.299,0.04,1.217
 	# 26
 	
-	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_paths_csv, cluster_points, best_values_csv))
+	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_frame_robot, cluster_points))
 	processor.start()
 	
 	start_visualizing(cluster_points)
