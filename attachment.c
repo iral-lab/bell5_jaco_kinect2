@@ -55,23 +55,6 @@ typedef struct final_score{
 	unsigned int penalty;
 }final_score;
 
-double v_dot(point *u, point *v){
-	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
-}
-double v_norm(point *v){
-	return sqrt(v_dot(v,v));
-}
-void vector_between(point *u, point *v, point *vector){
-	vector->x = u->x - v->x;
-	vector->y = u->y - v->y;
-	vector->z = u->z - v->z;
-}
-double v_dist(point *u, point *v){
-	point vector;
-	vector_between(u,v,&vector);
-	return v_norm(&vector);
-}
-
 void compute_candidate_total_lengths(final_score *final_scores, int num_candidates){
 	candidate *candidate;
 	int i,j;
@@ -85,34 +68,12 @@ void compute_candidate_total_lengths(final_score *final_scores, int num_candidat
 	}
 }
 
-short distance_to_segment(point *p, point *s0, point *s1){
-	
-	point v;
-	vector_between(s1, s0, &v);
-	point w;
-	vector_between(p, s0, &w);
-	double c1 = v_dot(&w, &v);
-	if(c1 < 0){
-		return floorf(v_dist(p, s0));
-	}
-	double c2 = v_dot(&v, &v);
-	if(c2 <= c1){
-		return floorf(v_dist(p, s1));
-	}
-	double b = c1 / c2;
-	
-	v.x = s0->x + b * v.x;
-	v.y = s0->y + b * v.y;
-	v.z = s0->z + b * v.z;
-	
-	return floorf(v_dist(p, &v));
-}
 
 unsigned int get_error_to_path(stateless_path *path, frame *pcl_frame){
 	unsigned int error = 0;
 	
 	point *p,*p0,*p1;
-	int best_distance, this_distance;
+	unsigned int best_distance, this_distance;
 	int i,j;
 	for(i = 0; i < pcl_frame->num_points; i++){
 		p = &(pcl_frame->points[i]);

@@ -35,6 +35,48 @@ typedef struct candidate{
 
 
 
+double v_dot(point *u, point *v){
+	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
+}
+double v_norm(point *v){
+	return sqrt(v_dot(v,v));
+}
+void vector_between(point *u, point *v, point *vector){
+	vector->x = u->x - v->x;
+	vector->y = u->y - v->y;
+	vector->z = u->z - v->z;
+}
+double v_dist(point *u, point *v){
+	point vector;
+	vector_between(u,v,&vector);
+	return v_norm(&vector);
+}
+
+unsigned short distance_to_segment(point *p, point *s0, point *s1){
+	
+	point v;
+	vector_between(s1, s0, &v);
+	point w;
+	vector_between(p, s0, &w);
+	double c1 = v_dot(&w, &v);
+	if(c1 < 0){
+		return floorf(v_dist(p, s0));
+	}
+	double c2 = v_dot(&v, &v);
+	if(c2 <= c1){
+		return floorf(v_dist(p, s1));
+	}
+	double b = c1 / c2;
+	
+	v.x = s0->x + b * v.x;
+	v.y = s0->y + b * v.y;
+	v.z = s0->z + b * v.z;
+	
+	return floorf(v_dist(p, &v));
+}
+
+
+
 void validate_candidates(int rank, int num_candidates, candidate *candidates){
 	int i,j;
 	for(i = 0; i < num_candidates; i++){
@@ -98,7 +140,10 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	}
 }
 
- int sort_by_y_value(const void *a, const void *b){
+int sort_by_y_value(const void *a, const void *b){
+	if(((point *) a)->y == ((point *) b)->y){
+		return ((point *) a)->x > ((point *) b)->x ? 1 : -1;
+	}
 	return ((point *) a)->y > ((point *) b)->y ? 1 : -1;
 }
 
@@ -211,6 +256,18 @@ stateless_path* initialize_stack_with_anchors_stateless(frame *frame, int *stack
 	return stack;
 }
 
+bool are_in_line(point *p, point *p0, point *p1){
+	unsigned short threshold_distance = 30; // millimeters off the line
+	unsigned short distance = distance_to_segment(p, p0, p1);
+	
+//	printf("Checking: \n");
+//	printf("\t%i,%i,%i\n", p->x, p->y, p->z);
+//	printf("\tis %i from:\n", distance);
+//	printf("\t%i,%i,%i\n", p0->x, p0->y, p0->z);
+//	printf("\t%i,%i,%i\n", p1->x, p1->y, p1->z);
+	
+	return distance <= threshold_distance;
+}
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
 	//	printf("> %i cand(f_%i)\n", rank, frame_n);
@@ -252,6 +309,11 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	path current_path;
 	point *last_point;
 	
+	path *path_to_analyze;
+	point inline_points[3];
+	point *p0,*p1,*p2;
+	
+	bool changed;
 	int offset;
 	
 	while(stack_size > 0){
@@ -331,10 +393,55 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 			//			printf("\tJust pushed on ");
 			//			print_path(&(stack[stack_size]));
 			
+			path_to_analyze = &(stack[stack_size]);
 			// do the point-dropping, in case
+//			printf("\n\nCurrent ");
+//			print_path(path_to_analyze);
 			
-			
-			
+			changed = true;
+			while(changed){
+				changed = false;
+				
+				for(j = 0; j < (path_to_analyze->num_points-2); j++){
+//					printf("%i, %i\n", j, (path_to_analyze->num_points-2));
+//					fflush(stdout);
+					memcpy(inline_points, &(stack[stack_size].points[j]), 3 * sizeof(point));
+					
+					qsort(inline_points, 3, sizeof(point), sort_by_y_value);
+					
+					
+					// p1 is between (p0,p2)
+					p0 = &(inline_points[0]);
+					p1 = &(inline_points[1]);
+					p2 = &(inline_points[2]);
+					
+//					printf("POINTS: %i %i %i\n", p0->pid, p1->pid, p2->pid);
+					
+					if(are_in_line(p1, p0, p2)){
+						changed = true;
+//						printf("IN LINE!\n");
+						
+						// p1 is between p0/p2, so remove it by copying 0/2 into spots and shifting later ones down and decrementing
+						memcpy(&(path_to_analyze->points[j]), &(inline_points[0]), sizeof(point));
+						memcpy(&(path_to_analyze->points[j+1]), &(inline_points[2]), sizeof(point));
+						
+//						printf("has %i, moving %i\n", path_to_analyze->num_points, path_to_analyze->num_points - (j+3));
+						memmove(&(path_to_analyze->points[j+2]), &(path_to_analyze->points[j+3]), path_to_analyze->num_points - (j+3));
+						
+						path_to_analyze->num_points--;
+						
+						
+//						printf("\n\nNew ");
+//						print_path(path_to_analyze);
+					}
+					
+//					printf("\n\n");
+				}
+				
+			}
+//			printf("\n\nFinal ");
+//			print_path(path_to_analyze);
+//			printf("done\n");
 			
 			stack_size++;
 			
