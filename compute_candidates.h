@@ -82,12 +82,12 @@ void validate_candidates(int rank, int num_candidates, candidate *candidates){
 	for(i = 0; i < num_candidates; i++){
 		
 		if(candidates[i].num_lengths == 0){
-			printf("found invalid candidate\n");
+			printf("%i found invalid candidate\n", rank);
 			exit(1);
 		}
 		for(j = 0; j < candidates[i].num_lengths; j++){
 			if(candidates[i].lengths[j] <= 0){
-				printf("\n\nInvalid length of <= 0\n");
+				printf("\n\n%i Invalid length of <= 0\n", rank);
 				exit(1);
 			}
 		}
@@ -269,7 +269,68 @@ bool are_in_line(point *p, point *p0, point *p1){
 	return distance <= threshold_distance;
 }
 
-void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_paths, path **paths){
+void convert_path_to_candidate(int rank, candidate *candidate, path *path){
+	// turn paths to length edges
+	int j,k;
+	double value;
+	for(k = 0; k < path->num_points - 1; k++){
+		
+		value = euclid_distance(&(path->points[k]),&(path->points[k+1]));
+		candidate->lengths[k] = floorf(value);
+		
+		if(candidate->lengths[k] <= 0){
+			printf("%i Just added a length <= 0 candidate\n", rank);
+			printf("%i, %i, %i\n",path->points[k].x, path->points[k].y, path->points[k].z);
+			printf("%i, %i, %i\n",path->points[k+1].x, path->points[k+1].y, path->points[k+1].z);
+			exit(1);
+		}
+		//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", candidates[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
+		
+		candidate->num_lengths++;
+	}
+	
+}
+
+bool is_same_candidate(candidate *cand_1, candidate *cand_2){
+	if(cand_1->num_lengths != cand_2->num_lengths){
+		return false;
+	}
+	int i;
+	for(i = 0; i < cand_1->num_lengths; i++){
+		if(cand_1->lengths[i] != cand_2->lengths[i]){
+			return false;
+		}
+	}
+	return true;
+}
+
+void deduplicate_candidates(int *num_candidates, candidate *candidates){
+	int i,j;
+	int num_duplicates = 0;
+	int was_count = *num_candidates;
+	for(i = 0; i < *num_candidates; i++){
+		for(j = i+1; j < *num_candidates; ){
+			
+			if(is_same_candidate(&(candidates[i]), &(candidates[j]))){
+				num_duplicates++;
+				if(j < (*num_candidates)-1){
+					// at least one left
+					printf("%i, %i, of %i, moving %i\n", i, j, *num_candidates, ((*num_candidates) - (j + 1)));
+					memmove(&(candidates[j]), &(candidates[j+1]), ((*num_candidates) - (j + 1)) * sizeof(candidate));
+//					memcpy(&(candidates[j]), &(candidates[(*num_candidates)-1]), sizeof(candidate));
+				}
+				(*num_candidates)--;
+				
+			}else{
+				// only move j if we didn't memmove, since that would have moved something else into the jth spot
+				j++;
+			}
+		}
+	}
+	printf("\tFound %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
+}
+
+void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_candidates, candidate **candidates){
 	//	printf("> %i cand(f_%i)\n", rank, frame_n);
 	int i,j;
 //	printf("Frame points %i\n", frm->num_points);
@@ -296,8 +357,8 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	get_pairwise_distances(num_points, &pairs, frm);
 	//	printf("inside compute cands\n");
 	
-	int space_for_paths = 0;
-	(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
+	int space_for_candidates = 0;
+	(*candidates) = get_more_space_and_copy(&space_for_candidates, (*candidates), (*num_candidates), PATHS, sizeof(candidate));
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
@@ -340,13 +401,23 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 		
 		if(num_points == current_path.num_visited){
 			// only done once we've visited all points. Path is considered minimized since we minimized during creation
-			(*paths) = get_more_space_and_copy(&space_for_paths, (*paths), (*num_paths), PATHS, sizeof(path));
-			memcpy( &((*paths)[*num_paths]), &current_path, sizeof(path));
+			
+//			printf("adding candidate: %i %i\n", space_for_candidates, *num_candidates);
+			(*candidates) = get_more_space_and_copy(&space_for_candidates, (*candidates), (*num_candidates), PATHS, sizeof(candidate));
+			
+			convert_path_to_candidate(rank, &((*candidates)[*num_candidates]), &current_path);
 			
 //			printf("(now %i paths finished), latest ", (*num_paths)+1);
 //			print_path(&((*paths)[*num_paths]));
 			
-			(*num_paths)++;
+			(*num_candidates)++;
+			
+			if((*num_candidates) == space_for_candidates){
+				printf("%i Trying dedupe %i %i\n", rank, *num_candidates, num_points);
+				deduplicate_candidates(num_candidates, *candidates);
+				deduplicate_candidates(num_candidates, *candidates);
+			}
+		
 			continue;
 		}
 		
@@ -455,42 +526,6 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_pa
 	free(pairs);
 }
 
-bool is_same_candidate(candidate *cand_1, candidate *cand_2){
-	if(cand_1->num_lengths != cand_2->num_lengths){
-		return false;
-	}
-	int i;
-	for(i = 0; i < cand_1->num_lengths; i++){
-		if(cand_1->lengths[i] != cand_2->lengths[i]){
-			return false;
-		}
-	}
-	return true;
-}
-
-void deduplicate_candidates(int *num_candidates, candidate *candidates){
-	int i,j;
-	int num_duplicates = 0;
-	int was_count = *num_candidates;
-	for(i = 0; i < *num_candidates; i++){
-		for(j = i+1; j < *num_candidates; ){
-			
-			if(is_same_candidate(&(candidates[i]), &(candidates[j]))){
-				num_duplicates++;
-				if(j < (*num_candidates)-1){
-					// shift the remaining paths down one
-					memmove(&(candidates[j]), &(candidates[j+1]), ((*num_candidates) - j - 1) * sizeof(candidate));
-				}
-				(*num_candidates)--;
-				
-			}else{
-				// only move j if we didn't memmove, since that would have moved something else into the jth spot
-				j++;
-			}
-		}
-	}
-	printf("Found %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
-}
 
 void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_start, frame *skeleton_frames){
 	printf("> %i About to compute candidates for %i frames\n", rank, num_skeleton_frames);
@@ -500,51 +535,37 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 	//	double dist = euclid_distance(&p0, &p1);
 	//	printf("distance: %f\n", dist);
 	//
-	path *paths = NULL;
-	int num_paths = 0;
+	
+	candidate *candidates = NULL;
+	int num_candidates = 0;
+	
 	int i;
 	int frame_n;
 	for(i = 0; i < num_skeleton_frames; i++){
 		frame_n = my_start + i;
 		
-		compute_candidates_for_frame(rank, frame_n, &(skeleton_frames[i]), &num_paths, &paths);
+		compute_candidates_for_frame(rank, frame_n, &(skeleton_frames[i]), &num_candidates, &candidates);
 		
 		break;
 	}
+	printf("%i Final dedupe\n", rank);
+	deduplicate_candidates(&num_candidates, candidates);
 	
-	// turn paths to length edges
-	candidate *candidates = (candidate *) malloc (num_paths * sizeof(candidate));
-	memset(candidates, 0, num_paths * sizeof(candidate));
-	int j,k;
-	double value;
-	for(j = 0; j < num_paths; j++){
-		for(k = 0; k < paths[j].num_points - 1; k++){
-			
-			value = euclid_distance(&(paths[j].points[k]),&(paths[j].points[k+1]));
-			candidates[j].lengths[k] = floorf(value);
-			
-			if(candidates[j].lengths[k] <= 0){
-				printf("%i Just added a length <= 0 candidate\n", rank);
-				printf("%i, %i, %i\n",paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z);
-				printf("%i, %i, %i\n",paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
-				exit(1);
-			}
-			//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", candidates[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
-			
-			candidates[j].num_lengths++;
-		}
-		//			printf("\n\n");
-	}
+	printf("Rank %i has %i candidates\n", rank, num_candidates);
+	fflush(stdout);
 	
-	deduplicate_candidates(&num_paths, candidates);
+	validate_candidates(rank, num_candidates, candidates);
+	
+	printf("Rank %i sending\n", rank);
+	fflush(stdout);
 	
 	// gather the number of candidates
-	MPI_Gather(&num_paths, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(&num_candidates, 1, MPI_INT, NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
-	MPI_Gatherv(candidates, num_paths * sizeof(candidate), MPI_BYTE, NULL, 0, NULL, MPI_BYTE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(candidates, num_candidates * sizeof(candidate), MPI_BYTE, NULL, 0, NULL, MPI_BYTE, 0, MPI_COMM_WORLD);
 	
-	if(paths){
-		free(paths);
+	if(candidates){
+		free(candidates);
 	}
 }
 
