@@ -310,15 +310,9 @@ void deduplicate_candidates(int *num_candidates, candidate *candidates, int last
 	int num_duplicates = 0;
 	int was_count = *num_candidates;
 	for(i = 0; i < ((*num_candidates)-1); i++){
-//		printf(">>> i %i\n", i);
 		for(j = i+last_unique_index+1; j < (*num_candidates); ){
-//			printf("IJIJIJ: %i   %i\n",i,j);
-			
 			
 			if(is_same_candidate(&(candidates[i]), &(candidates[j]))){
-//				printf("DUPE (%i) %i %i %i\n", i, candidates[i].lengths[0], candidates[i].lengths[1], candidates[i].lengths[2]);
-//				printf("WITH (%i) %i %i %i\n\n", j, candidates[j].lengths[0], candidates[j].lengths[1], candidates[j].lengths[2]);
-			
 				num_duplicates++;
 				if(j < (*num_candidates)-1){
 					// at least one left
@@ -386,6 +380,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 	bool changed;
 	int offset;
 	
+	int new_candidates = 0;
 	unsigned int last_unique_index = 0;
 	
 	while(stack_size > 0){
@@ -423,12 +418,19 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 //			print_path(&((*paths)[*num_paths]));
 			
 			(*num_candidates)++;
+			new_candidates++;
 			
 			if((*num_candidates) == space_for_candidates){
 				printf("%i Trying dedupe %i from %i %i\n", rank, *num_candidates, last_unique_index, num_points);
+				
+				deduplicate_candidates(&new_candidates, &((*candidates)[last_unique_index]), 0);
+				printf("%i mid to %i\n", rank, new_candidates);
+				(*num_candidates) = last_unique_index + new_candidates;
+				
 				deduplicate_candidates(num_candidates, *candidates, last_unique_index);
 				printf("%i down to %i\n", rank, *num_candidates);
 				last_unique_index = *num_candidates;
+				new_candidates = 0;
 			}
 		
 			continue;
