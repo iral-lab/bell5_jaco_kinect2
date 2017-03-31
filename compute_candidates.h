@@ -22,26 +22,36 @@ typedef struct path{
 	short num_visited;
 } path;
 
-typedef struct stateless_path{
-	short num_points;
-	point *points[MAX_VERTICES];
-} stateless_path;
-
 typedef struct candidate{
 	short num_lengths;
 	short lengths[MAX_EDGES];
 	short total_length;
 } candidate;
 
-
+typedef struct vector{
+	double x;
+	double y;
+	double z;
+}my_vector;
 
 double v_dot(point *u, point *v){
+	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
+}
+double double_v_dot(my_vector *u, my_vector *v){
 	return (u->x * v->x) + (u->y * v->y) + (u->z * v->z);
 }
 double v_norm(point *v){
 	return sqrt(v_dot(v,v));
 }
+double double_v_norm(my_vector *v){
+	return sqrt(double_v_dot(v,v));
+}
 void vector_between(point *u, point *v, point *vector){
+	vector->x = u->x - v->x;
+	vector->y = u->y - v->y;
+	vector->z = u->z - v->z;
+}
+void double_vector_between(point *u, point *v, my_vector *vector){
 	vector->x = u->x - v->x;
 	vector->y = u->y - v->y;
 	vector->z = u->z - v->z;
@@ -51,6 +61,25 @@ double v_dist(point *u, point *v){
 	vector_between(u,v,&vector);
 	return v_norm(&vector);
 }
+void normalize(my_vector *v){
+	double norm = double_v_norm(v);
+//	printf("\tnorm: %f\n", norm);
+	v->x = v->x / norm;
+	v->y = v->y / norm;
+	v->z = v->z / norm;
+}
+void scale_vector(my_vector *v, int desired_length){
+	v->x *= desired_length;
+	v->y *= desired_length;
+	v->z *= desired_length;
+}
+
+void add_vector_to_point(my_vector *v, point *from, point *p){
+	p->x = floorf(v->x + from->x);
+	p->y = floorf(v->y + from->y);
+	p->z = floorf(v->z + from->z);
+}
+
 
 unsigned short distance_to_segment(point *p, point *s0, point *s1){
 	
@@ -100,43 +129,46 @@ int sort_pairwise_distances(const void *a, const void *b){
 	return ((sort_pair *)a)->distance > ((sort_pair *)b)->distance ? 1 : -1;
 }
 
+void get_points_closest_to(point *p, int num_points, point *points, sort_pair *pairs){
+	int j;
+	point *p1;
+	for(j = 0; j < num_points; j++){
+		p1 = &(points[j]);
+		pairs[j].pid = p1->pid;
+		pairs[j].distance = floorf(euclid_distance(p, p1));
+		//			printf("1) Dist bet (%i) %i,%i,%i and (%i) %i,%i,%i = %i\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
+	}
+	
+	// got distances, now sort them inside each row
+	
+	qsort(pairs, num_points, sizeof(sort_pair), sort_pairwise_distances);
+	
+}
+
 void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	(*pairs) = (sort_pair *) malloc (num_points * num_points * sizeof(sort_pair));
-	int i,j;
+	int i;
 	int offset;
 	point *p0, *p1;
 	sort_pair *this_pair;
 	for(i = 0; i < num_points; i++){
 		p0 = &(frm->points[i]);
-		for(j = 0; j < num_points; j++){
-			offset = (i * num_points + j); // i = rows, j = cols
-			
-			p1 = &(frm->points[j]);
-			(*pairs)[offset].pid = p1->pid;
-			if(i == j){
-				(*pairs)[offset].distance = 0;
-			}else{
-				(*pairs)[offset].distance = floorf(euclid_distance(p0, p1));
-			}
-//			printf("1) Dist bet (%i) %i,%i,%i and (%i) %i,%i,%i = %i\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
-		}
+		offset = (i * num_points);
+		get_points_closest_to(p0, num_points, frm->points, &((*pairs)[offset]));
 		
-		// got distances, now sort them inside each row
 		
-		qsort(&((*pairs)[i * num_points]), num_points, sizeof(sort_pair), sort_pairwise_distances);
 		
-		/*
 		 // to check sort worked
-		 for(int j = 0; j < num_points; j++){
-			offset = (i * num_points + j); // i = rows, j = cols
-			this_pair = &((*pairs)[offset]);
-			
-			p1 = &(frm->points[ this_pair->pid ]);
-			
-			printf("2) Dist bet (%i) %f,%f,%f and (%i) %f,%f,%f = %f\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
-		 }
-		 printf("\n\n");
-		 */
+//		 for(int j = 0; j < num_points; j++){
+//			offset = (i * num_points + j); // i = rows, j = cols
+//			this_pair = &((*pairs)[offset]);
+//			
+//			p1 = &(frm->points[ this_pair->pid ]);
+//			
+//			printf("Dist bet (%i) %i,%i,%i and (%i) %i,%i,%i = %i\n", p0->pid, p0->x, p0->y, p0->z, p1->pid, p1->x, p1->y, p1->z, (*pairs)[offset].distance);
+//		 }
+//		 printf("\n\n");
+		
 	}
 }
 
@@ -226,28 +258,6 @@ path* initialize_stack_with_anchors(frame *frame, int *stack_size, int *space_on
 			stack[*stack_size].visited_points[anchors[j]->pid] = true;
 			stack[*stack_size].num_visited++;
 		}
-		(*stack_size)++;
-	}
-	if(anchors){
-		free(anchors);
-	}
-	return stack;
-}
-
-
-stateless_path* initialize_stack_with_anchors_stateless(frame *frame, int *stack_size, int *space_on_stack){
-	int num_points = frame->num_points;
-	
-	int num_anchors = 0;
-	point **anchors = NULL;
-	get_anchors(&num_anchors, &anchors, frame);
-	stateless_path *stack = NULL;
-	int i;
-	for(i = 0; i < num_anchors; i++){
-		stack = get_more_space_and_copy(space_on_stack, stack, *stack_size, PATHS, sizeof(stateless_path));
-		
-		stack[*stack_size].points[0] = anchors[i];
-		stack[*stack_size].num_points = 1;
 		(*stack_size)++;
 	}
 	if(anchors){
@@ -456,7 +466,6 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			
 //			printf("trying %i    %i %i %i\n", nearest_point->pid, nearest_point->x, nearest_point->y, nearest_point->z);
 			
-//			if(in_path(&current_path, nearest_point)){
 			if(current_path.visited_points[nearest_point->pid]){
 				// point has already been visited
 //				printf("\t>>> Skipping point (%i), already visited\n", nearest_point->pid);

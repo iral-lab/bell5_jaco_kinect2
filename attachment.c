@@ -72,7 +72,7 @@ void compute_candidate_total_lengths(final_score *final_scores, int num_candidat
 }
 
 
-unsigned int get_error_to_path(stateless_path *path, frame *pcl_frame){
+unsigned int get_error_to_path(path *path, frame *pcl_frame){
 	unsigned int error = 0;
 	
 	point *p,*p0,*p1;
@@ -83,8 +83,8 @@ unsigned int get_error_to_path(stateless_path *path, frame *pcl_frame){
 		best_distance = BIG_NUMBER;
 		
 		for(j = 0; j < path->num_points - 1; j++){
-			p0 = path->points[j];
-			p1 = path->points[j+1];
+			p0 = &(path->points[j]);
+			p1 = &(path->points[j+1]);
 			
 			this_distance = distance_to_segment(p, p0, p1);
 			
@@ -116,8 +116,7 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 		skeleton_frame->points[i].pid = i;
 	}
 	
-	sort_pair *pairs;
-	get_pairwise_distances(num_points, &pairs, skeleton_frame);
+	sort_pair pairs[num_points];
 	
 	int max_path_vertices = candidate->num_lengths + 1;
 	short num_closest = get_num_closest(num_points);
@@ -125,11 +124,13 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 	
 	int space_on_stack = 0;
 	int stack_size = 0;
-	stateless_path *stack = initialize_stack_with_anchors_stateless(skeleton_frame, &stack_size, &space_on_stack);
-	stateless_path current_path;
+	path *stack = initialize_stack_with_anchors(skeleton_frame, &stack_size, &space_on_stack);
+	path current_path;
 	point *last_point;
 	point *other_point;
 	point new_point;
+	my_vector v;
+	
 	sort_pair *other_pair;
 	
 	int offset, added;
@@ -150,10 +151,12 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 	int scoring_time_spent = 0;
 	int total_time_spent = 0;
 	while(stack_size > 0){
-		memcpy(&current_path, &(stack[stack_size-1]), sizeof(stateless_path));
+		memset(&current_path, 0, sizeof(path));
+		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
 		stack_size--;
-		
+
 		if(current_path.num_points == max_path_vertices){
+//			print_path(&current_path);
 			start = clock();
 			
 			temp_score = get_error_to_path(&current_path, pcl_frame);
@@ -165,12 +168,7 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 				best_score = temp_score;
 				
 				if(save_path){
-					// current_path is a stateless path, not a standard path
-					memset(&(score->best_path), 0, sizeof(path));
-					score->best_path.num_points = current_path.num_points;
-					for(i = 0; i < current_path.num_points; i++){
-						memcpy(&(score->best_path.points[i]), current_path.points[i], sizeof(point));
-					}
+					memcpy(&(score->best_path), &current_path, sizeof(path));
 				}
 			}
 			
@@ -178,12 +176,13 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 		}
 //		print_path(&current_path);
 		
-		last_point = current_path.points[ current_path.num_points - 1];
+		last_point = &(current_path.points[ current_path.num_points - 1]);
+		get_points_closest_to(last_point, num_points, skeleton_frame->points, pairs);
+		
 		added = 0;
 		memset(added_pids, 0, num_points * sizeof(bool));
 		desired_length = candidate->lengths[current_path.num_points-1];
 		for(i = 0; i < num_closest && added < num_points; i++){
-			
 //			printf("looking for a point %i away from %i,%i,%i\n", desired_length, last_point->x, last_point->y, last_point->z);
 			
 			// adds the point that is the closest to the current length away from the last point
@@ -193,19 +192,20 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			smallest_error = BIG_NUMBER;
 			best_points_distance = 0;
 			
-			for(j = 1; j < num_points; j++){
+			for(j = 0; j < num_points; j++){
 				// start at 1 since 0 is itself
-				offset = (last_point->pid * num_points + j);
-				other_pair = &(pairs[offset]);
+				other_pair = &(pairs[j]);
 				
+				// can't shoot to the same point again this round
 				if(added_pids[other_pair->pid]){
 					continue;
 				}
 				
 				error = abs(other_pair->distance - desired_length);
+				
 				if(error < smallest_error){
-					other_point = &(skeleton_frame->points[other_pair->pid]);
 					smallest_error = error;
+					other_point = &(skeleton_frame->points[other_pair->pid]);
 					best_point = other_point;
 					best_points_distance = other_pair->distance;
 				}else{
@@ -221,14 +221,28 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			
 //			printf("adding pid %i at %i,%i,%i, which is %i away, error %i\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
 			
-			// standard ending
+			// Now we have to shoot the ray
+			double_vector_between(best_point, last_point, &v);
+//			printf("From: %i, %i, %i\n", last_point->x, last_point->y, last_point->z);
+//			printf("To: %i, %i, %i\n", best_point->x, best_point->y, best_point->z);
+//			printf("<< V: %f, %f, %f\n", v.x, v.y, v.z);
+			normalize(&v);
+//			printf("-- V: %f, %f, %f\n", v.x, v.y, v.z);
+			scale_vector(&v, desired_length);
+//			printf("++ V: %f, %f, %f\n", v.x, v.y, v.z);
+			add_vector_to_point(&v, last_point, &new_point);
+//			printf(">> P: %i, %i, %i\n\n\n", new_point.x, new_point.y, new_point.z);
+			
+			new_point.pid = -1;
+			
+//			printf("555\t\t%i\t\t%i\t\t%i\n", stack_size, max_path_vertices, current_path.num_points);fflush(stdout);
+			
 			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
 			
 			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
-			
-			stack[stack_size].points[current_path.num_points] = best_point;
+			memcpy(&(stack[stack_size].points[stack[stack_size].num_points]), &new_point, sizeof(point));
 			stack[stack_size].num_points++;
-
+			
 			stack_size++;
 			
 			added_pids[best_point->pid] = true;
