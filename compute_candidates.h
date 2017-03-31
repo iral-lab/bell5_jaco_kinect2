@@ -269,16 +269,17 @@ bool are_in_line(point *p, point *p0, point *p1){
 	return distance <= threshold_distance;
 }
 
-void convert_path_to_candidate(int rank, candidate *candidate, path *path){
+void convert_path_to_candidate(int rank, candidate *cand, path *path){
 	// turn paths to length edges
 	int j,k;
 	double value;
+	memset(cand, 0, sizeof(candidate));
 	for(k = 0; k < path->num_points - 1; k++){
 		
 		value = euclid_distance(&(path->points[k]),&(path->points[k+1]));
-		candidate->lengths[k] = floorf(value);
+		cand->lengths[k] = floorf(value);
 		
-		if(candidate->lengths[k] <= 0){
+		if(cand->lengths[k] <= 0){
 			printf("%i Just added a length <= 0 candidate\n", rank);
 			printf("%i, %i, %i\n",path->points[k].x, path->points[k].y, path->points[k].z);
 			printf("%i, %i, %i\n",path->points[k+1].x, path->points[k+1].y, path->points[k+1].z);
@@ -286,7 +287,7 @@ void convert_path_to_candidate(int rank, candidate *candidate, path *path){
 		}
 		//				printf("Added length: %f between %f,%f,%f and %f,%f,%f\n", candidates[j].lengths[k], paths[j].points[k].x,paths[j].points[k].y,paths[j].points[k].z, paths[j].points[k+1].x,paths[j].points[k+1].y,paths[j].points[k+1].z);
 		
-		candidate->num_lengths++;
+		cand->num_lengths++;
 	}
 	
 }
@@ -308,26 +309,34 @@ void deduplicate_candidates(int *num_candidates, candidate *candidates){
 	int i,j;
 	int num_duplicates = 0;
 	int was_count = *num_candidates;
-	for(i = 0; i < *num_candidates; i++){
-		for(j = i+1; j < *num_candidates; ){
+	for(i = 0; i < ((*num_candidates)-1); i++){
+//		printf(">>> i %i\n", i);
+		for(j = i+1; j < (*num_candidates); ){
+//			printf("IJIJIJ: %i   %i\n",i,j);
+			
 			
 			if(is_same_candidate(&(candidates[i]), &(candidates[j]))){
+//				printf("DUPE (%i) %i %i %i\n", i, candidates[i].lengths[0], candidates[i].lengths[1], candidates[i].lengths[2]);
+//				printf("WITH (%i) %i %i %i\n\n", j, candidates[j].lengths[0], candidates[j].lengths[1], candidates[j].lengths[2]);
+			
 				num_duplicates++;
 				if(j < (*num_candidates)-1){
 					// at least one left
-					printf("%i, %i, of %i, moving %i\n", i, j, *num_candidates, ((*num_candidates) - (j + 1)));
-					memmove(&(candidates[j]), &(candidates[j+1]), ((*num_candidates) - (j + 1)) * sizeof(candidate));
-//					memcpy(&(candidates[j]), &(candidates[(*num_candidates)-1]), sizeof(candidate));
+
+//					memmove(&(candidates[j]), &(candidates[j+1]), ((*num_candidates) - (j + 1)) * sizeof(candidate));
+					memcpy(&(candidates[j]), &(candidates[*num_candidates-1]), sizeof(candidate));
 				}
 				(*num_candidates)--;
 				
+				memset(&(candidates[*num_candidates]), 0 ,sizeof(candidate));
+				
 			}else{
-				// only move j if we didn't memmove, since that would have moved something else into the jth spot
+				// only move j if we didn't shift any above, since that would have moved something else into the jth spot
 				j++;
 			}
 		}
 	}
-	printf("\tFound %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
+//	printf("\tFound %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
 }
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_candidates, candidate **candidates){
@@ -379,6 +388,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 	
 	while(stack_size > 0){
 		// get the last item
+		memset(&current_path, 0, sizeof(path));
 		memcpy(&current_path, &(stack[stack_size-1]), sizeof(path));
 		//		printf("current: %f,%f,%f of %i\n", current_path.points[0].x,current_path.points[0].y,current_path.points[0].z,current_path.num_points);
 		
@@ -413,8 +423,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			(*num_candidates)++;
 			
 			if((*num_candidates) == space_for_candidates){
-				printf("%i Trying dedupe %i %i\n", rank, *num_candidates, num_points);
-				deduplicate_candidates(num_candidates, *candidates);
+				//				printf("%i Trying dedupe %i %i\n", rank, *num_candidates, num_points);
 				deduplicate_candidates(num_candidates, *candidates);
 			}
 		
