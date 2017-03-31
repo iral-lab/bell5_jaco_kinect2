@@ -94,7 +94,7 @@ void read_frame(FILE *handle, frame *frm, frame_type type){
 		
 		frm->num_points++;
 	}
-	
+//	printf("num points: %i\n", frm->num_points);
 	if(line){
 		free(line);
 	}

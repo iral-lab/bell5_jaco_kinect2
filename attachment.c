@@ -30,7 +30,7 @@
 
 #define SAMPLE_PCL_POINTS 1
 // rate / 100 ~= sample%
-#define PCL_POINTS_SAMPLE_RATE 30
+#define PCL_POINTS_SAMPLE_RATE 10
 
 #define FRAME_DELIMITER '='
 
