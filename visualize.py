@@ -59,6 +59,7 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	
 	while skeleton_frame and pcl_frame and path_frame:
 		frame = (skeleton_frame, pcl_frame, path_frame)
+#		print frame
 		yield frame
 		skeleton_frame = skeleton_reader.next()
 		pcl_frame = pcl_reader.next()
@@ -147,13 +148,9 @@ def generate_line(p0, p1):
 	
 
 def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
-	# edge_count_to_show = 4
 	frame_n = 0
 	for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_frame_csv):
 		frame_n += 1
-		
-		if EDGE_COUNT_OVERRIDE:
-			edge_count_to_show = EDGE_COUNT_OVERRIDE
 		
 		to_render = pcl_frame
 		
