@@ -18,7 +18,7 @@
 
 #define MAX_POINTS_IN_SKELETON_FRAME 15
 
-#define MAX_EDGES MAX_POINTS_IN_SKELETON_FRAME - 1
+#define MAX_EDGES 5
 #define MAX_VERTICES MAX_EDGES + 1
 #define MIN_VERTICES 3 // at least 2 edges
 
@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
 		fflush(stdout);
 		
 		// de-dupe candidates, as some frames might have same overlap, which would be good
-		deduplicate_candidates(&num_candidates, candidates, 0);
+		deduplicate_candidates(rank, &num_candidates, candidates, 0);
 		
 		printf("ROOT: deduping done\n");
 		fflush(stdout);

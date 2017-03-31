@@ -17,7 +17,7 @@ typedef struct sort_pair{
 
 typedef struct path{
 	short num_points;
-	point points[MAX_POINTS_IN_SKELETON_FRAME];
+	point points[MAX_VERTICES];
 	bool visited_points[MAX_POINTS_IN_SKELETON_FRAME];
 	short num_visited;
 } path;
@@ -305,7 +305,7 @@ bool is_same_candidate(candidate *cand_1, candidate *cand_2){
 	return true;
 }
 
-void deduplicate_candidates(int *num_candidates, candidate *candidates, int last_unique_index){
+void deduplicate_candidates(int rank, int *num_candidates, candidate *candidates, int last_unique_index){
 	int i,j;
 	int num_duplicates = 0;
 	int was_count = *num_candidates;
@@ -330,7 +330,7 @@ void deduplicate_candidates(int *num_candidates, candidate *candidates, int last
 			}
 		}
 	}
-//	printf("\tFound %i duplicates, from %i to %i\n", num_duplicates, was_count, *num_candidates);
+//	printf("\t%i Found %i duplicates, from %i to %i\n", rank, num_duplicates, was_count, *num_candidates);
 }
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_candidates, candidate **candidates){
@@ -395,18 +395,18 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 //		printf("\n\nCurrent ");
 //		print_path(&current_path);
 //		printf("already visited: %i\n", current_path.num_visited);
-
+//		printf("%i length: %i\n", rank, current_path.num_points);
 		for(i = 0; i < current_path.num_points; i++){
 			if(current_path.points[i].x == 0 || current_path.points[i].y == 0 || current_path.points[i].z == 0){
-				printf("found invalid path point, zero:\n");
+				printf("%i found invalid path point, zero:\n", rank);
 				print_path(&current_path);
 				
-				printf("last point: %i %i %i\n", nearest_point->x, nearest_point->y, nearest_point->z);
+				printf("%i last point: %i %i %i\n", rank, nearest_point->x, nearest_point->y, nearest_point->z);
 				exit(1);
 			}
 		}
 		
-		if(num_points == current_path.num_visited){
+		if(current_path.num_points == MAX_VERTICES || num_points == current_path.num_visited){
 			// only done once we've visited all points. Path is considered minimized since we minimized during creation
 			
 //			printf("adding candidate: %i %i\n", space_for_candidates, *num_candidates);
@@ -421,14 +421,14 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			new_candidates++;
 			
 			if((*num_candidates) == space_for_candidates){
-				printf("%i Trying dedupe %i from %i %i\n", rank, *num_candidates, last_unique_index, num_points);
+//				printf("%i Trying dedupe %i from %i %i\n", rank, *num_candidates, last_unique_index, num_points);
 				
-				deduplicate_candidates(&new_candidates, &((*candidates)[last_unique_index]), 0);
-				printf("%i mid to %i\n", rank, new_candidates);
+				deduplicate_candidates(rank, &new_candidates, &((*candidates)[last_unique_index]), 0);
+//				printf("%i mid to %i\n", rank, new_candidates);
 				(*num_candidates) = last_unique_index + new_candidates;
 				
-				deduplicate_candidates(num_candidates, *candidates, last_unique_index);
-				printf("%i down to %i\n", rank, *num_candidates);
+				deduplicate_candidates(rank, num_candidates, *candidates, last_unique_index);
+//				printf("%i down to %i\n", rank, *num_candidates);
 				last_unique_index = *num_candidates;
 				new_candidates = 0;
 			}
@@ -564,7 +564,7 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		break;
 	}
 	printf("%i Final dedupe\n", rank);
-	deduplicate_candidates(&num_candidates, candidates, 0);
+	deduplicate_candidates(rank, &num_candidates, candidates, 0);
 	
 	printf("Rank %i has %i candidates\n", rank, num_candidates);
 	fflush(stdout);
