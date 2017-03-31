@@ -305,7 +305,7 @@ bool is_same_candidate(candidate *cand_1, candidate *cand_2){
 	return true;
 }
 
-void deduplicate_candidates(int rank, int *num_candidates, candidate *candidates, int last_unique_index){
+void deduplicate_candidates(int rank, int *num_candidates, candidate *candidates, int last_unique_index, bool verbose){
 	int i,j;
 	int num_duplicates = 0;
 	int was_count = *num_candidates;
@@ -330,7 +330,9 @@ void deduplicate_candidates(int rank, int *num_candidates, candidate *candidates
 			}
 		}
 	}
-//	printf("\t%i Found %i duplicates, from %i to %i\n", rank, num_duplicates, was_count, *num_candidates);
+	if(verbose){
+		printf("\t%i Found %i duplicates, from %i to %i\n", rank, num_duplicates, was_count, *num_candidates);
+	}
 }
 
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_candidates, candidate **candidates){
@@ -423,11 +425,11 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			if((*num_candidates) == space_for_candidates){
 //				printf("%i Trying dedupe %i from %i %i\n", rank, *num_candidates, last_unique_index, num_points);
 				
-				deduplicate_candidates(rank, &new_candidates, &((*candidates)[last_unique_index]), 0);
+				deduplicate_candidates(rank, &new_candidates, &((*candidates)[last_unique_index]), 0, false);
 //				printf("%i mid to %i\n", rank, new_candidates);
 				(*num_candidates) = last_unique_index + new_candidates;
 				
-				deduplicate_candidates(rank, num_candidates, *candidates, last_unique_index);
+				deduplicate_candidates(rank, num_candidates, *candidates, last_unique_index, false);
 //				printf("%i down to %i\n", rank, *num_candidates);
 				last_unique_index = *num_candidates;
 				new_candidates = 0;
@@ -564,7 +566,7 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		break;
 	}
 	printf("%i Final dedupe\n", rank);
-	deduplicate_candidates(rank, &num_candidates, candidates, 0);
+	deduplicate_candidates(rank, &num_candidates, candidates, 0, true);
 	
 	printf("Rank %i has %i candidates\n", rank, num_candidates);
 	fflush(stdout);

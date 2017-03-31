@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
 		fflush(stdout);
 		
 		// de-dupe candidates, as some frames might have same overlap, which would be good
-		deduplicate_candidates(rank, &num_candidates, candidates, 0);
+		deduplicate_candidates(rank, &num_candidates, candidates, 0, true);
 		
 		printf("ROOT: deduping done\n");
 		fflush(stdout);
