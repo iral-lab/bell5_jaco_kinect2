@@ -23,6 +23,7 @@
 #define MAX_VERTICES MAX_EDGES + 1
 #define MIN_VERTICES 3 // at least 2 edges
 
+#define BEST_FRAME_OUTPUT_STEM "best_frame_robots"
 
 #define MAX_ANCHORS 3
 #define BRANCH_NEIGHBORS 3
@@ -35,7 +36,7 @@
 
 #define FRAME_DELIMITER '='
 
-#define EXPECTED_ARG_COUNT 5
+#define EXPECTED_ARG_COUNT 4
 
 #include "util.h"
 #include "compute_candidates.h"
@@ -47,6 +48,7 @@ typedef struct scored_path{
 
 typedef struct score{
 	candidate candidate;
+	path best_path;
 	unsigned int *penalties; // will store each frame's score in order
 	unsigned short num_penalties;
 }score;
@@ -102,7 +104,7 @@ int sort_by_penalty(const void *a, const void *b){
 	return ((final_score *) a)->penalty < ((final_score *) b)->penalty ? -1 : 1;
 }
 
-unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame){
+unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pcl_frame, frame *skeleton_frame, bool save_path){
 	candidate *candidate = &(score->candidate);
 	
 	int num_points = skeleton_frame->num_points;
@@ -161,6 +163,15 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			
 			if(temp_score < best_score){
 				best_score = temp_score;
+				
+				if(save_path){
+					// current_path is a stateless path, not a standard path
+					memset(&(score->best_path), 0, sizeof(path));
+					score->best_path.num_points = current_path.num_points;
+					for(i = 0; i < current_path.num_points; i++){
+						memcpy(&(score->best_path.points[i]), current_path.points[i], sizeof(point));
+					}
+				}
 			}
 			
 			continue;
@@ -263,7 +274,7 @@ void iterate_frames_for_candidate(int rank, score *score, int num_skeleton_frame
 	int frame_i;
 	for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 		
-		value = score_candidates_against_frame(score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+		value = score_candidates_against_frame(score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]), false);
 		
 		if(value <= 0){
 			printf("%i HAS ZERO OR NEG PENALTY: %i\n", rank, value);
@@ -361,7 +372,7 @@ void get_best_candidate_from_output(candidate *best_cand, int best_length, char 
 			memset(best_cand, 0, sizeof(candidate));
 			memcpy(best_cand, &cand, sizeof(candidate));
 			best_score = score;
-			printf("NEW BEST: %i, %hu, %hu \n", best_score, best_cand->total_length, best_cand->num_lengths);
+//			printf("NEW BEST: %i, %hu, %hu \n", best_score, best_cand->total_length, best_cand->num_lengths);
 		}
 		
 	}
@@ -371,7 +382,7 @@ void get_best_candidate_from_output(candidate *best_cand, int best_length, char 
 	}
 }
 
-void do_best_robot_output(int rank, unsigned short best_length, int my_batch_size, int my_batch_start, int num_skeleton_frames, frame *all_skeleton_frames, int num_pointcloud_frames, frame *all_pointcloud_frames, char *output_file){
+void do_best_robot_output(int rank, unsigned short best_length, int actual_frame_count, int my_batch_start, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames, char *output_file, int *paths_per_worker_bytes, int *paths_per_worker_displ){
 	
 	candidate cand;
 	memset(&cand,0,sizeof(candidate));
@@ -382,11 +393,51 @@ void do_best_robot_output(int rank, unsigned short best_length, int my_batch_siz
 	}
 	MPI_Bcast(&cand, sizeof(candidate), MPI_BYTE, 0, MPI_COMM_WORLD);
 	
-	printf("%i received cand: %i\n", rank, cand.total_length);
+//	printf("%i received cand: %i\n", rank, cand.total_length);
 	
+	score score;
+	memset(&score, 0, sizeof(score));
+	score.penalties = (unsigned int *) malloc (num_pointcloud_frames * sizeof(unsigned int));
+	
+	int path_bytes_to_alloc = is_leader(rank) ? actual_frame_count * sizeof(path) : num_skeleton_frames * sizeof(path);
+	
+	path *all_paths = (path *) malloc (path_bytes_to_alloc);
+	memset(all_paths, 0, num_skeleton_frames * sizeof(path));
+	int i,j;
+	unsigned int value;
+	int frame_i;
+	for(frame_i = 0; frame_i < num_skeleton_frames; frame_i++){
+		memset(score.penalties, 0, num_pointcloud_frames * sizeof(unsigned int));
+		memcpy(&(score.candidate), &(cand), sizeof(candidate));
+		score.num_penalties = 0;
+	
+		
+		value = score_candidates_against_frame(&score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]), true);
+		memcpy(&(all_paths[frame_i]), &(score.best_path), sizeof(path));
+	}
+	
+	MPI_Gatherv(all_paths, num_skeleton_frames * sizeof(path), MPI_BYTE, all_paths, paths_per_worker_bytes, paths_per_worker_displ, MPI_BYTE, 0, MPI_COMM_WORLD);
 	
 	
 	MPI_Barrier(MPI_COMM_WORLD);
+	
+	if(is_leader(rank)){
+//		printf("Received all paths\n");
+		char best_frame_filename[100];
+		sprintf(best_frame_filename, "%s_%i", BEST_FRAME_OUTPUT_STEM, best_length);
+		FILE *best_frame_handle = fopen(best_frame_filename, "w");
+		for(j = 0; j < actual_frame_count; j++){
+			for(i = 0; i < all_paths[j].num_points; i++){
+				fprintf(best_frame_handle, "%i,%i,%i\n", all_paths[j].points[i].x, all_paths[j].points[i].y, all_paths[j].points[i].z);
+			}
+			fprintf(best_frame_handle, "============== %i\n", j);
+		}
+		fclose(best_frame_handle);
+	}
+	
+	MPI_Barrier(MPI_COMM_WORLD);
+	free(score.penalties);
+	free(all_paths);
 }
 
 int main(int argc, char** argv) {
@@ -430,26 +481,19 @@ int main(int argc, char** argv) {
 	char * output_file;
 	
 	bool output_best = false;
-	unsigned short best_length = 0;
 	
 	if(strcmp(argv[1], "run") == 0){
-		input_skeleton_file = argv[2];
-		input_pcl_file = argv[3];
-		output_file = argv[4];
+		// all good
 	}else if(strcmp(argv[1], "best") == 0){
 		output_best = true;
-		best_length = atoi(argv[2]);
-		if(best_length == 0){
-			printf("Invalid best length: %s\n", argv[2]);
-			exit(1);
-		}
-		input_skeleton_file = argv[3];
-		input_pcl_file = argv[4];
-		output_file = argv[5];
 	}else{
 		printf("Invalid run-type stated: %s\n", argv[1]);
 		exit(1);
 	}
+	
+	input_skeleton_file = argv[2];
+	input_pcl_file = argv[3];
+	output_file = argv[4];
 	
 	if(is_leader(rank)){
 		read_and_broadcast_frames(input_skeleton_file, input_pcl_file, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
@@ -475,6 +519,11 @@ int main(int argc, char** argv) {
 	memset(frames_per_worker, 0, world_size * sizeof(int));
 	memset(batch_start, 0, world_size * sizeof(int));
 	
+	// for output-processing
+	int *paths_per_worker_bytes = (int *) malloc(world_size * sizeof(int));
+	int *paths_per_worker_displ = (int *) malloc(world_size * sizeof(int));
+	////
+	
 	int total_assigned = 0;
 	for(i = 1; i < world_size; i++){
 		frames_per_worker[i] = min_batch_size;
@@ -483,6 +532,9 @@ int main(int argc, char** argv) {
 		if(batch_left_over > 0 && i <= batch_left_over){
 			frames_per_worker[i]++;
 		}
+		
+		paths_per_worker_bytes[i] = frames_per_worker[i] * sizeof(path);
+		paths_per_worker_displ[i] = i > 0 ? paths_per_worker_displ[i-1] + paths_per_worker_bytes[i-1] : 0;
 	}
 	int my_batch_size = frames_per_worker[rank];
 	int my_batch_start = batch_start[rank];
@@ -490,7 +542,9 @@ int main(int argc, char** argv) {
 	fflush(stdout);
 	
 	if(output_best){
-		do_best_robot_output(rank, best_length, my_batch_size, my_batch_start, num_skeleton_frames, all_skeleton_frames, num_pointcloud_frames, all_pointcloud_frames, output_file);
+		for(i = MIN_VERTICES-1; i <= MAX_EDGES; i++){
+			do_best_robot_output(rank, i, num_skeleton_frames, my_batch_start, my_batch_size, &(all_skeleton_frames[my_batch_start]), my_batch_size, &(all_pointcloud_frames[my_batch_start]), output_file, paths_per_worker_bytes, paths_per_worker_displ);
+		}
 		exit(0);
 	}
 	
