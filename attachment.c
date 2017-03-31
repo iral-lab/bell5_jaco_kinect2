@@ -374,6 +374,11 @@ void do_best_robot_output(int rank, unsigned short best_length, int my_batch_siz
 		get_best_candidate_from_output(&cand, best_length, output_file);
 		printf("best cand: %i\n", cand.total_length);
 	}
+	MPI_Bcast(&cand, sizeof(candidate), MPI_BYTE, 0, MPI_COMM_WORLD);
+	
+	printf("%i received cand: %i\n", rank, cand.total_length);
+	
+	
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 }
