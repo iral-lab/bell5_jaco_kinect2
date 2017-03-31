@@ -90,7 +90,8 @@ unsigned int get_error_to_path(stateless_path *path, frame *pcl_frame){
 			}
 		}
 		
-		error += best_distance;
+		// protect against overflow
+		error = MAX(error, error + best_distance);
 	}
 	return error;
 }
