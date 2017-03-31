@@ -258,15 +258,35 @@ unsigned int compute_final_penalty(unsigned int num_penalties, unsigned int *pen
 	return floorf(sum / num_penalties);
 }
 
+void iterate_frames_for_candidate(int rank, score *score, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames){
+	unsigned int value;
+	int frame_i;
+	for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
+		
+		value = score_candidates_against_frame(score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
+		
+		if(value <= 0){
+			printf("%i HAS ZERO OR NEG PENALTY: %i\n", rank, value);
+			exit(1);
+		}
+		
+		score->penalties[score->num_penalties] = value;
+		score->num_penalties++;
+		
+		if(SHORT_TEST_RUN){
+			break;
+		}
+	}
+	
+}
+
 void score_candidates_against_frames(int rank, final_score *final_scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
-	int candidate_i, frame_i;
+	int candidate_i;
 	
 	score score;
 	memset(&score, 0, sizeof(score));
 	
 	score.penalties = (unsigned int *) malloc (num_pointcloud_frames * sizeof(unsigned int));
-	
-	unsigned int value;
 	
 	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
 		memset(score.penalties, 0, num_pointcloud_frames * sizeof(unsigned int));
@@ -274,22 +294,8 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 		
 		score.num_penalties = 0;
 		
-		for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
-			
-			value = score_candidates_against_frame(&(score), frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]));
-			
-			if(value <= 0){
-				printf("%i HAS ZERO OR NEG PENALTY: %i\n", rank, value);
-				exit(1);
-			}
-			
-			score.penalties[score.num_penalties] = value;
-			score.num_penalties++;
-			
-			if(SHORT_TEST_RUN){
-				break;
-			}
-		}
+		iterate_frames_for_candidate(rank, &score, num_skeleton_frames, skeleton_frames, num_pointcloud_frames, pointcloud_frames);
+		
 		memcpy(&(final_scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
 		final_scores[candidate_i].penalty = compute_final_penalty(score.num_penalties, score.penalties);
 		
