@@ -428,7 +428,7 @@ void do_best_robot_output(int rank, unsigned short best_length, int actual_frame
 		FILE *best_frame_handle = fopen(best_frame_filename, "w");
 		for(j = 0; j < actual_frame_count; j++){
 			for(i = 0; i < all_paths[j].num_points; i++){
-				fprintf(best_frame_handle, "%i,%i,%i\n", all_paths[j].points[i].x, all_paths[j].points[i].y, all_paths[j].points[i].z);
+				fprintf(best_frame_handle, "%f,%f,%f\n", ((float) all_paths[j].points[i].x) / UNIT_SCALAR, ((float) all_paths[j].points[i].y) / UNIT_SCALAR, ((float) all_paths[j].points[i].z) / UNIT_SCALAR);
 			}
 			fprintf(best_frame_handle, "=============== %i\n", j+1);
 		}
