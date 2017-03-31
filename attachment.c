@@ -430,7 +430,7 @@ void do_best_robot_output(int rank, unsigned short best_length, int actual_frame
 			for(i = 0; i < all_paths[j].num_points; i++){
 				fprintf(best_frame_handle, "%i,%i,%i\n", all_paths[j].points[i].x, all_paths[j].points[i].y, all_paths[j].points[i].z);
 			}
-			fprintf(best_frame_handle, "============== %i\n", j);
+			fprintf(best_frame_handle, "=============== %i\n", j+1);
 		}
 		fclose(best_frame_handle);
 	}
