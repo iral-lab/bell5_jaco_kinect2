@@ -408,7 +408,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			}
 		}
 		
-		if(current_path.num_points == MAX_VERTICES || num_points == current_path.num_visited){
+		if(current_path.num_points >= MIN_VERTICES || num_points == current_path.num_visited){
 			// only done once we've visited all points. Path is considered minimized since we minimized during creation
 			
 //			printf("adding candidate: %i %i\n", space_for_candidates, *num_candidates);
@@ -435,7 +435,12 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 				new_candidates = 0;
 			}
 		
-			continue;
+			
+			// let it keep adding points if we're under the max
+			if(current_path.num_points == MAX_VERTICES){
+				// Don't keep adding new points if we've already hit max
+				continue;
+			}
 		}
 		
 		
