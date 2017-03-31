@@ -403,7 +403,9 @@ int main(int argc, char** argv) {
 			candidates_per_worker_displacement[i] = num_candidates * sizeof(candidate);
 			num_candidates += candidates_per_worker[i];
 			candidates_per_worker_in_bytes[i] = candidates_per_worker[i] * sizeof(candidate);
-			printf("ROOT: From %i: %i for %i bytes\n", i, candidates_per_worker[i], candidates_per_worker_in_bytes[i]);
+			if(candidates_per_worker[i] > 0){
+				printf("ROOT: From %i: %i for %i bytes\n", i, candidates_per_worker[i], candidates_per_worker_in_bytes[i]);
+			}
 		}
 		
 		candidates = (candidate *) malloc (num_candidates * sizeof(candidate));
@@ -481,7 +483,7 @@ int main(int argc, char** argv) {
 	int my_candidate_batch_size = num_candidates_per_worker[rank];
 	int my_candidate_batch_start = candidates_batch_start[rank];
 
-	printf("> %i my_candidate_batch_size: %i, starting at %i\n",rank, my_candidate_batch_size, my_candidate_batch_start);
+//	printf("> %i my_candidate_batch_size: %i, starting at %i\n",rank, my_candidate_batch_size, my_candidate_batch_start);
 	if(!is_leader(rank)){
 		candidates = (candidate *) malloc (num_candidates_per_worker_in_bytes[rank]);
 	}
@@ -489,13 +491,13 @@ int main(int argc, char** argv) {
 	MPI_Scatterv(candidates, num_candidates_per_worker_in_bytes, num_candidates_per_worker_displacement, MPI_BYTE, candidates, num_candidates_per_worker_in_bytes[rank], MPI_BYTE, 0, MPI_COMM_WORLD);
 	
 	validate_candidates(rank, my_candidate_batch_size, candidates);
-	printf("%i PASSED candidate validation\n", rank);
+//	printf("%i PASSED candidate validation\n", rank);
 	
 	double total_length_count = 0;
 	for(i = 0; i < my_candidate_batch_size; i++){
 		total_length_count += candidates[i].num_lengths;
 	}
-	printf("%i length count: %i / %i = %f\n", rank, (int)total_length_count, my_candidate_batch_size, (my_candidate_batch_size > 0 ? total_length_count / my_candidate_batch_size : 0.0));
+//	printf("%i length count: %i / %i = %f\n", rank, (int)total_length_count, my_candidate_batch_size, (my_candidate_batch_size > 0 ? total_length_count / my_candidate_batch_size : 0.0));
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
@@ -508,8 +510,8 @@ int main(int argc, char** argv) {
 		final_scores = (final_score *) malloc (num_candidates * sizeof(final_score));
 		memset(final_scores, 0, num_candidates * sizeof(final_score));
 	}else{
-		printf("%i doing pre-score deduping\n",rank);
-		deduplicate_candidates(rank, &my_candidate_batch_size, candidates, 0, true);
+//		printf("%i doing pre-score deduping\n",rank);
+		deduplicate_candidates(rank, &my_candidate_batch_size, candidates, 0, false);
 		
 		final_scores = (final_score *) malloc (my_candidate_batch_size * sizeof(final_score));
 		memset(final_scores, 0, my_candidate_batch_size * sizeof(final_score));

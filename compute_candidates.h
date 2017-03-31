@@ -570,15 +570,15 @@ void compute_candidate_for_frames(int rank, int num_skeleton_frames, int my_star
 		
 		break;
 	}
-	printf("%i Final dedupe\n", rank);
-	deduplicate_candidates(rank, &num_candidates, candidates, 0, true);
+//	printf("%i Final dedupe\n", rank);
+	deduplicate_candidates(rank, &num_candidates, candidates, 0, false);
 	
-	printf("Rank %i has %i candidates\n", rank, num_candidates);
-	fflush(stdout);
+//	printf("Rank %i has %i candidates\n", rank, num_candidates);
+//	fflush(stdout);
 	
 	validate_candidates(rank, num_candidates, candidates);
 	
-	printf("Rank %i sending\n", rank);
+	printf("Rank %i sending %i\n", rank, num_candidates);
 	fflush(stdout);
 	
 	// gather the number of candidates
