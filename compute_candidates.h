@@ -427,8 +427,10 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			
 			convert_path_to_candidate(rank, &((*candidates)[*num_candidates]), &current_path);
 			
-//			printf("(now %i paths finished), latest ", (*num_paths)+1);
-//			print_path(&((*paths)[*num_paths]));
+//			if(current_path.num_points == 4){
+//				printf("%i\t", *num_candidates);
+//				print_path(&current_path);
+//			}
 			
 			(*num_candidates)++;
 			new_candidates++;
