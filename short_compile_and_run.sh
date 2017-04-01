@@ -16,5 +16,5 @@ COMP="mpicc -o $PROG attachment.c"
 RUN="mpirun --host localhost -np $CORES ./$PROG run $SKELETON $PCL $OUTPUT"
 BEST="mpirun --host localhost -np $CORES ./$PROG best $SKELETON $PCL $OUTPUT"
 
-clear; $COMP && $RUN && $BEST
+clear; $COMP && $RUN #&& $BEST
 
