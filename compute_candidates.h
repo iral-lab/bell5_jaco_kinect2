@@ -172,11 +172,12 @@ void get_pairwise_distances(int num_points, sort_pair **pairs, frame *frm){
 	}
 }
 
+// Tested, this < puts in the right order.
 int sort_by_y_value(const void *a, const void *b){
 	if(((point *) a)->y == ((point *) b)->y){
 		return ((point *) a)->x > ((point *) b)->x ? 1 : -1;
 	}
-	return ((point *) a)->y > ((point *) b)->y ? 1 : -1;
+	return ((point *) a)->y < ((point *) b)->y ? 1 : -1;
 }
 
 void get_anchors(int *num_anchors, point ***anchors, frame *frm){
