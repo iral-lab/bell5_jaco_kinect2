@@ -608,6 +608,16 @@ int main(int argc, char** argv) {
 //		printf("ROOT: deduping done\n");
 //		fflush(stdout);
 		
+		FILE *candidate_output = fopen("_temp_candidates.csv", "w");
+		for(i = 0; i < num_candidates; i++){
+			fprintf(candidate_output, "%i", candidates[i].num_lengths);
+			for(j = 0; j < candidates[i].num_lengths; j++){
+				fprintf(candidate_output, ",%i", candidates[i].lengths[j]);
+			}
+			fprintf(candidate_output, "\n");
+		}
+		fclose(candidate_output);
+		
 		printf("ROOT: randomizing candidates\n");
 		fflush(stdout);
 		randomize_array(candidates, num_candidates, sizeof(candidate));
