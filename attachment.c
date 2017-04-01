@@ -797,4 +797,6 @@ int main(int argc, char** argv) {
 		free(skeleton_packed_points);
 	}
 	MPI_Finalize();
+	
+	return 0;
 }
