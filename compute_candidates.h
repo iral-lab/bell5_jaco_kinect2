@@ -346,6 +346,36 @@ void deduplicate_candidates(int rank, int *num_candidates, candidate *candidates
 	}
 }
 
+bool path_has_edge_and_point_too_close(path *path){
+	int i,j;
+	
+	unsigned short epsilon = 100; // nothing within this many mm of an existing edge or point
+	point *p0, *p1, *p;
+	
+	for(i = 0; i < path->num_points; i++){
+		p = &(path->points[i]);
+		
+		for(j = 0; j < path->num_points-1; j++){
+			// from 0 to n-2
+			if(j == i || j+1 == i){
+				continue;
+			}
+			
+			p0 = &(path->points[j]);
+			p1 = &(path->points[j+1]);
+			
+			if(distance_to_segment(p, p0, p1) <= epsilon){
+//				printf("Found paths too close %i, %i, (%i,%i,%i) => (%i,%i,%i) (%i,%i,%i)\n", i , j, p->x,p->y,p->z, p0->x, p0->y,p0->z, p1->x,p1->y,p1->z);
+				return true;
+			}
+		}
+		
+	}
+	
+	
+	return false;
+}
+
 void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_candidates, candidate **candidates){
 	//	printf("> %i cand(f_%i)\n", rank, frame_n);
 	int i,j;
@@ -483,6 +513,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 				exit(1);
 			}
 			
+			
 			stack = get_more_space_and_copy(&space_on_stack, stack, stack_size, PATHS, sizeof(path));
 			//			printf("\tINNER stack now has space for %i, has %i\n", space_on_stack, stack_size);
 			
@@ -499,6 +530,7 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 			//			print_path(&(stack[stack_size]));
 			
 			path_to_analyze = &(stack[stack_size]);
+			
 			// do the point-dropping, in case
 //			printf("\n\nCurrent ");
 //			print_path(path_to_analyze);
@@ -544,6 +576,12 @@ void compute_candidates_for_frame(int rank, int frame_n, frame *frm, int *num_ca
 				}
 				
 			}
+			
+			if(path_has_edge_and_point_too_close(path_to_analyze)){
+				// don't update stack_size, so it basically gets forgotten
+				continue;
+			}
+			
 //			printf("\n\nFinal ");
 //			print_path(path_to_analyze);
 //			printf("done\n");
