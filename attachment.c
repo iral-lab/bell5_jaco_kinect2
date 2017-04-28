@@ -296,9 +296,10 @@ unsigned int compute_final_penalty(unsigned int num_penalties, unsigned int *pen
 	return floorf(sum / num_penalties);
 }
 
-void iterate_frames_for_candidate(int rank, score *score, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames){
+unsigned short iterate_frames_for_candidate(int rank, score *score, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames){
 	unsigned int value;
 	int frame_i;
+	unsigned short invalid_renders = 0;
 	for(frame_i = 0; frame_i < num_pointcloud_frames; frame_i++){
 		
 		value = score_candidates_against_frame(score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]), false);
@@ -308,14 +309,19 @@ void iterate_frames_for_candidate(int rank, score *score, int num_skeleton_frame
 			exit(1);
 		}
 		
-		score->penalties[score->num_penalties] = value;
-		score->num_penalties++;
+		if(value == BIG_NUMBER){
+			invalid_renders++;
+		}else{
+			score->penalties[score->num_penalties] = value;
+			score->num_penalties++;
+		}
+		
 		
 		if(SHORT_TEST_RUN){
 			break;
 		}
 	}
-	
+	return invalid_renders;
 }
 
 void score_candidates_against_frames(int rank, final_score *final_scores, int num_candidates, candidate *candidates, int num_pointcloud_frames, frame *pointcloud_frames, int num_skeleton_frames, frame *skeleton_frames){
@@ -351,12 +357,12 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 		
 		score.num_penalties = 0;
 		
-		iterate_frames_for_candidate(rank, &score, num_skeleton_frames, skeleton_frames, num_pointcloud_frames, pointcloud_frames);
+		final_scores[candidate_i].invalid_renders = iterate_frames_for_candidate(rank, &score, num_skeleton_frames, skeleton_frames, num_pointcloud_frames, pointcloud_frames);
 		
 		memcpy(&(final_scores[candidate_i].candidate), &(candidates[candidate_i]), sizeof(candidate));
 		final_scores[candidate_i].penalty = compute_final_penalty(score.num_penalties, score.penalties);
 		
-		printf("%i scoring candidate %i/%i (%i edges) = %i\n", rank, candidate_i, num_candidates, score.candidate.num_lengths, final_scores[candidate_i].penalty);
+		printf("%i scoring candidate %i/%i (%i edges) = %u (%i invalid)\n", rank, candidate_i, num_candidates, score.candidate.num_lengths, final_scores[candidate_i].penalty, final_scores[candidate_i].invalid_renders);
 		fflush(stdout);
 		
 		if(SHORT_TEST_RUN){
@@ -391,18 +397,29 @@ void get_best_candidate_from_output(candidate *best_cand, int num_edges, char *o
 	
 	unsigned int num_lengths;
 	unsigned int total_length;
+	unsigned int invalid_renders;
 	unsigned int length_0;
 	unsigned int length_1;
 	unsigned int length_2;
 	unsigned int length_3;
 	unsigned int length_4;
 	
+	unsigned int min_invalid_renders = BIG_NUMBER;
+	
 	// the output-file reader needs to be correct, this was written to have this number
 	assert(5 == MAX_EDGES);
 	
 	while ((read = getline(&line, &len, output_handle)) != -1) {
 		//			printf("line: %s\n", line);
-		sscanf(line, "%i,%i,%i,%i,%i,%i,%i,%i", &score, &(num_lengths), &(total_length), &(length_0), &(length_1), &(length_2), &(length_3), &(length_4));
+		sscanf(line, "%u,%i,%i,%i,%i,%i,%i,%i,%i", &score, &(num_lengths), &(total_length), &(invalid_renders), &(length_0), &(length_1), &(length_2), &(length_3), &(length_4));
+		
+		if(invalid_renders > min_invalid_renders){
+			continue;
+		}
+//		if(invalid_renders == min_invalid_renders){
+//			best_score = BIG_NUMBER;
+//		}
+//		min_invalid_renders = invalid_renders;
 		
 		cand.num_lengths = (unsigned short) num_lengths;
 		cand.total_length = (unsigned short) total_length;
@@ -413,6 +430,7 @@ void get_best_candidate_from_output(candidate *best_cand, int num_edges, char *o
 		cand.lengths[4] = (unsigned short) length_4;
 		
 		//			printf("READ LINE: %i, %i \n", score, cand.num_lengths);
+		
 		
 		if(cand.num_lengths == num_edges && score < best_score){
 			memset(best_cand, 0, sizeof(candidate));
@@ -752,7 +770,7 @@ int main(int argc, char** argv) {
 		printf("final scores sorted\n");
 		
 		FILE *output_handle = fopen(output_file, "w");
-		fprintf(output_handle, "score,num_edges,total_length_mm");
+		fprintf(output_handle, "score,num_edges,total_length_mm,invalid_renders");
 		for(i = 0; i < MAX_EDGES; i++){
 			fprintf(output_handle,",length_%i",i);
 		}
@@ -764,7 +782,7 @@ int main(int argc, char** argv) {
 			}
 			cand = &(final_scores[i].candidate);
 //			printf("cand %i => %f\n", i, final_scores[i].score);
-			fprintf(output_handle, "%i,%i,%i", final_scores[i].penalty, cand->num_lengths, cand->total_length);
+			fprintf(output_handle, "%u,%i,%i,%i", final_scores[i].penalty, cand->num_lengths, cand->total_length, final_scores[i].invalid_renders);
 			
 			for(j = 0; j < cand->num_lengths; j++){
 				fprintf(output_handle, ",%i", cand->lengths[j]);
