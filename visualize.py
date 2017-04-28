@@ -66,7 +66,7 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 
 FRAME_N = 0
 DIM = 1536
-def start_visualizing(cluster_points):
+def start_visualizing(cluster_points, frame_to_show):
 	window = app.Window(DIM,DIM, color=(1,2,1,1))
 	point_collection = PointCollection("agg", color="local", size="local")
 	paths = PathCollection(mode="agg")
@@ -77,13 +77,17 @@ def start_visualizing(cluster_points):
 		window.clear()
 		point_collection.draw()
 		
-		time.sleep(DRAW_DELAY)
 		if not cluster_points.empty():
 			possible = cluster_points.get()
 			
 			print "frame",FRAME_N
 			FRAME_N += 1
-			
+			if frame_to_show > -1 and not (FRAME_N-1) == frame_to_show:
+				while not possible == TERMINATOR:
+					possible = cluster_points.get()
+				return
+			time.sleep(DRAW_DELAY)
+		
 			while len(point_collection) > 0:
 				del point_collection[0]
 			
@@ -189,6 +193,8 @@ if '__main__' == __name__:
 	
 	skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
 
+	frame_to_show = int(sys.argv[4]) if len(sys.argv) > 4 else -1
+
 	cluster_points = multiprocessing.Queue()
 	
 	# -0.572,-0.343,1.101	 -0.398,-0.562,1.183	 -0.364,-0.436,1.223	 -0.299,0.04,1.217
@@ -197,7 +203,7 @@ if '__main__' == __name__:
 	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_frame_robot, cluster_points))
 	processor.start()
 	
-	start_visualizing(cluster_points)
+	start_visualizing(cluster_points, frame_to_show)
 	
 	
 	
