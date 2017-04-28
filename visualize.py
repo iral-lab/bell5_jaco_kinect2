@@ -6,7 +6,7 @@ import numpy as np
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 1.5
+DRAW_DELAY = 0.5
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -46,6 +46,8 @@ def csv_reader(input_file):
 				batch.append( tuple([float(x) * SCALE for x in line.split(",")]) )
 		if len(batch) > 0:
 			yield batch
+		else:
+			yield None
 
 def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	skeleton_reader = csv_reader(skeleton_csv)
@@ -57,10 +59,11 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	pcl_frame = pcl_reader.next()
 	path_frame = path_reader.next()
 	
-	while skeleton_frame and pcl_frame and path_frame:
-		frame = (skeleton_frame, pcl_frame, path_frame)
-#		print frame
-		yield frame
+	while skeleton_frame or pcl_frame or path_frame:
+		if skeleton_frame and pcl_frame and path_frame:
+			frame = (skeleton_frame, pcl_frame, path_frame)
+			yield frame
+		
 		skeleton_frame = skeleton_reader.next()
 		pcl_frame = pcl_reader.next()
 		path_frame = path_reader.next()
@@ -151,7 +154,6 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 	frame_n = 0
 	for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_frame_csv):
 		frame_n += 1
-		
 		to_render = pcl_frame
 		
 		if len(to_render) > MAX_POINTS:
@@ -181,7 +183,7 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 				cluster_points.put( (POINT, point, LINE_COLOR, SMALL) )
 		
 		cluster_points.put(TERMINATOR)
-	
+	print "broke"
 
 if '__main__' == __name__:
 	if len(sys.argv) < 3:
