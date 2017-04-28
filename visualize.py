@@ -6,7 +6,7 @@ import numpy as np
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 1
+DRAW_DELAY = 0.5
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -76,7 +76,8 @@ def start_visualizing(cluster_points):
 		global FRAME_N
 		window.clear()
 		point_collection.draw()
-
+		
+		time.sleep(DRAW_DELAY)
 		if not cluster_points.empty():
 			possible = cluster_points.get()
 			
@@ -100,7 +101,7 @@ def start_visualizing(cluster_points):
 				elif LINE == type:
 					path = []
 					for hop in data:
-						new_hop =[round(0.7 * abs(x),5) for x in hop]
+						new_hop = [round(0.7 * abs(x),5) for x in hop]
 						path.append(new_hop)
 					path = np.asarray(path)
 					print path, len(path)
@@ -108,8 +109,7 @@ def start_visualizing(cluster_points):
 					paths["linewidth"] = 3.0
 				
 				possible = cluster_points.get()
-					
-		time.sleep(DRAW_DELAY)
+	
 
 
 	window.attach(point_collection["transform"])
