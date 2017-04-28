@@ -44,10 +44,7 @@ def csv_reader(input_file):
 				batch = []
 			else:
 				batch.append( tuple([float(x) * SCALE for x in line.split(",")]) )
-		if len(batch) > 0:
-			yield batch
-		else:
-			yield None
+		yield batch
 
 def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	skeleton_reader = csv_reader(skeleton_csv)
@@ -60,9 +57,8 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 	path_frame = path_reader.next()
 	
 	while skeleton_frame or pcl_frame or path_frame:
-		if skeleton_frame and pcl_frame and path_frame:
-			frame = (skeleton_frame, pcl_frame, path_frame)
-			yield frame
+		frame = (skeleton_frame, pcl_frame, path_frame)
+		yield frame
 		
 		skeleton_frame = skeleton_reader.next()
 		pcl_frame = pcl_reader.next()
