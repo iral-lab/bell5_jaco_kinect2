@@ -440,6 +440,7 @@ void do_best_robot_output(int rank, unsigned short num_edges, int num_skeleton_f
 	unsigned int value;
 	int frame_i;
 	for(frame_i = 0; frame_i < num_skeleton_frames; frame_i++){
+		memset(&(score.best_path), 0, sizeof(path));
 		memset(score.penalties, 0, num_pointcloud_frames * sizeof(unsigned int));
 		memcpy(&(score.candidate), &(cand), sizeof(candidate));
 		score.num_penalties = 0;
