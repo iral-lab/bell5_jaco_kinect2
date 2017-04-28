@@ -10,6 +10,8 @@
 
 #define SHORT_TEST_RUN 0
 
+#define ONLY_FRAME_N -1
+
 // define in terms of millimeters instead of meters
 #define UNIT_SCALAR 1000
 
@@ -545,8 +547,10 @@ int main(int argc, char** argv) {
 	input_pcl_file = argv[3];
 	output_file = argv[4];
 	
+	int focus_on_frame_of_interest = output_best ? -1 : ONLY_FRAME_N;
+	
 	if(is_leader(rank)){
-		read_and_broadcast_frames(input_skeleton_file, input_pcl_file, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames);
+		read_and_broadcast_frames(input_skeleton_file, input_pcl_file, &num_skeleton_frames, &all_skeleton_frames, &num_pointcloud_frames, &all_pointcloud_frames, focus_on_frame_of_interest);
 	}else{
 		listen_for_frames(rank, &num_skeleton_frames, &all_skeleton_frames, &skeleton_packed_points, &num_pointcloud_frames, &all_pointcloud_frames, &pointcloud_packed_points);
 		

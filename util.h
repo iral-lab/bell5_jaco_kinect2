@@ -113,7 +113,7 @@ void get_frame_from(frame *frm, int source){
 }
 
 
-void read_frames(FILE *file_handle, frame_type type, int *num_frames, frame **all_frames){
+void read_frames(FILE *file_handle, frame_type type, int *num_frames, frame **all_frames, int focus_on_frame_of_interest){
 	
 	if((*all_frames)){
 		free((*all_frames));
@@ -124,10 +124,18 @@ void read_frames(FILE *file_handle, frame_type type, int *num_frames, frame **al
 	int space_for_frames = 0;
 	(*all_frames) = get_more_space_and_copy(&space_for_frames, (*all_frames), (*num_frames), type, sizeof(frame));
 	
+	int frame_number = 0;
 	
 	while(true){
 		memset(&frm, 0, sizeof(frame));
 		read_frame(file_handle, &frm, type);
+		
+		if(frm.num_points > 0 && focus_on_frame_of_interest > -1 && focus_on_frame_of_interest != frame_number){
+			frame_number++;
+			continue;
+		}
+		
+		frame_number++;
 		
 		if(frm.num_points > 0){
 			(*all_frames) = get_more_space_and_copy(&space_for_frames, (*all_frames), (*num_frames), type, sizeof(frame));
@@ -228,7 +236,7 @@ void validate_frames(int rank, int num_frames, frame *frames){
 }
 
 
-void read_and_broadcast_frames(char * input_skeleton_file, char * input_pcl_file, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames){
+void read_and_broadcast_frames(char * input_skeleton_file, char * input_pcl_file, int *num_skeleton_frames, frame **all_skeleton_frames, int *num_pointcloud_frames, frame **all_pointcloud_frames, int focus_on_frame_of_interest){
 	
 	FILE *skeleton_handle = fopen(input_skeleton_file, "r");
 	FILE *pcl_handle = fopen(input_pcl_file, "r");
@@ -241,7 +249,7 @@ void read_and_broadcast_frames(char * input_skeleton_file, char * input_pcl_file
 		exit(1);
 	}
 	
-	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames);
+	read_frames(skeleton_handle, SKELETON, num_skeleton_frames, all_skeleton_frames, focus_on_frame_of_interest);
 	printf("done reading in %i skeleton frames\n", *num_skeleton_frames);
 	
 	int i;
@@ -252,7 +260,7 @@ void read_and_broadcast_frames(char * input_skeleton_file, char * input_pcl_file
 		}
 	}
 	
-	read_frames(pcl_handle, POINTCLOUD, num_pointcloud_frames, all_pointcloud_frames);
+	read_frames(pcl_handle, POINTCLOUD, num_pointcloud_frames, all_pointcloud_frames, focus_on_frame_of_interest);
 	printf("done reading in %i pointcloud frames\n", *num_pointcloud_frames);
 	
 	printf("0 validating skeleton\n");
