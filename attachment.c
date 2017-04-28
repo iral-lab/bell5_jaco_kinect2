@@ -368,7 +368,7 @@ bool is_leader(int rank){
 	return 0 == rank;
 }
 
-void get_best_candidate_from_output(candidate *best_cand, int best_length, char *output_file){
+void get_best_candidate_from_output(candidate *best_cand, int num_edges, char *output_file){
 	FILE *output_handle = fopen(output_file, "r");
 	candidate cand;
 	
@@ -409,11 +409,11 @@ void get_best_candidate_from_output(candidate *best_cand, int best_length, char 
 		
 		//			printf("READ LINE: %i, %i \n", score, cand.num_lengths);
 		
-		if(cand.num_lengths == best_length && score < best_score){
+		if(cand.num_lengths == num_edges && score < best_score){
 			memset(best_cand, 0, sizeof(candidate));
 			memcpy(best_cand, &cand, sizeof(candidate));
 			best_score = score;
-//			printf("NEW BEST: %i, %hu, %hu \n", best_score, best_cand->total_length, best_cand->num_lengths);
+			printf("NEW BEST: %i, %hu, %hu \n", best_score, best_cand->total_length, best_cand->num_lengths);
 		}
 		
 	}
@@ -423,26 +423,18 @@ void get_best_candidate_from_output(candidate *best_cand, int best_length, char 
 	}
 }
 
-void do_best_robot_output(int rank, unsigned short best_length, int actual_frame_count, int my_batch_start, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames, char *output_file, int *paths_per_worker_bytes, int *paths_per_worker_displ){
+void do_best_robot_output(int rank, unsigned short num_edges, int num_skeleton_frames, frame *skeleton_frames, int num_pointcloud_frames, frame *pointcloud_frames, char *output_file){
 	
 	candidate cand;
 	memset(&cand,0,sizeof(candidate));
 	
-	if(is_leader(rank)){
-		get_best_candidate_from_output(&cand, best_length, output_file);
-		printf("best cand: %i\n", cand.total_length);
-	}
-	MPI_Bcast(&cand, sizeof(candidate), MPI_BYTE, 0, MPI_COMM_WORLD);
-	
-//	printf("%i received cand: %i\n", rank, cand.total_length);
+	get_best_candidate_from_output(&cand, num_edges, output_file);
 	
 	score score;
 	memset(&score, 0, sizeof(score));
 	score.penalties = (unsigned int *) malloc (num_pointcloud_frames * sizeof(unsigned int));
 	
-	int path_bytes_to_alloc = is_leader(rank) ? actual_frame_count * sizeof(path) : num_skeleton_frames * sizeof(path);
-	
-	path *all_paths = (path *) malloc (path_bytes_to_alloc);
+	path *all_paths = (path *) malloc (num_skeleton_frames * sizeof(path));
 	memset(all_paths, 0, num_skeleton_frames * sizeof(path));
 	int i,j;
 	unsigned int value;
@@ -456,29 +448,22 @@ void do_best_robot_output(int rank, unsigned short best_length, int actual_frame
 		value = score_candidates_against_frame(&score, frame_i, &(pointcloud_frames[frame_i]), &(skeleton_frames[frame_i]), true);
 		memcpy(&(all_paths[frame_i]), &(score.best_path), sizeof(path));
 	}
-	
-	MPI_Gatherv(all_paths, num_skeleton_frames * sizeof(path), MPI_BYTE, all_paths, paths_per_worker_bytes, paths_per_worker_displ, MPI_BYTE, 0, MPI_COMM_WORLD);
-	
-	
-	MPI_Barrier(MPI_COMM_WORLD);
-	
-	if(is_leader(rank)){
 //		printf("Received all paths\n");
-		char best_frame_filename[100];
-		sprintf(best_frame_filename, "%s_%i", BEST_FRAME_OUTPUT_STEM, best_length);
-		FILE *best_frame_handle = fopen(best_frame_filename, "w");
-		for(j = 0; j < actual_frame_count; j++){
-			for(i = 0; i < all_paths[j].num_points; i++){
-				fprintf(best_frame_handle, "%f,%f,%f\n", ((float) all_paths[j].points[i].x) / UNIT_SCALAR, ((float) all_paths[j].points[i].y) / UNIT_SCALAR, ((float) all_paths[j].points[i].z) / UNIT_SCALAR);
-			}
-			fprintf(best_frame_handle, "=============== %i\n", j+1);
+	char best_frame_filename[100];
+	sprintf(best_frame_filename, "%s_%i", BEST_FRAME_OUTPUT_STEM, num_edges);
+	FILE *best_frame_handle = fopen(best_frame_filename, "w");
+	for(j = 0; j < num_skeleton_frames; j++){
+		for(i = 0; i < all_paths[j].num_points; i++){
+			fprintf(best_frame_handle, "%f,%f,%f\n", ((float) all_paths[j].points[i].x) / UNIT_SCALAR, ((float) all_paths[j].points[i].y) / UNIT_SCALAR, ((float) all_paths[j].points[i].z) / UNIT_SCALAR);
 		}
-		fclose(best_frame_handle);
+		fprintf(best_frame_handle, "=============== %i\n", j+1);
 	}
+	fclose(best_frame_handle);
 	
-	MPI_Barrier(MPI_COMM_WORLD);
 	free(score.penalties);
 	free(all_paths);
+	
+	fflush(stdout);
 }
 
 int main(int argc, char** argv) {
@@ -583,9 +568,13 @@ int main(int argc, char** argv) {
 	fflush(stdout);
 	
 	if(output_best){
-		for(i = MIN_VERTICES-1; i <= MAX_EDGES; i++){
-			do_best_robot_output(rank, i, num_skeleton_frames, my_batch_start, my_batch_size, &(all_skeleton_frames[my_batch_start]), my_batch_size, &(all_pointcloud_frames[my_batch_start]), output_file, paths_per_worker_bytes, paths_per_worker_displ);
+		if(is_leader(rank)){
+			for(i = MIN_VERTICES-1; i <= MAX_EDGES; i++){
+				do_best_robot_output(rank, i, num_skeleton_frames, all_skeleton_frames, num_pointcloud_frames, all_pointcloud_frames, output_file);
+				fflush(stdout);
+			}
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 		exit(0);
 	}
 	
