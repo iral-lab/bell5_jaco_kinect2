@@ -8,7 +8,7 @@
 #include <math.h>
 #include <assert.h>
 
-#define SHORT_TEST_RUN 1
+#define SHORT_TEST_RUN 0
 
 // define in terms of millimeters instead of meters
 #define UNIT_SCALAR 1000
@@ -56,6 +56,7 @@ typedef struct score{
 typedef struct final_score{
 	candidate candidate;
 	unsigned int penalty;
+	unsigned short invalid_renders;
 }final_score;
 
 void compute_candidate_total_lengths(final_score *final_scores, int num_candidates){
@@ -162,6 +163,7 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			start = clock();
 			
 			temp_score = get_error_to_path(&current_path, pcl_frame);
+			
 			
 			diff = clock() - start;
 			scoring_time_spent += diff * 1000 / CLOCKS_PER_SEC;
@@ -270,7 +272,6 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 	if(stack){
 		free(stack);
 	}
-	
 	return best_score;
 }
 
@@ -285,7 +286,11 @@ unsigned int compute_final_penalty(unsigned int num_penalties, unsigned int *pen
 	unsigned int sum = 0;
 	int i;
 	for(i = 0; i < num_penalties; i++){
-//		printf("sum %i, num %i val %i\n", sum, num_penalties, penalties[i]);
+//		printf("sum %u, num %i val %i\n", sum, num_penalties, penalties[i]);
+		if(sum + penalties[i] < sum){
+			// basically maxed out
+			return sum;
+		}
 		sum += penalties[i];
 	}
 	return floorf(sum / num_penalties);
