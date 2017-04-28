@@ -717,7 +717,7 @@ int main(int argc, char** argv) {
 	printf("%i finished scoring\n", rank); fflush(stdout);
 	fflush(stdout);
 	
-	MPI_Gatherv(final_scores, my_candidate_batch_size, MPI_BYTE, final_scores, final_scores_per_worker_bytes, final_scores_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(final_scores, final_scores_per_worker_bytes[rank], MPI_BYTE, final_scores, final_scores_per_worker_bytes, final_scores_per_worker_displacement, MPI_BYTE, 0, MPI_COMM_WORLD);
 	
 	if(is_leader(rank)){
 		candidate *cand;
