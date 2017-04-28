@@ -112,9 +112,12 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 	// sort skeleton points by their y value
 	qsort(skeleton_frame->points, skeleton_frame->num_points, sizeof(point), sort_by_y_value);
 	int i,j,k;
+//	printf("SKELETON: \n");
 	for(i = 0; i < num_points; i++){
 		skeleton_frame->points[i].pid = i;
+//		printf("%i,%i,%i\n", skeleton_frame->points[i].x,skeleton_frame->points[i].y,skeleton_frame->points[i].z);
 	}
+//	printf("\n\n");
 	
 	sort_pair pairs[num_points];
 	
@@ -156,7 +159,6 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 		stack_size--;
 
 		if(current_path.num_points == max_path_vertices){
-//			print_path(&current_path);
 			start = clock();
 			
 			temp_score = get_error_to_path(&current_path, pcl_frame);
@@ -174,7 +176,6 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			
 			continue;
 		}
-//		print_path(&current_path);
 		
 		last_point = &(current_path.points[ current_path.num_points - 1]);
 		get_points_closest_to(last_point, num_points, skeleton_frame->points, pairs);
@@ -218,8 +219,7 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 				printf("SOMETHING WENT WRONG, no point was selected\n");
 				exit(1);
 			}
-			
-//			printf("adding pid %i at %i,%i,%i, which is %i away, error %i\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, smallest_error);
+//			printf("adding pid %i at %i,%i,%i, which is %i away from %i,%i,%i, error %i\n", best_point->pid, best_point->x, best_point->y, best_point->z, best_points_distance, last_point->x, last_point->y, last_point->z, smallest_error);
 			
 			// Now we have to shoot the ray
 			double_vector_between(best_point, last_point, &v);
@@ -231,7 +231,8 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			scale_vector(&v, desired_length);
 //			printf("++ V: %f, %f, %f\n", v.x, v.y, v.z);
 			add_vector_to_point(&v, last_point, &new_point);
-//			printf(">> P: %i, %i, %i\n\n\n", new_point.x, new_point.y, new_point.z);
+//			printf(">> P: %i, %i, %i, \ttotal error: %f\n", new_point.x, new_point.y, new_point.z, euclid_distance(&new_point, best_point));
+			
 			
 			new_point.pid = -1;
 			
@@ -242,6 +243,13 @@ unsigned int score_candidates_against_frame(score *score, int frame_i, frame *pc
 			memcpy(&(stack[stack_size]), &current_path, sizeof(path));
 			memcpy(&(stack[stack_size].points[stack[stack_size].num_points]), &new_point, sizeof(point));
 			stack[stack_size].num_points++;
+//			print_path(&(stack[stack_size]));
+			
+			
+			if(path_has_edge_and_point_too_close(&(stack[stack_size]))){
+				// don't update stack_size, so it basically gets forgotten
+				continue;
+			}
 			
 			stack_size++;
 			
@@ -314,6 +322,25 @@ void score_candidates_against_frames(int rank, final_score *final_scores, int nu
 	score.penalties = (unsigned int *) malloc (num_pointcloud_frames * sizeof(unsigned int));
 	
 	for(candidate_i = 0; candidate_i < num_candidates; candidate_i++){
+		// straightforward:
+		// 31487,5,1237,230,411,87,228,281
+		// 5,230,411,87,228,281
+		// wonky:
+		// 27979,5,1963,329,281,428,512,413
+		//
+		// for best case 5 on frame 32
+//		if(candidates[candidate_i].num_lengths != 5 || candidates[candidate_i].lengths[0] != 230 || candidates[candidate_i].lengths[1] != 411 || candidates[candidate_i].lengths[2] != 87 || candidates[candidate_i].lengths[3] != 228 || candidates[candidate_i].lengths[4] != 281){
+//			continue;
+//		}
+//		
+		
+		// for best-case 3 on frame 32
+//		if(candidates[candidate_i].num_lengths != 3 || candidates[candidate_i].lengths[0] != 230 || candidates[candidate_i].lengths[1] != 411 || candidates[candidate_i].lengths[2] != 430){
+//			continue;
+//		}
+		
+//		printf("Got here with the right candidate %i\n", candidate_i);
+		
 		memset(score.penalties, 0, num_pointcloud_frames * sizeof(unsigned int));
 		memcpy(&(score.candidate), &(candidates[candidate_i]), sizeof(candidate));
 		
