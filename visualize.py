@@ -12,6 +12,8 @@ MAX_POINTS = 1000
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
 RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 1]
 GREEN = [ 0.34262711 , 0.75813294 , 0.34156955 , 1]
+BLACK = [0,0,0,1]
+WHITE = [1,1,1,1]
 
 EDGE_COUNT_OVERRIDE = False
 
@@ -24,6 +26,8 @@ LINE = "line"
 
 BIG = 10
 SMALL = 5
+
+BLACK_ON_WHITE = True
 
 
 from glumpy import app
@@ -67,7 +71,7 @@ def get_frames(skeleton_csv, pcl_csv, paths_csv):
 FRAME_N = 0
 DIM = 1536
 def start_visualizing(cluster_points, frame_to_show):
-	window = app.Window(DIM,DIM, color=(1,2,1,1))
+	window = app.Window(DIM,DIM, color=(BLACK if BLACK_ON_WHITE else (1,2,1,1)))
 	point_collection = PointCollection("agg", color="local", size="local")
 	paths = PathCollection(mode="agg")
 	
@@ -169,6 +173,7 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 		for point in to_render:
 			n = float((point[v_ind] + abs(min_v) * 1.0) / (max_v+ abs(min_v)))
 			this_color = [ n, n, n, 1]
+			this_color = WHITE if BLACK_ON_WHITE else BLACK
 			cluster_points.put( (POINT, point, this_color, BIG) )
 
 		for point in skeleton_frame:
