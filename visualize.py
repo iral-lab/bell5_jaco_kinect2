@@ -207,18 +207,25 @@ def rotate_around_y(point, theta):
 	]
 	return point
 
-def generator_render(cloud_file, cluster_point_queue):
+def generator_render(cloud_files, cluster_point_queue):
 	# (-0.137504, -0.407314, 1.117)
-	this_color = WHITE if BLACK_ON_WHITE else BLACK
 	
-	if not os.path.exists(cloud_file):
-		print "File doesn't exist:", cloud_file
+	animate = len(cloud_files) == 1
+	
+	for file in cloud_files:
+		render_cloud_file(file, cluster_point_queue, animate)
+
+def render_cloud_file(file, cluster_point_queue, animate):
+	if not os.path.exists(file):
+		print "File doesn't exist:", file
 		return
+	
+	this_color = WHITE if BLACK_ON_WHITE else BLACK
 	
 	points = []
 	
 	average_point = [0.0] * 3
-	for line in open(cloud_file,'r').readlines():
+	for line in open(file, 'r').readlines():
 		line = line.strip()
 		if '' == line or '#' in line:
 			continue
@@ -242,8 +249,9 @@ def generator_render(cloud_file, cluster_point_queue):
 	theta = math.pi / 16
 	v_ind = 2
 	while True:
-		for i,point in enumerate(points):
-			points[i] = rotate_around_y(point, theta)
+		if animate:
+			for i,point in enumerate(points):
+				points[i] = rotate_around_y(point, theta)
 		
 		points = sorted(points, key = lambda x:x[v_ind])
 		
@@ -253,10 +261,10 @@ def generator_render(cloud_file, cluster_point_queue):
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
 		
 		cluster_point_queue.put(TERMINATOR)
+		if not animate:
+			break
 	
 	# code.interact(local=dict(globals(), **locals())) 
-	
-	pass
 
 
 if '__main__' == __name__:
@@ -264,6 +272,7 @@ if '__main__' == __name__:
 	
 	if GENERATOR_RENDER and len(sys.argv) < 2:
 		print "python",sys.argv[0],"clouds/file.txt"
+		print "python",sys.argv[0],"clouds/5_1_*.txt"
 		exit()
 		
 	elif not GENERATOR_RENDER and len(sys.argv) < 3:
@@ -274,8 +283,8 @@ if '__main__' == __name__:
 	frame_to_show = -1
 	
 	if GENERATOR_RENDER:
-		cloud_file = sys.argv[1]
-		processor = multiprocessing.Process(target = generator_render, args = (cloud_file, cluster_points))
+		cloud_files = sys.argv[1:]
+		processor = multiprocessing.Process(target = generator_render, args = (cloud_files, cluster_points))
 		processor.start()
 	else:
 		skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
