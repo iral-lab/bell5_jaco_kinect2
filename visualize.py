@@ -6,7 +6,7 @@ import numpy as np
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 0.1
+DRAW_DELAY = 0.3
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -248,7 +248,7 @@ def generator_render(cloud_file, cluster_point_queue):
 		points = sorted(points, key = lambda x:x[v_ind])
 		
 		for point in points:
-			n = float(point[v_ind] + 1.0 / 2 )
+			n = float(point[v_ind] + 1.3 / 2 )
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
 		
