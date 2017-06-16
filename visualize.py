@@ -1,4 +1,4 @@
-import sys, json, multiprocessing, time, random, code
+import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
 # code.interact(local=dict(globals(), **locals())) 
@@ -6,7 +6,7 @@ import numpy as np
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 0.5
+DRAW_DELAY = 0.1
 MAX_POINTS = 1000
 
 BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
@@ -181,6 +181,7 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 		
 		for point in path_frame:
 			cluster_points.put( (POINT, point, LINE_COLOR, BIG) )
+			print point
 		
 		
 		endpoints = [(path_frame[i], path_frame[i+1]) for i in range(len(path_frame)-1)]
@@ -191,22 +192,96 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 		cluster_points.put(TERMINATOR)
 	print "broke"
 
+def vector_length(v):
+	return math.sqrt(sum([v[i] * v[i] for i in range(len(v))]))
+
+def rotate_around_y(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		z * math.sin(theta) + x * math.cos(theta),
+		# y
+		y,
+		# z
+		z * math.cos(theta) - x * math.sin(theta),
+	]
+	return point
+
+def generator_render(cloud_file, cluster_point_queue):
+	# (-0.137504, -0.407314, 1.117)
+	this_color = WHITE if BLACK_ON_WHITE else BLACK
+	
+	if not os.path.exists(cloud_file):
+		print "File doesn't exist:", cloud_file
+		return
+	
+	points = []
+	
+	average_point = [0.0] * 3
+	for line in open(cloud_file,'r').readlines():
+		line = line.strip()
+		if '' == line or '#' in line:
+			continue
+		
+		point = tuple([float(x) for x in line.split(',')])
+		points.append(point)
+		average_point = [average_point[i] + point[i] for i in range(len(point))]
+	
+	average_point = [round(average_point[i] / len(points), 5) for i in range(len(average_point))]
+	max_length = 0.0
+	for i,point in enumerate(points):
+		points[i] = [point[j] - average_point[j] for j in range(len(point))]
+		max_length = max(max_length, vector_length(points[i]))
+
+	for i,point in enumerate(points):
+		point = [point[j] / max_length for j in range(len(point))]
+		points[i] = tuple([round(point[j], 5) for j in range(len(point))])
+	
+	
+	# radians
+	theta = math.pi / 16
+	v_ind = 2
+	while True:
+		for i,point in enumerate(points):
+			points[i] = rotate_around_y(point, theta)
+		
+		points = sorted(points, key = lambda x:x[v_ind])
+		
+		for point in points:
+			n = float(point[v_ind] + 1.0 / 2 )
+			this_color = [ n, n, n, 1]
+			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
+		
+		cluster_point_queue.put(TERMINATOR)
+	
+	# code.interact(local=dict(globals(), **locals())) 
+	
+	pass
+
+
 if '__main__' == __name__:
-	if len(sys.argv) < 3:
+	GENERATOR_RENDER = True
+	
+	if GENERATOR_RENDER and len(sys.argv) < 2:
+		print "python",sys.argv[0],"clouds/file.txt"
+		exit()
+		
+	elif not GENERATOR_RENDER and len(sys.argv) < 3:
 		print "python",sys.argv[0],"skeleton.csv pcl.csv best_frame_robots_[i]"
 		exit()
 	
-	skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
-
-	frame_to_show = int(sys.argv[4]) if len(sys.argv) > 4 else -1
-
 	cluster_points = multiprocessing.Queue()
+	frame_to_show = -1
 	
-	# -0.572,-0.343,1.101	 -0.398,-0.562,1.183	 -0.364,-0.436,1.223	 -0.299,0.04,1.217
-	# 26
-	
-	processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_frame_robot, cluster_points))
-	processor.start()
+	if GENERATOR_RENDER:
+		cloud_file = sys.argv[1]
+		processor = multiprocessing.Process(target = generator_render, args = (cloud_file, cluster_points))
+		processor.start()
+	else:
+		skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
+		frame_to_show = int(sys.argv[4]) if len(sys.argv) > 4 else -1	
+		processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_frame_robot, cluster_points))
+		processor.start()
 	
 	start_visualizing(cluster_points, frame_to_show)
 	
