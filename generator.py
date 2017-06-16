@@ -8,12 +8,14 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = millimeters
 
 LINK_COUNTS = [2,3,4,5,6]
-VARIATIONS = 10
-PERMUTATIONS = 10
+VARIATIONS = 1
+PERMUTATIONS = 1
+
+DENSITY_STEP = 1.0
 
 DIMENSIONS = 3
 LINK_LENGTHS = (100, 500)
-LINK_RADIUS = (20, 50)
+LINK_RADIUS = (20, 40)
 WORKSPACE = 10000
 
 ALLOWED_CLOSENESS = LINK_LENGTHS[0] - 1 #points can't be closer than this
@@ -151,7 +153,7 @@ def gen_cloud(vertices):
 	edges = edges_between_vertices(vertices)
 	cloud = []
 	for p0,p1 in edges:
-		points = line_between_points(p0, p1, step_size = 0.1, gen_cloud = True, link_radius = random.randint(*LINK_RADIUS))
+		points = line_between_points(p0, p1, step_size = DENSITY_STEP, gen_cloud = True, link_radius = random.randint(*LINK_RADIUS))
 		cloud = cloud + points
 	return cloud
 
