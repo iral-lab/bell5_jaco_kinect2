@@ -135,7 +135,7 @@ def gen_vertices(link_lengths):
 				continue
 			if too_close(vertices + [new_point]):
 				new_point = None
-				print "Too close, throw away",tries
+				# print "Too close, throw away",tries
 				tries -= 1
 				continue
 			angles.append(round(angle_between,2))
@@ -158,33 +158,55 @@ def gen_cloud(vertices):
 	return cloud
 
 def compute_cloud(input):
-	link_count, variation_i, link_lengths, permutation_i = input
-	print link_count, variation_i, permutation_i
-
+	link_count, variation_i, link_lengths = input
+	
 	vertices = angles = None
-	while not vertices:
-		vertices, angles = gen_vertices(link_lengths)
-	cloud = gen_cloud(vertices)
+	for permutation_i in range(PERMUTATIONS):
+		print link_count, variation_i, permutation_i
 
-	outfile = "_".join([str(x) for x in [link_count, variation_i, permutation_i]])+".txt"
-	with open(OUTPUT_FOLDER+outfile,'w') as handle:
-		handle.write("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
-		handle.write("#Vertices#")
-		vert_out = []
-		for vertex in vertices:
-			vert_out.append(",".join([str(int(x)) for x in vertex]))
-		handle.write("\t".join(vert_out)+"\n")
-		handle.write("#Angles#"+("\t".join([str(x) for x in angles]))+"\n")
-		to_write = [",".join([str(x) for x in point]) for point in cloud]
-		handle.write("\n".join(to_write))
+		if not vertices:
+			# generate initial verts/angles once
+			while not vertices:
+				vertices, angles = gen_vertices(link_lengths)
+		else:
+			# move some joints
+			valid = False
+			while not valid:
+				vertex_i = random.choice(range(len(vertices) - 2)) + 1
+				angle_i = angles[vertex_i - 1]
+				
+				slight_move = math.pi / 12 # 15 degrees
+				
+				# need transformation matrix to rotate vertices above angle_i around vertex_i
+				#in_plane_vector = vector_between(vertices[vertex_i-1], vertices[vertex_i])
+				#perpendicular_u = perpendicular_vector(in_plane_vector)
+				
+				
+				
+				# safety break
+				break
+		
+		
+		cloud = gen_cloud(vertices)
+
+		outfile = "_".join([str(x) for x in [link_count, variation_i, permutation_i]])+".txt"
+		with open(OUTPUT_FOLDER+outfile,'w') as handle:
+			handle.write("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
+			handle.write("#Vertices#")
+			vert_out = []
+			for vertex in vertices:
+				vert_out.append(",".join([str(int(x)) for x in vertex]))
+			handle.write("\t".join(vert_out)+"\n")
+			handle.write("#Angles#"+("\t".join([str(x) for x in angles]))+"\n")
+			to_write = [",".join([str(x) for x in point]) for point in cloud]
+			handle.write("\n".join(to_write))
 
 if '__main__' == __name__:
 	inputs = []
 	for link_count in LINK_COUNTS:
 		for variation_i in xrange(VARIATIONS):
 			link_lengths = [random.randint(*LINK_LENGTHS) for _ in range(link_count)]
-			for permutation_i in xrange(PERMUTATIONS):
-				inputs.append( (link_count, variation_i, link_lengths, permutation_i) )
+			inputs.append( (link_count, variation_i, link_lengths) )
 	inputs.reverse()
 	pool = multiprocessing.Pool(4)
 	pool.map(compute_cloud, inputs)
