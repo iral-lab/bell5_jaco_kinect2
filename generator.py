@@ -14,14 +14,16 @@ PERMUTATIONS = 1
 DENSITY_STEP = 1.0
 
 DIMENSIONS = 3
-LINK_LENGTHS = (100, 500)
+LINK_LENGTHS = (100, 750)
 LINK_RADIUS = (20, 40)
-WORKSPACE = 10000
+WORKSPACE = 5000
 
 ALLOWED_CLOSENESS = LINK_LENGTHS[0] - 1 #points can't be closer than this
 
 MIN_INTERIOR_ANGLE = 15
 MAX_INTERIOR_ANGLE = 180
+
+
 
 def vector_length(v):
 	return math.sqrt(sum([v[i]*v[i] for i in range(DIMENSIONS)]))
