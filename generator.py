@@ -17,7 +17,7 @@ DENSITY_STEP = 0.1 * UNIT_SCALAR
 DIMENSIONS = 3
 LINK_LENGTHS = (10 * UNIT_SCALAR, 75 * UNIT_SCALAR)
 LINK_RADIUS = (2 * UNIT_SCALAR, 4 * UNIT_SCALAR)
-WORKSPACE = 500 * UNIT_SCALAR
+WORKSPACE = 25 * UNIT_SCALAR
 OFFSET_FROM_ORIGIN = WORKSPACE * 2
 
 ALLOWED_CLOSENESS = LINK_LENGTHS[0] - 1 #points can't be closer than this
@@ -50,12 +50,12 @@ def vector_between(p0, p1):
 def distance_between(p0, p1):
 	return vector_length(vector_between(p0, p1))
 
-def angle(p0, p1, p2):
+def angle(p0, p1, p2, return_radians = False):
 	# p1 is internal point
 	norm_vec1 = normalize_vector(vector_between(p0, p1))
 	norm_vec2 = normalize_vector(vector_between(p2, p1))
 	radians = np.arccos(np.clip(np.dot(norm_vec1, norm_vec2), -1.0, 1.0))
-	return radians * 180 / math.pi
+	return radians * (1 if return_radians else 180 / math.pi)
 
 def point_plus_vector(p, v):
 	return tuple([p[i] + v[i] for i in range(len(p))])
