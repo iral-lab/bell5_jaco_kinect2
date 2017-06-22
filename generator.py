@@ -5,24 +5,28 @@ OUTPUT_FOLDER = './clouds/'
 if not os.path.exists(OUTPUT_FOLDER):
 	os.mkdir(OUTPUT_FOLDER)
 
-# units = millimeters
+# units = centimeters
+UNIT_SCALAR = 100
 
-LINK_COUNTS = [2,3,4,5,6]
+LINK_COUNTS = [1,2,3,4,5,6]
 VARIATIONS = 1
 PERMUTATIONS = 1
 
-DENSITY_STEP = 1.0
+DENSITY_STEP = 0.1 * UNIT_SCALAR
 
 DIMENSIONS = 3
-LINK_LENGTHS = (100, 750)
-LINK_RADIUS = (20, 40)
-WORKSPACE = 5000
+LINK_LENGTHS = (10 * UNIT_SCALAR, 75 * UNIT_SCALAR)
+LINK_RADIUS = (2 * UNIT_SCALAR, 4 * UNIT_SCALAR)
+WORKSPACE = 500 * UNIT_SCALAR
+OFFSET_FROM_ORIGIN = WORKSPACE * 2
 
 ALLOWED_CLOSENESS = LINK_LENGTHS[0] - 1 #points can't be closer than this
 
 MIN_INTERIOR_ANGLE = 15
 MAX_INTERIOR_ANGLE = 180
 
+CAMERA_LOCATION = (0, 0, 0)
+CULL_OCCLUDED = True
 
 
 def vector_length(v):
@@ -114,7 +118,7 @@ def too_close(vertices):
 
 def gen_vertices(link_lengths):
 	vertices = []
-	start = tuple([int(random.random() * WORKSPACE) for _ in range(DIMENSIONS)])
+	start = tuple([int(random.random() * WORKSPACE + OFFSET_FROM_ORIGIN) for _ in range(DIMENSIONS)])
 	vertices.append(start)
 	angles = []
 	for link_i, length in enumerate(link_lengths):
@@ -151,15 +155,147 @@ def perpendicular_vector(v):
 		return (0,1,0)
 	return (-1 * v[1], v[0], 0)
 
+
+# from https://stackoverflow.com/questions/2824478/shortest-distance-between-two-line-segments
+def closestDistanceBetweenLines(a0,a1,b0,b1,clampAll=False,clampA0=False,clampA1=False,clampB0=False,clampB1=False):
+
+	''' Given two lines defined by numpy.array pairs (a0,a1,b0,b1)
+		Return the closest points on each segment and their distance
+	'''
+
+	# If clampAll=True, set all clamps to True
+	if clampAll:
+		clampA0=True
+		clampA1=True
+		clampB0=True
+		clampB1=True
+
+	# Calculate denomitator
+	A = a1 - a0
+	B = b1 - b0
+	magA = np.linalg.norm(A)
+	magB = np.linalg.norm(B)
+
+	_A = A / magA
+	_B = B / magB
+
+	cross = np.cross(_A, _B);
+	denom = np.linalg.norm(cross)**2
+
+	# If lines are parallel (denom=0) test if lines overlap.
+	# If they don't overlap then there is a closest point solution.
+	# If they do overlap, there are infinite closest positions, but there is a closest distance
+	if not denom:
+		d0 = np.dot(_A,(b0-a0))
+		# Overlap only possible with clamping
+		if clampA0 or clampA1 or clampB0 or clampB1:
+			d1 = np.dot(_A,(b1-a0))
+
+			# Is segment B before A?
+			if d0 <= 0 >= d1:
+				if clampA0 and clampB1:
+					if np.absolute(d0) < np.absolute(d1):
+						return a0,b0,np.linalg.norm(a0-b0)
+					return a0,b1,np.linalg.norm(a0-b1)
+
+
+			# Is segment B after A?
+			elif d0 >= magA <= d1:
+				if clampA1 and clampB0:
+					if np.absolute(d0) < np.absolute(d1):
+						return a1,b0,np.linalg.norm(a1-b0)
+					return a1,b1,np.linalg.norm(a1-b1)
+
+
+		# Segments overlap, return distance between parallel segments
+		return None,None,np.linalg.norm(((d0*_A)+a0)-b0)
+	# Lines criss-cross: Calculate the projected closest points
+	t = (b0 - a0);
+	detA = np.linalg.det([t, _B, cross])
+	detB = np.linalg.det([t, _A, cross])
+
+	t0 = detA/denom;
+	t1 = detB/denom;
+
+	pA = a0 + (_A * t0) # Projected closest point on segment A
+	pB = b0 + (_B * t1) # Projected closest point on segment B
+
+	# Clamp projections
+	if clampA0 or clampA1 or clampB0 or clampB1:
+		if clampA0 and t0 < 0:
+			pA = a0
+		elif clampA1 and t0 > magA:
+			pA = a1
+
+		if clampB0 and t1 < 0:
+			pB = b0
+		elif clampB1 and t1 > magB:
+			pB = b1
+
+		# Clamp projection A
+		if (clampA0 and t0 < 0) or (clampA1 and t0 > magA):
+			dot = np.dot(_B,(pA-b0))
+			if clampB0 and dot < 0:
+				dot = 0
+			elif clampB1 and dot > magB:
+				dot = magB
+			pB = b0 + (_B * dot)
+
+		# Clamp projection B
+		if (clampB0 and t1 < 0) or (clampB1 and t1 > magB):
+			dot = np.dot(_A,(pB-a0))
+			if clampA0 and dot < 0:
+				dot = 0
+			elif clampA1 and dot > magA:
+				dot = magA
+			pA = a0 + (_A * dot)
+	return pA,pB,np.linalg.norm(pA-pB)
+
+
+
+def distance_between_segments(segment_1, segment_2):
+	args = [segment_1[0], segment_1[1], segment_2[0], segment_2[1]]
+	args = [np.array(x) for x in args]
+	pa,pb,distance = closestDistanceBetweenLines(args[0], args[1], args[2], args[3], clampAll = True)
+	if distance or distance == 0:
+		return distance
+	raise ValueError,"unknown distance between "+str(segment_1)+", "+str(segment_2)
+
+def is_visible(point, edges):
+	to_camera = (point, CAMERA_LOCATION)
+	
+	for p0, p1, radius in edges:
+		link_segment = (p0, p1)
+		distance = distance_between_segments(link_segment, to_camera)
+		# print link_segment
+		# print to_camera
+		# print distance
+		# print radius
+		
+		if radius > distance:
+			return False
+	return True
+
 def gen_cloud(vertices):
 	edges = edges_between_vertices(vertices)
+	edges_and_radii = []
 	cloud = []
 	for p0,p1 in edges:
-		points = line_between_points(p0, p1, step_size = DENSITY_STEP, gen_cloud = True, link_radius = random.randint(*LINK_RADIUS))
+		radius = random.randint(*LINK_RADIUS)
+		edges_and_radii.append( (p0,p1,radius) )
+	
+	for p0,p1,radius in edges_and_radii:
+		points = line_between_points(p0, p1, step_size = DENSITY_STEP, gen_cloud = True, link_radius = radius)
+		
+		if CULL_OCCLUDED:
+			before = len(points)
+			points = [point for point in points if is_visible(point, edges_and_radii)]
+			
 		cloud = cloud + points
 	return cloud
 
 def compute_cloud(input):
+	# random.seed(3)
 	link_count, variation_i, link_lengths = input
 	
 	vertices = angles = None
@@ -200,6 +336,7 @@ def compute_cloud(input):
 				vert_out.append(",".join([str(int(x)) for x in vertex]))
 			handle.write("\t".join(vert_out)+"\n")
 			handle.write("#Angles#"+("\t".join([str(x) for x in angles]))+"\n")
+			handle.write("#Camera#"+(",".join([str(x) for x in CAMERA_LOCATION]))+"\n")
 			to_write = [",".join([str(x) for x in point]) for point in cloud]
 			handle.write("\n".join(to_write))
 
@@ -210,8 +347,21 @@ if '__main__' == __name__:
 			link_lengths = [random.randint(*LINK_LENGTHS) for _ in range(link_count)]
 			inputs.append( (link_count, variation_i, link_lengths) )
 	inputs.reverse()
-	pool = multiprocessing.Pool(4)
-	pool.map(compute_cloud, inputs)
+	
+	# e0 = (10,0,0)
+	# e1 = (10,0,20)
+	# p0 = (5,0,0)
+	# o = (0,0,0)
+	#
+	# print "+========="
+	# print is_visible( p0, [ [e0, e1, 5 ] ] )
+	# exit()
+	
+	if len(inputs) == 1:
+		compute_cloud(inputs[0])
+	else:
+		pool = multiprocessing.Pool(4)
+		pool.map(compute_cloud, inputs)
 	# [compute_cloud(input) for input in inputs]
 
 
