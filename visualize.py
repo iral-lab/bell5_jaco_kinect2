@@ -1,6 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
+from generator import angle
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -207,6 +208,31 @@ def rotate_around_y(point, theta):
 	]
 	return point
 
+
+def rotate_around_x(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		x,
+		# y
+		y * math.cos(theta) - z * math.sin(theta),
+		# z
+		y * math.sin(theta) + z * math.cos(theta),
+	]
+	return point
+
+def rotate_around_z(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		x * math.cos(theta) - y * math.sin(theta),
+		# y
+		x * math.sin(theta) + y * math.cos(theta),
+		# z
+		z,
+	]
+	return point
+
 def generator_render(cloud_files, cluster_point_queue):
 	# (-0.137504, -0.407314, 1.117)
 	
@@ -224,18 +250,37 @@ def render_cloud_file(file, cluster_point_queue, animate):
 	
 	points = []
 	
+	CAMERA_MARKER = '#Camera#'
+	camera_location = None
 	average_point = [0.0] * 3
 	for line in open(file, 'r').readlines():
 		line = line.strip()
+		if CAMERA_MARKER in line:
+			camera_location = tuple([float(x) for x in line[len(CAMERA_MARKER):].split(",")])
+			print CAMERA_MARKER,camera_location
 		if '' == line or '#' in line:
 			continue
 		
 		point = tuple([float(x) for x in line.split(',')])
 		points.append(point)
 		average_point = [average_point[i] + point[i] for i in range(len(point))]
+	if len(points) == 0:
+		print "no points read in",file
+		return
 	
-	average_point = [round(average_point[i] / len(points), 5) for i in range(len(average_point))]
+	num_points = len(points)
+	if camera_location:
+		num_points += 1
+		average_point = [average_point[i] + camera_location[i] for i in range(len(camera_location))]
+	
+	average_point = [round(average_point[i] / num_points, 5) for i in range(len(average_point))]
 	max_length = 0.0
+	if camera_location:
+		camera_location = [camera_location[j] - average_point[j] for j in range(len(camera_location))]
+		max_length = max(max_length, vector_length(camera_location))
+		# print average_point, camera_location, max_length
+		# exit()
+		
 	for i,point in enumerate(points):
 		points[i] = [point[j] - average_point[j] for j in range(len(point))]
 		max_length = max(max_length, vector_length(points[i]))
@@ -244,7 +289,25 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		point = [point[j] / max_length for j in range(len(point))]
 		points[i] = tuple([round(point[j], 5) for j in range(len(point))])
 	
+	if camera_location:
+		camera_location = [camera_location[j] / max_length for j in range(len(camera_location))]
+		camera_location = tuple([round(camera_location[j], 5) for j in range(len(camera_location))])
 	
+	
+	# camera alignment
+	scalar = 1.2
+	# z_correction_theta = -1 * angle(camera_location, (0,0,0), (1,1,1), True) if camera_location else 0
+	# print z_correction_theta
+	# if camera_location:
+	# 	camera_location = rotate_around_z(camera_location, z_correction_theta)
+	# 	camera_location = tuple([round(camera_location[j] * scalar, 5) for j in range(len(camera_location))])
+	for i, point in enumerate(points):
+		# points[i] = rotate_around_z(point, z_correction_theta)
+		points[i] = tuple([round(points[i][j] * scalar, 5) for j in range(len(points[i]))])
+	
+	
+	# print camera_location
+	# exit()
 	# radians
 	theta = math.pi / 16
 	v_ind = 2
@@ -259,6 +322,11 @@ def render_cloud_file(file, cluster_point_queue, animate):
 			n = float(point[v_ind] + 1.3 / 2 )
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
+		
+		if camera_location and animate:
+			camera_location = rotate_around_y(camera_location, theta)
+		if camera_location:
+			cluster_point_queue.put( (POINT, camera_location, CLUSTER_COLOR, max(SMALL, (scalar + camera_location[2]) * BIG)) )
 		
 		cluster_point_queue.put(TERMINATOR)
 		if not animate:
