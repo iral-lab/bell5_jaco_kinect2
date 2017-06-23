@@ -310,13 +310,13 @@ def is_visible(point, edges):
 			return False
 	return True
 
-def gen_cloud(vertices):
+def gen_cloud(vertices, radii):
 	edges = edges_between_vertices(vertices)
 	edges_and_radii = []
 	cloud = []
-	for p0,p1 in edges:
-		radius = random.randint(*LINK_RADIUS)
-		edges_and_radii.append( (p0,p1,radius) )
+	for i,edge in enumerate(edges):
+		p0,p1 = edge
+		edges_and_radii.append( (p0,p1,radii[i]) )
 	
 	for p0,p1,radius in edges_and_radii:
 		points = line_between_points(p0, p1, step_size = DENSITY_STEP, gen_cloud = True, link_radius = radius)
@@ -414,6 +414,8 @@ def compute_cloud(input):
 	print joint_types
 	angles = [Angle() for _ in range(link_count-1)]
 	
+	radii = [random.randint(*LINK_RADIUS) for _ in range(link_count)]
+	
 	vertices = vertex_i = None
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
@@ -471,7 +473,7 @@ def compute_cloud(input):
 				# print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
 				vertices[move_vertex_i] = new_vertex
 			
-		cloud = gen_cloud(vertices)
+		cloud = gen_cloud(vertices, radii)
 		
 		# recompute joint_normals after rotation
 		joint_normals = []
