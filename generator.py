@@ -8,7 +8,7 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [2,3,4,5,6]
+LINK_COUNTS = [2,]#3,4,5,6]
 VARIATIONS = 1
 PERMUTATIONS = 50
 
@@ -445,6 +445,8 @@ def compute_cloud(input):
 			
 		cloud = gen_cloud(vertices)
 		
+		plane_axes = [get_axis_of_rotation_for(vertices[i-1], vertices[i], vertices[i+1]) for i in range(1,len(vertices)-1)]
+		
 		# remove camera, so the arm is zero-based
 		start = vertices[0]
 		camera_location = vector_between(CAMERA_LOCATION, start)
@@ -464,6 +466,8 @@ def compute_cloud(input):
 			for vertex in shifted_vertices:
 				vert_out.append(",".join([str(int(x)) for x in vertex]))
 			handle.write("\t".join(vert_out)+"\n")
+			axes_out = [",".join([str(x) for x in axis]) for axis in plane_axes]
+			handle.write("#Axes#"+("\t".join(axes_out))+"\n")
 			handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
 			handle.write("#Camera#"+(",".join([str(x) for x in camera_location]))+"\n")
 			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
