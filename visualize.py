@@ -306,7 +306,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		points = sorted(points, key = lambda x:x[v_ind])
 		
 		for point in points:
-			n = float(point[v_ind] + 2 / 2 )
+			n = float(point[v_ind] + 1.2 / 2 )
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
 		
