@@ -29,6 +29,8 @@ FILE = "file"
 BIG = 10
 SMALL = 5
 
+DELAY = 0
+
 BLACK_ON_WHITE = True
 
 
@@ -205,6 +207,12 @@ def vector_length(v):
 def generator_render(cloud_files, cluster_point_queue):
 	# (-0.137504, -0.407314, 1.117)
 	
+	delay = DELAY
+	while delay > 0:
+		time.sleep(1)
+		delay -= 1
+		print delay
+	
 	animate = len(cloud_files) == 1
 	
 	for file in cloud_files:
@@ -315,6 +323,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 
 
 if '__main__' == __name__:
+	
 	GENERATOR_RENDER = True
 	
 	if GENERATOR_RENDER and len(sys.argv) < 2:
