@@ -1,7 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
-from generator import angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z
+from generator import angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -265,13 +265,21 @@ def render_cloud_file(file, cluster_point_queue, animate):
 	
 	# camera alignment
 	scalar = 1.2
-	# z_correction_theta = -1 * angle_between_points(camera_location, (0,0,0), (1,1,1)) if camera_location else 0
-	# print z_correction_theta
-	# if camera_location:
-	# 	camera_location = rotate_around_z(camera_location, z_correction_theta)
-	# 	camera_location = tuple([round(camera_location[j] * scalar, 5) for j in range(len(camera_location))])
+	u = None
+	correction_theta = None
+
+
+	if camera_location:
+		if not animate:
+			desired_camera_location = (0,0,1)
+			u = get_axis_of_rotation_for(camera_location, (0,0,0), desired_camera_location)
+			correction_theta = angle_between_points(camera_location, (0,0,0), desired_camera_location)
+			camera_location = rotate_around_u(u, camera_location, correction_theta)
+		
+		camera_location = tuple([round(camera_location[j] * scalar, 5) for j in range(len(camera_location))])
 	for i, point in enumerate(points):
-		# points[i] = rotate_around_z(point, z_correction_theta)
+		if correction_theta:
+			points[i] = rotate_around_u(u, point, correction_theta)
 		points[i] = tuple([round(points[i][j] * scalar, 5) for j in range(len(points[i]))])
 	
 	
@@ -296,7 +304,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		if camera_location and animate:
 			camera_location = rotate_around_y(camera_location, theta)
 		if camera_location:
-			cluster_point_queue.put( (POINT, camera_location, CLUSTER_COLOR, max(SMALL, (scalar + camera_location[2]) * BIG)) )
+			cluster_point_queue.put( (POINT, camera_location, CLUSTER_COLOR, max(SMALL, (scalar + camera_location[2]) * BIG) if animate else BIG) )
 		
 		cluster_point_queue.put(TERMINATOR)
 		if not animate:
@@ -322,6 +330,10 @@ if '__main__' == __name__:
 	
 	if GENERATOR_RENDER:
 		cloud_files = sorted(sys.argv[1:])
+		for file in cloud_files:
+			if not os.path.exists(file):
+				print "File doesn't exist:",file
+				exit()
 		# print cloud_files
 		processor = multiprocessing.Process(target = generator_render, args = (cloud_files, cluster_points))
 		processor.start()
