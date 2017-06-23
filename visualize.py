@@ -24,6 +24,7 @@ LINE_COLOR = GREEN # np.random.uniform(0,1,4)
 
 POINT = "point"
 LINE = "line"
+FILE = "file"
 
 BIG = 10
 SMALL = 5
@@ -100,6 +101,11 @@ def start_visualizing(cluster_points, frame_to_show):
 				del paths[0]
 			
 			while not possible == TERMINATOR:
+				if FILE == possible[0]:
+					print possible[1]
+					possible = cluster_points.get()
+					continue
+				
 				type, data, color, size = possible
 				if POINT == type:
 					new_point = [[0.7*x for x in data]]
@@ -275,6 +281,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 	theta = math.pi / 16
 	v_ind = 2
 	while True:
+		cluster_point_queue.put( (FILE, file) )
 		if animate:
 			for i,point in enumerate(points):
 				points[i] = rotate_around_y(point, theta)
@@ -315,6 +322,7 @@ if '__main__' == __name__:
 	
 	if GENERATOR_RENDER:
 		cloud_files = sorted(sys.argv[1:])
+		# print cloud_files
 		processor = multiprocessing.Process(target = generator_render, args = (cloud_files, cluster_points))
 		processor.start()
 	else:
