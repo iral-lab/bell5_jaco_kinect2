@@ -243,6 +243,8 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		average_point = [average_point[i] + camera_location[i] for i in range(len(camera_location))]
 	
 	average_point = [round(average_point[i] / num_points, 5) for i in range(len(average_point))]
+	average_point = (0, 0, 0) # don't actually shift anything
+	
 	max_length = 0.0
 	if camera_location:
 		camera_location = [camera_location[j] - average_point[j] for j in range(len(camera_location))]
