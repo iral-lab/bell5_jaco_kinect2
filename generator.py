@@ -386,6 +386,12 @@ def rotate_around_u(u, point, theta):
 	
 	return (o_x, o_y, o_z)
 	
+def get_axis_of_rotation_for(p0, p1, p2):
+	# returns vector perpendicular to the plane containing (p0 - p1) and (p2 - p1)
+	# represents the axis of rotation
+	v0 = vector_between(p0, p1)
+	v1 = vector_between(p2, p1)						
+	return normalize_vector(np.cross(normalize_vector(v0), normalize_vector(v1)))
 	
 
 def compute_cloud(input):
@@ -411,12 +417,8 @@ def compute_cloud(input):
 			step = this_angle.step()
 			this_angle.take_step()
 			
-			e0 = (this_vertex, vertices[vertex_i-1])
-			v0 = vector_between(e0[1], e0[0])
-			e1 = (this_vertex, vertices[vertex_i+1])
-			v1 = vector_between(e1[1], e1[0])
-						
-			axis_of_rotation = normalize_vector(np.cross(normalize_vector(v0), normalize_vector(v1)))
+			axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
+			
 			# print ">",axis_of_rotation
 			# print e0,e1
 			# print np.dot(v0, v1)
