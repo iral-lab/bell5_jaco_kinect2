@@ -330,36 +330,42 @@ def gen_cloud(vertices):
 
 def rotate_around_y(point, theta):
 	x,y,z = point
+	sin_theta = math.sin(theta)
+	cos_theta = math.cos(theta)
 	point = [
 		# x
-		z * math.sin(theta) + x * math.cos(theta),
+		z * sin_theta + x * cos_theta,
 		# y
 		y,
 		# z
-		z * math.cos(theta) - x * math.sin(theta),
+		z * cos_theta - x * sin_theta,
 	]
 	return tuple([round(x,3) for x in point])
 
 
 def rotate_around_x(point, theta):
 	x,y,z = point
+	sin_theta = math.sin(theta)
+	cos_theta = math.cos(theta)
 	point = [
 		# x
 		x,
 		# y
-		y * math.cos(theta) - z * math.sin(theta),
+		y * cos_theta - z * sin_theta,
 		# z
-		y * math.sin(theta) + z * math.cos(theta),
+		y * sin_theta + z * cos_theta,
 	]
 	return tuple([round(x,3) for x in point])
 
 def rotate_around_z(point, theta):
 	x,y,z = point
+	sin_theta = math.sin(theta)
+	cos_theta = math.cos(theta)
 	point = [
 		# x
-		x * math.cos(theta) - y * math.sin(theta),
+		x * cos_theta - y * sin_theta,
 		# y
-		x * math.sin(theta) + y * math.cos(theta),
+		x * sin_theta + y * cos_theta,
 		# z
 		z,
 	]
@@ -370,19 +376,21 @@ def rotate_around_u(u, point, theta):
 	# https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
 	u_x, u_y, u_z = u
 	p_x, p_y, p_z = point
+	sin_theta = math.sin(theta)
+	cos_theta = math.cos(theta)
 	
 	
-	o_x = p_x * (math.cos(theta) + (u_x ** 2 * (1.0 - math.cos(theta)))) + \
-			p_y * (u_x * u_y * (1.0 - math.cos(theta)) - (u_z * math.sin(theta))) + \
-			p_z * (u_x * u_z * (1.0 - math.cos(theta)) + u_y * math.sin(theta))
+	o_x = p_x * (cos_theta + (u_x ** 2 * (1.0 - cos_theta))) + \
+			p_y * (u_x * u_y * (1.0 - cos_theta) - (u_z * sin_theta)) + \
+			p_z * (u_x * u_z * (1.0 - cos_theta) + u_y * sin_theta)
 	
-	o_y = p_x * (u_y * u_x * (1.0 - math.cos(theta)) + u_z * math.sin(theta)) + \
-			p_y * (math.cos(theta) + (u_y**2) * (1.0 - math.cos(theta))) + \
-			p_z * (u_y * u_z * (1.0 - math.cos(theta)) - u_x * math.sin(theta))
+	o_y = p_x * (u_y * u_x * (1.0 - cos_theta) + u_z * sin_theta) + \
+			p_y * (cos_theta + (u_y**2) * (1.0 - cos_theta)) + \
+			p_z * (u_y * u_z * (1.0 - cos_theta) - u_x * sin_theta)
 	
-	o_z = p_x * (u_z * u_x * (1.0 - math.cos(theta)) - u_y * math.sin(theta)) + \
-			p_y * (u_z * u_y * (1 - math.cos(theta)) + u_x * math.sin(theta)) + \
-			p_z * (math.cos(theta) + (u_z ** 2) * (1 - math.cos(theta)))
+	o_z = p_x * (u_z * u_x * (1.0 - cos_theta) - u_y * sin_theta) + \
+			p_y * (u_z * u_y * (1.0 - cos_theta) + u_x * sin_theta) + \
+			p_z * (cos_theta + (u_z ** 2) * (1 - cos_theta))
 	
 	return (o_x, o_y, o_z)
 	
