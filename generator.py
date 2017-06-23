@@ -33,9 +33,12 @@ UNSET, DECREASING, INCREASING = range(3)
 DECREASING_STEP = -1 * ROTATION_THETA
 INCREASING_STEP = ROTATION_THETA
 
+EXTENSION, ROTATION  = range(2)
+JOINT_TYPES = {EXTENSION : 'extension', }#ROTATION : 'rotation', }
+
 class Angle:
-	def __init__(self, value):
-		self.value = value
+	def __init__(self, value = None):
+		self.value = value if value else (random.random() * 0.6 * math.pi + 0.2 * math.pi)
 		self.direction = UNSET
 		self._set_direction()
 	
@@ -153,7 +156,6 @@ def gen_vertices(link_lengths):
 	vertices = []
 	start = tuple([int(random.random() * WORKSPACE + OFFSET_FROM_ORIGIN) for _ in range(DIMENSIONS)])
 	vertices.append(start)
-	angles = []
 	for link_i, length in enumerate(link_lengths):
 		last_vert = vertices[-1]
 		new_point = None
@@ -177,9 +179,8 @@ def gen_vertices(link_lengths):
 				# print "Too close, throw away",tries
 				tries -= 1
 				continue
-			angles.append(Angle(round(angle_between,2)))
 		vertices.append(tuple([round(x) for x in new_point]))
-	return (vertices, angles)
+	return vertices
 
 def perpendicular_vector(v):
 	if 0 == v[0] and 0 == v[1]:
@@ -409,19 +410,24 @@ def compute_cloud(input):
 	frames_per_vertex = 10
 	frames_left = 0
 	
-	vertices = angles = vertex_i = None
+	joint_types = [random.choice(JOINT_TYPES.keys()) for _ in range(link_count-1)]
+	print joint_types
+	angles = [Angle() for _ in range(link_count-1)]
+	
+	vertices = vertex_i = None
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
 		print link_count, variation_i, permutation_i
-
+		
+		
 		if not vertices:
-			# generate initial verts/angles once
+			# generate initial verts once
 			while not vertices:
-				vertices, angles = gen_vertices(link_lengths)
+				vertices = gen_vertices(link_lengths)
 		else:
 			# move some joints
 			if frames_left == 0:
-				vertex_i = random.choice(range(len(vertices) - 2)) + 1
+				vertex_i = random.choice(range(1,len(vertices) - 1))
 				frames_left = frames_per_vertex
 			# else:
 			# 	print"using",vertex_i,frames_left
@@ -430,12 +436,26 @@ def compute_cloud(input):
 			angle_i = vertex_i - 1
 			this_angle = angles[angle_i]
 			
-			step = this_angle.step()
-			this_angle.take_step()
+			axis_of_rotation = None
+			this_joint_type = joint_types[angle_i]
+			step = 0
+			if EXTENSION == this_joint_type:
+				this_angle.value = angle_between_points(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
+				step = this_angle.step()
+				this_angle.take_step()
+				axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
+			elif ROTATION == this_joint_type:
+				# semi-fictional steps, since no set starting angle. Results in it reversing periodically
+				step = this_angle.step()
+				this_angle.take_step()
+				axis_of_rotation = vector_between(vertices[vertex_i-1], this_vertex)
+			else:
+				print "Unknown joint type"
+				exit()
 			
-			axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
 			
-			# print ">",axis_of_rotation
+			
+			# print ">",this_joint_type,axis_of_rotation
 			# print e0,e1
 			# print np.dot(v0, v1)
 			# print np.dot(v0, axis_of_rotation)
@@ -453,7 +473,21 @@ def compute_cloud(input):
 			
 		cloud = gen_cloud(vertices)
 		
-		plane_axes = [get_axis_of_rotation_for(vertices[i-1], vertices[i], vertices[i+1]) for i in range(1,len(vertices)-1)]
+		# recompute joint_normals after rotation
+		joint_normals = []
+		for some_vertex_i in range(1, len(vertices) - 1):
+			angle_i = some_vertex_i - 1
+			axis_of_rotation = None
+			this_joint_type = joint_types[angle_i]
+			if EXTENSION == this_joint_type:
+				axis_of_rotation = get_axis_of_rotation_for(vertices[some_vertex_i-1], vertices[some_vertex_i], vertices[some_vertex_i+1])
+			elif ROTATION == this_joint_type:
+				axis_of_rotation = vector_between(vertices[some_vertex_i-1], vertices[some_vertex_i])
+			else:
+				print "Unknown joint type"
+				exit()
+			joint_normals.append(tuple([round(x,2) for x in axis_of_rotation]))
+		
 		
 		# remove camera, so the arm is zero-based
 		start = vertices[0]
@@ -474,10 +508,16 @@ def compute_cloud(input):
 			for vertex in shifted_vertices:
 				vert_out.append(",".join([str(int(x)) for x in vertex]))
 			handle.write("\t".join(vert_out)+"\n")
-			axes_out = [",".join([str(x) for x in axis]) for axis in plane_axes]
-			handle.write("#Axes#"+("\t".join(axes_out))+"\n")
-			handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
+			
+			handle.write("#JointTypes#"+("\t".join([JOINT_TYPES[x] for x in joint_types]))+"\n")
+			
+			normals_out = [",".join([str(x) for x in normal]) for normal in joint_normals]
+			handle.write("#JointNormals#"+("\t".join(normals_out))+"\n")
+			
+			# handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
+			
 			handle.write("#Camera#"+(",".join([str(x) for x in camera_location]))+"\n")
+			
 			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
 			handle.write("\n".join(to_write))
 
