@@ -415,8 +415,8 @@ def compute_cloud(input):
 			if frames_left == 0:
 				vertex_i = random.choice(range(len(vertices) - 2)) + 1
 				frames_left = frames_per_vertex
-			else:
-				print "using",vertex_i,frames_left
+			# else:
+			# 	print"using",vertex_i,frames_left
 			frames_left -= 1
 			this_vertex = vertices[vertex_i]
 			angle_i = vertex_i - 1
