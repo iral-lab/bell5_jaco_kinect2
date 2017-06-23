@@ -8,7 +8,7 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [2,]#3,4,5,6]
+LINK_COUNTS = [2,3,4,5,6]
 VARIATIONS = 1
 PERMUTATIONS = 50
 
