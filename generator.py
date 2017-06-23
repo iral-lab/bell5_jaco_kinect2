@@ -8,7 +8,7 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [3] #[1,2,3,4,5,6]
+LINK_COUNTS = [2,3,4,5,6]
 VARIATIONS = 1
 PERMUTATIONS = 50
 
@@ -45,14 +45,14 @@ class Angle:
 	def _set_direction(self):
 		max_cutoff = (7.0 / 8.0 * math.pi)
 		min_cutoff = math.pi / 8
-		print "cutoffs:",min_cutoff, max_cutoff
-		print "was D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
+		# print "cutoffs:",min_cutoff, max_cutoff
+		# print "was D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
 		
 		if self.value <= min_cutoff or self.direction == UNSET:
 			self.direction = INCREASING
 		elif self.value >= max_cutoff:
 			self.direction = DECREASING
-		print "now D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
+		# print "now D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
 	
 	def take_step(self):
 		self.value += self.step()
@@ -394,7 +394,7 @@ def compute_cloud(input):
 	
 	vertices = angles = None
 	for permutation_i in range(PERMUTATIONS):
-		print "_______________"
+		# print "_______________"
 		print link_count, variation_i, permutation_i
 
 		if not vertices:
@@ -417,25 +417,28 @@ def compute_cloud(input):
 			v1 = vector_between(e1[1], e1[0])
 						
 			axis_of_rotation = normalize_vector(np.cross(normalize_vector(v0), normalize_vector(v1)))
-			print ">",axis_of_rotation
-			print e0,e1
-			print np.dot(v0, v1)
-			print np.dot(v0, axis_of_rotation)
-			print np.dot(v1, axis_of_rotation)
-			print this_angle.value
-			print angle_between_points(vertices[vertex_i-1], vertices[vertex_i], vertices[vertex_i+1])
+			# print ">",axis_of_rotation
+			# print e0,e1
+			# print np.dot(v0, v1)
+			# print np.dot(v0, axis_of_rotation)
+			# print np.dot(v1, axis_of_rotation)
+			# print this_angle.value
+			# print angle_between_points(vertices[vertex_i-1], vertices[vertex_i], vertices[vertex_i+1])
 			
 			for move_vertex_i in range(vertex_i + 1, len(vertices)):
 				
 				vector_to_this_vertex = vector_between(vertices[move_vertex_i], this_vertex)
 				rotated_vector = rotate_around_u(axis_of_rotation, vector_to_this_vertex, step)
 				new_vertex = point_plus_vector(this_vertex, rotated_vector)
-				print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
+				# print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
 				vertices[move_vertex_i] = new_vertex
 			
 		cloud = gen_cloud(vertices)
-
-		outfile = "_".join([str(x) for x in [link_count, variation_i, permutation_i]])+".txt"
+		padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
+		padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
+		padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
+		
+		outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i, padded_permutation_i]])+".txt"
 		with open(OUTPUT_FOLDER+outfile,'w') as handle:
 			handle.write("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
 			handle.write("#Vertices#")
