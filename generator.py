@@ -1,4 +1,4 @@
-import sys, random, math, code, os, multiprocessing
+import sys, random, math, code, os, multiprocessing, copy
 import numpy as np
 
 OUTPUT_FOLDER = './clouds/'
@@ -8,9 +8,9 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [1,2,3,4,5,6]
+LINK_COUNTS = [3] #[1,2,3,4,5,6]
 VARIATIONS = 1
-PERMUTATIONS = 1
+PERMUTATIONS = 50
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
@@ -22,12 +22,45 @@ OFFSET_FROM_ORIGIN = WORKSPACE * 2
 
 ALLOWED_CLOSENESS = LINK_LENGTHS[0] - 1 #points can't be closer than this
 
-MIN_INTERIOR_ANGLE = 15
-MAX_INTERIOR_ANGLE = 180
+MIN_INTERIOR_ANGLE = math.pi / 12
+MAX_INTERIOR_ANGLE = math.pi
 
 CAMERA_LOCATION = (0, 0, 0)
 CULL_OCCLUDED = True
 
+ROTATION_THETA = math.pi / 20
+UNSET, DECREASING, INCREASING = range(3)
+DECREASING_STEP = -1 * ROTATION_THETA
+INCREASING_STEP = ROTATION_THETA
+
+class Angle:
+	def __init__(self, value):
+		self.value = value
+		self.direction = UNSET
+		self._set_direction()
+	
+	def step(self):
+		return INCREASING_STEP if self.direction == INCREASING else DECREASING_STEP
+	
+	def _set_direction(self):
+		max_cutoff = (7.0 / 8.0 * math.pi)
+		min_cutoff = math.pi / 8
+		print "cutoffs:",min_cutoff, max_cutoff
+		print "was D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
+		
+		if self.value <= min_cutoff or self.direction == UNSET:
+			self.direction = INCREASING
+		elif self.value >= max_cutoff:
+			self.direction = DECREASING
+		print "now D:",('increasing' if self.direction == INCREASING else ('unset' if self.direction == UNSET else 'decreasing')),self.value
+	
+	def take_step(self):
+		self.value += self.step()
+		self._set_direction()
+		return self.value
+
+	def __repr__(self):
+		return "<Angle @ "+str(self.value)+">"
 
 def vector_length(v):
 	return math.sqrt(sum([v[i]*v[i] for i in range(DIMENSIONS)]))
@@ -50,12 +83,12 @@ def vector_between(p0, p1):
 def distance_between(p0, p1):
 	return vector_length(vector_between(p0, p1))
 
-def angle(p0, p1, p2, return_radians = False):
+def angle_between_points(p0, p1, p2):
 	# p1 is internal point
 	norm_vec1 = normalize_vector(vector_between(p0, p1))
 	norm_vec2 = normalize_vector(vector_between(p2, p1))
 	radians = np.arccos(np.clip(np.dot(norm_vec1, norm_vec2), -1.0, 1.0))
-	return radians * (1 if return_radians else 180 / math.pi)
+	return radians
 
 def point_plus_vector(p, v):
 	return tuple([p[i] + v[i] for i in range(len(p))])
@@ -73,7 +106,7 @@ def line_between_points(p0, p1, step_size = 1, gen_cloud = False, link_radius = 
 	step_vector = scale_vector(normalize_vector(vector), step_size)
 
 	if gen_cloud:
-		# from https://math.stackexchange.com/questions/731815/find-vector-rotated-on-3d-plane
+		# from https://math.stackexchange.com/questions/731815/find-vector-find-on-3d-plane
 		perp_vector = normalize_vector(perpendicular_vector(vector)) #e1
 		perp_cross_vector = np.cross(vector, perp_vector) # p
 		cross_norm = normalize_vector(perp_cross_vector) # e2
@@ -135,7 +168,7 @@ def gen_vertices(link_lengths):
 			if 0 == link_i:
 				break
 			assert(len(vertices) > 1)
-			angle_between = angle(vertices[-2], last_vert, new_point)
+			angle_between = angle_between_points(vertices[-2], last_vert, new_point)
 			if angle_between < MIN_INTERIOR_ANGLE:
 				new_point = None
 				continue
@@ -144,7 +177,7 @@ def gen_vertices(link_lengths):
 				# print "Too close, throw away",tries
 				tries -= 1
 				continue
-			angles.append(round(angle_between,2))
+			angles.append(Angle(round(angle_between,2)))
 		vertices.append(tuple([round(x) for x in new_point]))
 	return (vertices, angles)
 
@@ -294,12 +327,74 @@ def gen_cloud(vertices):
 		cloud = cloud + points
 	return cloud
 
+
+def rotate_around_y(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		z * math.sin(theta) + x * math.cos(theta),
+		# y
+		y,
+		# z
+		z * math.cos(theta) - x * math.sin(theta),
+	]
+	return tuple([round(x,3) for x in point])
+
+
+def rotate_around_x(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		x,
+		# y
+		y * math.cos(theta) - z * math.sin(theta),
+		# z
+		y * math.sin(theta) + z * math.cos(theta),
+	]
+	return tuple([round(x,3) for x in point])
+
+def rotate_around_z(point, theta):
+	x,y,z = point
+	point = [
+		# x
+		x * math.cos(theta) - y * math.sin(theta),
+		# y
+		x * math.sin(theta) + y * math.cos(theta),
+		# z
+		z,
+	]
+	return tuple([round(x,3) for x in point])
+
+def rotate_around_u(u, point, theta):
+	# 2.3.3	Rotation matrix from axis and angle
+	# https://en.wikipedia.org/wiki/Rotation_matrix#Rotation_matrix_from_axis_and_angle
+	u_x, u_y, u_z = u
+	p_x, p_y, p_z = point
+	
+	
+	o_x = p_x * (math.cos(theta) + (u_x ** 2 * (1.0 - math.cos(theta)))) + \
+			p_y * (u_x * u_y * (1.0 - math.cos(theta)) - (u_z * math.sin(theta))) + \
+			p_z * (u_x * u_z * (1.0 - math.cos(theta)) + u_y * math.sin(theta))
+	
+	o_y = p_x * (u_y * u_x * (1.0 - math.cos(theta)) + u_z * math.sin(theta)) + \
+			p_y * (math.cos(theta) + (u_y**2) * (1.0 - math.cos(theta))) + \
+			p_z * (u_y * u_z * (1.0 - math.cos(theta)) - u_x * math.sin(theta))
+	
+	o_z = p_x * (u_z * u_x * (1.0 - math.cos(theta)) - u_y * math.sin(theta)) + \
+			p_y * (u_z * u_y * (1 - math.cos(theta)) + u_x * math.sin(theta)) + \
+			p_z * (math.cos(theta) + (u_z ** 2) * (1 - math.cos(theta)))
+	
+	return (o_x, o_y, o_z)
+	
+	
+
 def compute_cloud(input):
 	# random.seed(3)
 	link_count, variation_i, link_lengths = input
 	
 	vertices = angles = None
 	for permutation_i in range(PERMUTATIONS):
+		print "_______________"
 		print link_count, variation_i, permutation_i
 
 		if not vertices:
@@ -308,23 +403,36 @@ def compute_cloud(input):
 				vertices, angles = gen_vertices(link_lengths)
 		else:
 			# move some joints
-			valid = False
-			while not valid:
-				vertex_i = random.choice(range(len(vertices) - 2)) + 1
-				angle_i = angles[vertex_i - 1]
+			vertex_i = random.choice(range(len(vertices) - 2)) + 1
+			this_vertex = vertices[vertex_i]
+			angle_i = vertex_i - 1
+			this_angle = angles[angle_i]
+			
+			step = this_angle.step()
+			this_angle.take_step()
+			
+			e0 = (this_vertex, vertices[vertex_i-1])
+			v0 = vector_between(e0[1], e0[0])
+			e1 = (this_vertex, vertices[vertex_i+1])
+			v1 = vector_between(e1[1], e1[0])
+						
+			axis_of_rotation = normalize_vector(np.cross(normalize_vector(v0), normalize_vector(v1)))
+			print ">",axis_of_rotation
+			print e0,e1
+			print np.dot(v0, v1)
+			print np.dot(v0, axis_of_rotation)
+			print np.dot(v1, axis_of_rotation)
+			print this_angle.value
+			print angle_between_points(vertices[vertex_i-1], vertices[vertex_i], vertices[vertex_i+1])
+			
+			for move_vertex_i in range(vertex_i + 1, len(vertices)):
 				
-				slight_move = math.pi / 12 # 15 degrees
-				
-				# need transformation matrix to rotate vertices above angle_i around vertex_i
-				#in_plane_vector = vector_between(vertices[vertex_i-1], vertices[vertex_i])
-				#perpendicular_u = perpendicular_vector(in_plane_vector)
-				
-				
-				
-				# safety break
-				break
-		
-		
+				vector_to_this_vertex = vector_between(vertices[move_vertex_i], this_vertex)
+				rotated_vector = rotate_around_u(axis_of_rotation, vector_to_this_vertex, step)
+				new_vertex = point_plus_vector(this_vertex, rotated_vector)
+				print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
+				vertices[move_vertex_i] = new_vertex
+			
 		cloud = gen_cloud(vertices)
 
 		outfile = "_".join([str(x) for x in [link_count, variation_i, permutation_i]])+".txt"
@@ -335,7 +443,7 @@ def compute_cloud(input):
 			for vertex in vertices:
 				vert_out.append(",".join([str(int(x)) for x in vertex]))
 			handle.write("\t".join(vert_out)+"\n")
-			handle.write("#Angles#"+("\t".join([str(x) for x in angles]))+"\n")
+			handle.write("#Angles#"+("\t".join([str(angle.value) for angle in angles]))+"\n")
 			handle.write("#Camera#"+(",".join([str(x) for x in CAMERA_LOCATION]))+"\n")
 			to_write = [",".join([str(x) for x in point]) for point in cloud]
 			handle.write("\n".join(to_write))

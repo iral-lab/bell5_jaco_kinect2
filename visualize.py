@@ -1,7 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
-from generator import angle
+from generator import angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -196,43 +196,6 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 def vector_length(v):
 	return math.sqrt(sum([v[i] * v[i] for i in range(len(v))]))
 
-def rotate_around_y(point, theta):
-	x,y,z = point
-	point = [
-		# x
-		z * math.sin(theta) + x * math.cos(theta),
-		# y
-		y,
-		# z
-		z * math.cos(theta) - x * math.sin(theta),
-	]
-	return point
-
-
-def rotate_around_x(point, theta):
-	x,y,z = point
-	point = [
-		# x
-		x,
-		# y
-		y * math.cos(theta) - z * math.sin(theta),
-		# z
-		y * math.sin(theta) + z * math.cos(theta),
-	]
-	return point
-
-def rotate_around_z(point, theta):
-	x,y,z = point
-	point = [
-		# x
-		x * math.cos(theta) - y * math.sin(theta),
-		# y
-		x * math.sin(theta) + y * math.cos(theta),
-		# z
-		z,
-	]
-	return point
-
 def generator_render(cloud_files, cluster_point_queue):
 	# (-0.137504, -0.407314, 1.117)
 	
@@ -257,7 +220,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		line = line.strip()
 		if CAMERA_MARKER in line:
 			camera_location = tuple([float(x) for x in line[len(CAMERA_MARKER):].split(",")])
-			print CAMERA_MARKER,camera_location
+			# print CAMERA_MARKER,camera_location
 		if '' == line or '#' in line:
 			continue
 		
@@ -296,7 +259,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 	
 	# camera alignment
 	scalar = 1.2
-	# z_correction_theta = -1 * angle(camera_location, (0,0,0), (1,1,1), True) if camera_location else 0
+	# z_correction_theta = -1 * angle_between_points(camera_location, (0,0,0), (1,1,1)) if camera_location else 0
 	# print z_correction_theta
 	# if camera_location:
 	# 	camera_location = rotate_around_z(camera_location, z_correction_theta)
@@ -351,7 +314,7 @@ if '__main__' == __name__:
 	frame_to_show = -1
 	
 	if GENERATOR_RENDER:
-		cloud_files = sys.argv[1:]
+		cloud_files = sorted(sys.argv[1:])
 		processor = multiprocessing.Process(target = generator_render, args = (cloud_files, cluster_points))
 		processor.start()
 	else:
