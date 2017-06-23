@@ -8,9 +8,9 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [2]#  [2,3,4,5,6]
+LINK_COUNTS = [2,3,4,5,6]
 VARIATIONS = 1
-PERMUTATIONS = 2
+PERMUTATIONS = 50
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
@@ -398,7 +398,10 @@ def compute_cloud(input):
 	# random.seed(3)
 	link_count, variation_i, link_lengths = input
 	
-	vertices = angles = None
+	frames_per_vertex = 10
+	frames_left = 0
+	
+	vertices = angles = vertex_i = None
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
 		print link_count, variation_i, permutation_i
@@ -409,7 +412,12 @@ def compute_cloud(input):
 				vertices, angles = gen_vertices(link_lengths)
 		else:
 			# move some joints
-			vertex_i = random.choice(range(len(vertices) - 2)) + 1
+			if frames_left == 0:
+				vertex_i = random.choice(range(len(vertices) - 2)) + 1
+				frames_left = frames_per_vertex
+			else:
+				print "using",vertex_i,frames_left
+			frames_left -= 1
 			this_vertex = vertices[vertex_i]
 			angle_i = vertex_i - 1
 			this_angle = angles[angle_i]
