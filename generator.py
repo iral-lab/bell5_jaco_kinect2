@@ -411,7 +411,7 @@ def compute_cloud(input):
 	frames_left = 0
 	
 	joint_types = [random.choice(JOINT_TYPES.keys()) for _ in range(link_count-1)]
-	print joint_types
+	# print joint_types
 	angles = [Angle() for _ in range(link_count-1)]
 	
 	radii = [random.randint(*LINK_RADIUS) for _ in range(link_count)]
