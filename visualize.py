@@ -270,11 +270,10 @@ def render_cloud_file(file, cluster_point_queue, animate):
 
 
 	if camera_location:
-		if not animate:
-			desired_camera_location = (0,0,1)
-			u = get_axis_of_rotation_for(camera_location, (0,0,0), desired_camera_location)
-			correction_theta = angle_between_points(camera_location, (0,0,0), desired_camera_location)
-			camera_location = rotate_around_u(u, camera_location, correction_theta)
+		desired_camera_location = (0,0,1)
+		u = get_axis_of_rotation_for(camera_location, (0,0,0), desired_camera_location)
+		correction_theta = angle_between_points(camera_location, (0,0,0), desired_camera_location)
+		camera_location = rotate_around_u(u, camera_location, correction_theta)
 		
 		camera_location = tuple([round(camera_location[j] * scalar, 5) for j in range(len(camera_location))])
 	for i, point in enumerate(points):
