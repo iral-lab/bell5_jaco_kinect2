@@ -3,3 +3,4 @@ api_method/run
 bell5_jaco_kinect.tar.gz
 attachment
 clouds/*.txt
+*.pyc
