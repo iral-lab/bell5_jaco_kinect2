@@ -8,9 +8,9 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [2,3,4,5,6]
+LINK_COUNTS = [2]#  [2,3,4,5,6]
 VARIATIONS = 1
-PERMUTATIONS = 50
+PERMUTATIONS = 2
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
@@ -436,6 +436,14 @@ def compute_cloud(input):
 				vertices[move_vertex_i] = new_vertex
 			
 		cloud = gen_cloud(vertices)
+		
+		# remove camera, so the arm is zero-based
+		start = vertices[0]
+		camera_location = vector_between(CAMERA_LOCATION, start)
+		shifted_vertices = [vector_between(vertex, start) for vertex in vertices]
+		shifted_cloud = [vector_between(point, start) for point in cloud]
+		
+		
 		padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
 		padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
 		padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
@@ -445,12 +453,12 @@ def compute_cloud(input):
 			handle.write("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
 			handle.write("#Vertices#")
 			vert_out = []
-			for vertex in vertices:
+			for vertex in shifted_vertices:
 				vert_out.append(",".join([str(int(x)) for x in vertex]))
 			handle.write("\t".join(vert_out)+"\n")
-			handle.write("#Angles#"+("\t".join([str(angle.value) for angle in angles]))+"\n")
-			handle.write("#Camera#"+(",".join([str(x) for x in CAMERA_LOCATION]))+"\n")
-			to_write = [",".join([str(x) for x in point]) for point in cloud]
+			handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
+			handle.write("#Camera#"+(",".join([str(x) for x in camera_location]))+"\n")
+			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
 			handle.write("\n".join(to_write))
 
 if '__main__' == __name__:
