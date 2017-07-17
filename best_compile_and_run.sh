@@ -10,7 +10,7 @@ fi
 PROG="attachment"
 CORES=$1
 COMP="mpicc -o $PROG attachment.c"
-RUN="mpirun --host localhost -np $CORES ./$PROG best datasets/diverse_movement_skeleton.csv datasets/diverse_movement_pcl.csv output_best.csv"
+RUN="mpirun --host localhost -np $CORES ./$PROG best datasets/diverse_movement_skeleton.csv datasets/diverse_movement_pcl.csv output.csv"
 
 clear; $COMP && $RUN
 
