@@ -8,9 +8,12 @@ if not os.path.exists(OUTPUT_FOLDER):
 # units = centimeters
 UNIT_SCALAR = 100
 
-LINK_COUNTS = [2,3,4,5,6]
+HEADER_DIVIDER = "$$$$$$$$$"
+CAMERA_MARKER = '#Camera#'
+
+LINK_COUNTS = [2] #[2,3,4,5,6]
 VARIATIONS = 1
-PERMUTATIONS = 50
+PERMUTATIONS = 10
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
@@ -502,26 +505,33 @@ def compute_cloud(input):
 		padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
 		padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
 		
-		outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i, padded_permutation_i]])+".txt"
-		with open(OUTPUT_FOLDER+outfile,'w') as handle:
-			handle.write("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
-			handle.write("#Vertices#")
-			vert_out = []
-			for vertex in shifted_vertices:
-				vert_out.append(",".join([str(int(x)) for x in vertex]))
-			handle.write("\t".join(vert_out)+"\n")
+		this_permutation_out = []
+		this_permutation_out.append(HEADER_DIVIDER+"\n")
+		this_permutation_out.append("#Perm#"+str(padded_permutation_i)+"\n")
+		this_permutation_out.append("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
+		this_permutation_out.append("#Vertices#")
+		vert_out = []
+		for vertex in shifted_vertices:
+			vert_out.append(",".join([str(int(x)) for x in vertex]))
+		this_permutation_out.append("\t".join(vert_out)+"\n")
+		
+		this_permutation_out.append("#JointTypes#"+("\t".join([JOINT_TYPES[x] for x in joint_types]))+"\n")
+		
+		normals_out = [",".join([str(x) for x in normal]) for normal in joint_normals]
+		this_permutation_out.append("#JointNormals#"+("\t".join(normals_out))+"\n")
+		
+		# handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
+		
+		this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
+		
+		to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
+		this_permutation_out.append("\n".join(to_write))
+		
+		
+		outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i]])+".txt"
+		with open(OUTPUT_FOLDER+outfile,'a') as handle:
+			handle.write("".join(this_permutation_out)+"\n")
 			
-			handle.write("#JointTypes#"+("\t".join([JOINT_TYPES[x] for x in joint_types]))+"\n")
-			
-			normals_out = [",".join([str(x) for x in normal]) for normal in joint_normals]
-			handle.write("#JointNormals#"+("\t".join(normals_out))+"\n")
-			
-			# handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
-			
-			handle.write("#Camera#"+(",".join([str(x) for x in camera_location]))+"\n")
-			
-			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
-			handle.write("\n".join(to_write))
 
 if '__main__' == __name__:
 	inputs = []

@@ -1,7 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
-from generator import angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
+from generator import CAMERA_MARKER, HEADER_DIVIDER, angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -25,6 +25,7 @@ LINE_COLOR = RED # np.random.uniform(0,1,4)
 POINT = "point"
 LINE = "line"
 FILE = "file"
+ALL_DONE = "all_done"
 
 VERY_BIG = 25
 BIG = 10
@@ -109,22 +110,29 @@ def start_visualizing(cluster_points, frame_to_show):
 					possible = cluster_points.get()
 					continue
 				
-				type, data, color, size = possible
-				if POINT == type:
-					new_point = [[0.7*x for x in data]]
-					new_point[0][1] *= -1
-					point_collection.append(new_point,
-									  color = color,
-									  size  = size)
-				elif LINE == type:
-					path = []
-					for hop in data:
-						new_hop = [round(0.7 * abs(x),5) for x in hop]
-						path.append(new_hop)
-					path = np.asarray(path)
-					print path, len(path)
-					paths.append(path, closed=True, itemsize=len(path))
-					paths["linewidth"] = 3.0
+				if ALL_DONE == possible:
+					print "Quitting"
+					app.quit()
+					sys.exit()
+					break
+				
+				if len(possible) == 4:
+					type, data, color, size = possible
+					if POINT == type:
+						new_point = [[0.7*x for x in data]]
+						new_point[0][1] *= -1
+						point_collection.append(new_point,
+										  color = color,
+										  size  = size)
+					elif LINE == type:
+						path = []
+						for hop in data:
+							new_hop = [round(0.7 * abs(x),5) for x in hop]
+							path.append(new_hop)
+						path = np.asarray(path)
+						print path, len(path)
+						paths.append(path, closed=True, itemsize=len(path))
+						paths["linewidth"] = 3.0
 				
 				possible = cluster_points.get()
 	
@@ -218,25 +226,28 @@ def generator_render(cloud_files, cluster_point_queue):
 		delay -= 1
 		print delay
 	
-	animate = len(cloud_files) == 1
+	# disabled temporarily
+	animate = False #len(cloud_files) == 1
 	
 	for file in cloud_files:
 		render_cloud_file(file, cluster_point_queue, animate)
 
-def render_cloud_file(file, cluster_point_queue, animate):
-	if not os.path.exists(file):
-		print "File doesn't exist:", file
-		return
-	
-	this_color = WHITE if BLACK_ON_WHITE else BLACK
+def get_batches_from_file(file):
+	batches = []
 	
 	points = []
-	
-	CAMERA_MARKER = '#Camera#'
 	camera_location = None
 	average_point = [0.0] * 3
 	for line in open(file, 'r').readlines():
 		line = line.strip()
+		if HEADER_DIVIDER == line:
+			if len(points) > 0:
+				batches.append( (points, average_point, camera_location) )
+			points = []
+			camera_location = None
+			average_point = [0.0] * 3
+			continue
+			
 		if CAMERA_MARKER in line:
 			camera_location = tuple([float(x) for x in line[len(CAMERA_MARKER):].split(",")])
 			# print CAMERA_MARKER,camera_location
@@ -246,6 +257,28 @@ def render_cloud_file(file, cluster_point_queue, animate):
 		point = tuple([float(x) for x in line.split(',')])
 		points.append(point)
 		average_point = [average_point[i] + point[i] for i in range(len(point))]
+	
+	if len(points) > 0:
+		batches.append( (points, average_point, camera_location) )
+	print "Found",len(batches)
+	return batches
+	
+def render_cloud_file(file, cluster_point_queue, animate):
+	if not os.path.exists(file):
+		print "File doesn't exist:", file
+		return
+	
+	this_color = WHITE if BLACK_ON_WHITE else BLACK
+	
+	batches = get_batches_from_file(file)
+	
+	for batch in batches:
+		render_batch(batch, cluster_point_queue, animate)
+	cluster_points.put(ALL_DONE)
+	
+def render_batch(batch, cluster_point_queue, animate):
+	points, average_point, camera_location = batch
+	
 	if len(points) == 0:
 		print "no points read in",file
 		return
@@ -334,7 +367,6 @@ if '__main__' == __name__:
 	
 	if GENERATOR_RENDER and len(sys.argv) < 2:
 		print "python",sys.argv[0],"clouds/file.txt"
-		print "python",sys.argv[0],"clouds/5_1_*.txt"
 		exit()
 		
 	elif not GENERATOR_RENDER and len(sys.argv) < 3:
@@ -346,6 +378,9 @@ if '__main__' == __name__:
 	
 	if GENERATOR_RENDER:
 		cloud_files = sorted(sys.argv[1:])
+		if len(cloud_files) > 1:
+			print "Can't accept multiple files at this time, since we merged permutations into one file"
+			exit()
 		for file in cloud_files:
 			if not os.path.exists(file):
 				print "File doesn't exist:",file
