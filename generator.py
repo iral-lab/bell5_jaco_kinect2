@@ -1,5 +1,7 @@
 import sys, random, math, code, os, multiprocessing, copy
 import numpy as np
+from sklearn.cluster import KMeans
+
 
 OUTPUT_FOLDER = './clouds/'
 if not os.path.exists(OUTPUT_FOLDER):
@@ -10,6 +12,7 @@ UNIT_SCALAR = 100
 
 HEADER_DIVIDER = "$$$$$$$$$"
 CAMERA_MARKER = '#Camera#'
+SKELETON_MARKER = "#Skeleton#"
 
 LINK_COUNTS = [2] #[2,3,4,5,6]
 VARIATIONS = 1
@@ -524,14 +527,25 @@ def compute_cloud(input):
 		
 		this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
 		
+		skeleton = compute_skeleton(shifted_cloud)
+		to_write = [",".join([str(x) for x in point]) for point in skeleton]
+		this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
+		
 		to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
-		this_permutation_out.append("\n".join(to_write))
+		this_permutation_out.append("\n".join(to_write)+"\n")
 		
 		
 		outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i]])+".txt"
 		with open(OUTPUT_FOLDER+outfile,'a') as handle:
-			handle.write("".join(this_permutation_out)+"\n")
-			
+			handle.write("".join(this_permutation_out))
+
+def compute_skeleton(points):
+	num_centroids = 15
+	result = KMeans(n_clusters = num_centroids).fit(points)
+	skeleton = []
+	for point in result.cluster_centers_:
+		skeleton.append( tuple([int(x) for x in point]))
+	return skeleton
 
 if '__main__' == __name__:
 	inputs = []
