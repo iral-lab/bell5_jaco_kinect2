@@ -7,12 +7,12 @@ from generator import angle_between_points, rotate_around_x, rotate_around_y, ro
 SCALE = 1
 
 TERMINATOR = "terminate"
-DRAW_DELAY = 0.3
+DRAW_DELAY = 0.5
 MAX_POINTS = 1000
 
-BLUE = [ 0.20815755, 0.4907831, 0.72991901, 1]
-RED = [ 0.9135442  , 0.48970524 , 0.56584265 , 1]
-GREEN = [ 0.34262711 , 0.75813294 , 0.34156955 , 1]
+BLUE = [ 0, 0, 1, 1]
+RED = [ 1 , 0 , 0 , 1]
+GREEN = [ 0, 1 , 0 , 1]
 BLACK = [0,0,0,1]
 WHITE = [1,1,1,1]
 
@@ -20,12 +20,13 @@ EDGE_COUNT_OVERRIDE = False
 
 CLUSTER_COLOR = RED
 SKELETON_COLOR = BLUE
-LINE_COLOR = GREEN # np.random.uniform(0,1,4)
+LINE_COLOR = RED # np.random.uniform(0,1,4)
 
 POINT = "point"
 LINE = "line"
 FILE = "file"
 
+VERY_BIG = 25
 BIG = 10
 SMALL = 5
 
@@ -165,6 +166,7 @@ def generate_line(p0, p1):
 	
 
 def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
+	random.seed(3) # 1
 	frame_n = 0
 	for skeleton_frame, pcl_frame, path_frame in get_frames(skeleton_csv, pcl_csv, best_frame_csv):
 		frame_n += 1
@@ -186,17 +188,20 @@ def process_files(skeleton_csv, pcl_csv, best_frame_csv, cluster_points):
 			cluster_points.put( (POINT, point, this_color, BIG) )
 
 		for point in skeleton_frame:
-			cluster_points.put( (POINT, point, SKELETON_COLOR, BIG) )
+			cluster_points.put( (POINT, point, SKELETON_COLOR, VERY_BIG) )
+			pass
 		
 		for point in path_frame:
-			cluster_points.put( (POINT, point, LINE_COLOR, BIG) )
+			cluster_points.put( (POINT, point, LINE_COLOR, VERY_BIG) )
 			print point
+			pass
 		
 		
 		endpoints = [(path_frame[i], path_frame[i+1]) for i in range(len(path_frame)-1)]
 		for line in [generate_line(p0,p1) for p0,p1 in endpoints]:
 			for point in line:
 				cluster_points.put( (POINT, point, LINE_COLOR, SMALL) )
+				pass
 		
 		cluster_points.put(TERMINATOR)
 	print "broke"
@@ -309,6 +314,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 			n = float(point[v_ind] + 1.2 / 2 )
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
+			# cluster_point_queue.put( (POINT, point, WHITE, SMALL) )
 		
 		if camera_location and animate:
 			camera_location = rotate_around_y(camera_location, theta)
@@ -348,7 +354,12 @@ if '__main__' == __name__:
 		processor = multiprocessing.Process(target = generator_render, args = (cloud_files, cluster_points))
 		processor.start()
 	else:
-		skeleton_csv, pcl_csv, best_frame_robot = sys.argv[1:4]
+		files = sys.argv[1:4]
+		for file in files:
+			if not os.path.exists(file):
+				print "File does not exist:",file
+				exit()
+		skeleton_csv, pcl_csv, best_frame_robot = files
 		frame_to_show = int(sys.argv[4]) if len(sys.argv) > 4 else -1	
 		processor = multiprocessing.Process(target = process_files, args = (skeleton_csv, pcl_csv, best_frame_robot, cluster_points))
 		processor.start()
