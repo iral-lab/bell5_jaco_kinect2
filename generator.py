@@ -527,7 +527,7 @@ def compute_cloud(input):
 		
 		this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
 		
-		skeleton = compute_skeleton(shifted_cloud)
+		skeleton = compute_skeleton(shifted_cloud, sum(link_lengths))
 		to_write = [",".join([str(x) for x in point]) for point in skeleton]
 		this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
 		
@@ -539,8 +539,8 @@ def compute_cloud(input):
 		with open(OUTPUT_FOLDER+outfile,'a') as handle:
 			handle.write("".join(this_permutation_out))
 
-def compute_skeleton(points):
-	num_centroids = 15
+def compute_skeleton(points, total_length):
+	num_centroids = max(2, int(total_length / (10 * UNIT_SCALAR))) # one per 10 'units'
 	result = KMeans(n_clusters = num_centroids).fit(points)
 	skeleton = []
 	for point in result.cluster_centers_:

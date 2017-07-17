@@ -1,7 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
-from generator import CAMERA_MARKER, HEADER_DIVIDER, angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
+from generator import CAMERA_MARKER, HEADER_DIVIDER, SKELETON_MARKER, angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -237,29 +237,45 @@ def get_batches_from_file(file):
 	
 	points = []
 	camera_location = None
-	average_point = [0.0] * 3
+	skeleton_points = []
+	longest_vector = 0.0
+	
 	for line in open(file, 'r').readlines():
 		line = line.strip()
 		if HEADER_DIVIDER == line:
 			if len(points) > 0:
-				batches.append( (points, average_point, camera_location) )
+				batches.append( [points, skeleton_points, camera_location] )
 			points = []
 			camera_location = None
-			average_point = [0.0] * 3
+			skeleton_points = []
 			continue
 			
 		if CAMERA_MARKER in line:
 			camera_location = tuple([float(x) for x in line[len(CAMERA_MARKER):].split(",")])
 			# print CAMERA_MARKER,camera_location
+		
+		if SKELETON_MARKER in line:
+			skeleton_text = line[len(SKELETON_MARKER):]
+			skeleton_points = []
+			for point in skeleton_text.split("\t"):
+				point = [int(x) for x in point.split(",")]
+				skeleton_points.append(point)
+			
+			continue
+		
 		if '' == line or '#' in line:
 			continue
 		
 		point = tuple([float(x) for x in line.split(',')])
 		points.append(point)
-		average_point = [average_point[i] + point[i] for i in range(len(point))]
+		longest_vector = max(longest_vector, vector_length(point))
 	
 	if len(points) > 0:
-		batches.append( (points, average_point, camera_location) )
+		batches.append( [points, skeleton_points, camera_location] )
+	
+	for i,batch in enumerate(batches):
+		batches[i].append(longest_vector)
+	
 	print "Found",len(batches)
 	return batches
 	
@@ -277,7 +293,7 @@ def render_cloud_file(file, cluster_point_queue, animate):
 	cluster_points.put(ALL_DONE)
 	
 def render_batch(batch, cluster_point_queue, animate):
-	points, average_point, camera_location = batch
+	points, skeleton_points, camera_location, longest_vector = batch
 	
 	if len(points) == 0:
 		print "no points read in",file
@@ -286,28 +302,13 @@ def render_batch(batch, cluster_point_queue, animate):
 	num_points = len(points)
 	if camera_location:
 		num_points += 1
-		average_point = [average_point[i] + camera_location[i] for i in range(len(camera_location))]
 	
-	average_point = [round(average_point[i] / num_points, 5) for i in range(len(average_point))]
-	average_point = (0, 0, 0) # don't actually shift anything
-	
-	max_length = 0.0
-	if camera_location:
-		camera_location = [camera_location[j] - average_point[j] for j in range(len(camera_location))]
-		max_length = max(max_length, vector_length(camera_location))
-		# print average_point, camera_location, max_length
-		# exit()
-		
 	for i,point in enumerate(points):
-		points[i] = [point[j] - average_point[j] for j in range(len(point))]
-		max_length = max(max_length, vector_length(points[i]))
-
-	for i,point in enumerate(points):
-		point = [point[j] / max_length for j in range(len(point))]
+		point = [point[j] / longest_vector for j in range(len(point))]
 		points[i] = tuple([round(point[j], 5) for j in range(len(point))])
 	
 	if camera_location:
-		camera_location = [camera_location[j] / max_length for j in range(len(camera_location))]
+		camera_location = [camera_location[j] / longest_vector for j in range(len(camera_location))]
 		camera_location = tuple([round(camera_location[j], 5) for j in range(len(camera_location))])
 	
 	
@@ -329,6 +330,12 @@ def render_batch(batch, cluster_point_queue, animate):
 			points[i] = rotate_around_u(u, point, correction_theta)
 		points[i] = tuple([round(points[i][j] * scalar, 5) for j in range(len(points[i]))])
 	
+	for i, point in enumerate(skeleton_points):
+		point = [point[j] / longest_vector for j in range(len(point))]
+		point = tuple([round(point[j], 5) for j in range(len(point))])
+		if correction_theta:
+			point = rotate_around_u(u, point, correction_theta)
+		skeleton_points[i] = tuple([round(point[j] * scalar, 5) for j in range(len(point))])
 	
 	# print camera_location
 	# exit()
@@ -340,7 +347,9 @@ def render_batch(batch, cluster_point_queue, animate):
 		if animate:
 			for i,point in enumerate(points):
 				points[i] = rotate_around_y(point, theta)
-		
+			for i,point in enumerate(skeleton_points):
+				skeleton_points[i] = rotate_around_y(point, theta)
+				
 		points = sorted(points, key = lambda x:x[v_ind])
 		
 		for point in points:
@@ -348,6 +357,9 @@ def render_batch(batch, cluster_point_queue, animate):
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
 			# cluster_point_queue.put( (POINT, point, WHITE, SMALL) )
+		
+		for point in skeleton_points:
+			cluster_point_queue.put( (POINT, point, SKELETON_COLOR, BIG) )
 		
 		if camera_location and animate:
 			camera_location = rotate_around_y(camera_location, theta)
