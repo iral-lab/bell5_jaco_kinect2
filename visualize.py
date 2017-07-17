@@ -28,6 +28,7 @@ FILE = "file"
 ALL_DONE = "all_done"
 
 VERY_BIG = 25
+PRETTY_BIG = 15
 BIG = 10
 SMALL = 5
 
@@ -353,13 +354,13 @@ def render_batch(batch, cluster_point_queue, animate):
 		points = sorted(points, key = lambda x:x[v_ind])
 		
 		for point in points:
-			n = float(point[v_ind] + 1.2 / 2 )
+			n = float(point[v_ind] + 2 / 2 )
 			this_color = [ n, n, n, 1]
 			cluster_point_queue.put( (POINT, point, this_color, SMALL) )
 			# cluster_point_queue.put( (POINT, point, WHITE, SMALL) )
 		
 		for point in skeleton_points:
-			cluster_point_queue.put( (POINT, point, SKELETON_COLOR, BIG) )
+			cluster_point_queue.put( (POINT, point, GREEN, PRETTY_BIG) )
 		
 		if camera_location and animate:
 			camera_location = rotate_around_y(camera_location, theta)
