@@ -1,4 +1,4 @@
-import sys, random, math, code, os, multiprocessing, copy
+import sys, random, math, code, os, multiprocessing, copy, time
 import numpy as np
 from sklearn.cluster import KMeans
 
@@ -13,10 +13,11 @@ UNIT_SCALAR = 100
 HEADER_DIVIDER = "$$$$$$$$$"
 CAMERA_MARKER = '#Camera#'
 SKELETON_MARKER = "#Skeleton#"
+LENGTHS_HEADER = "#Lengths#"
 
-LINK_COUNTS = [2] #[2,3,4,5,6]
-VARIATIONS = 1
-PERMUTATIONS = 10
+LINK_COUNTS = [2,3,4,5,6]
+VARIATIONS = 100
+PERMUTATIONS = 100
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
@@ -423,6 +424,13 @@ def compute_cloud(input):
 	radii = [random.randint(*LINK_RADIUS) for _ in range(link_count)]
 	
 	vertices = vertex_i = None
+	
+	padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
+	padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
+	
+	
+	this_permutation_out = []
+	outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i, int(time.time())]])+".txt"
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
 		print link_count, variation_i, permutation_i
@@ -504,14 +512,11 @@ def compute_cloud(input):
 		shifted_cloud = [vector_between(point, start) for point in cloud]
 		
 		
-		padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
-		padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
 		padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
 		
-		this_permutation_out = []
 		this_permutation_out.append(HEADER_DIVIDER+"\n")
 		this_permutation_out.append("#Perm#"+str(padded_permutation_i)+"\n")
-		this_permutation_out.append("#Lengths#"+("\t".join([str(x) for x in link_lengths]))+"\n")
+		this_permutation_out.append(LENGTHS_HEADER+("\t".join([str(x) for x in link_lengths]))+"\n")
 		this_permutation_out.append("#Vertices#")
 		vert_out = []
 		for vertex in shifted_vertices:
@@ -527,17 +532,28 @@ def compute_cloud(input):
 		
 		this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
 		
-		skeleton = compute_skeleton(shifted_cloud, sum(link_lengths))
+		try:
+			skeleton = compute_skeleton(shifted_cloud, sum(link_lengths))
+		except:
+			print "invalid skeleton, skip a frame"
+			continue
+		
 		to_write = [",".join([str(x) for x in point]) for point in skeleton]
 		this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
 		
 		to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
 		this_permutation_out.append("\n".join(to_write)+"\n")
 		
-		
-		outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i]])+".txt"
-		with open(OUTPUT_FOLDER+outfile,'a') as handle:
-			handle.write("".join(this_permutation_out))
+	with open(OUTPUT_FOLDER+outfile,'a') as handle:
+		handle.write("".join(this_permutation_out))
+
+def get_skeleton_points(line):
+	skeleton_text = line[len(SKELETON_MARKER):]
+	skeleton_points = []
+	for point in skeleton_text.split("\t"):
+		point = [int(x) for x in point.split(",")]
+		skeleton_points.append(point)
+	return skeleton_points
 
 def compute_skeleton(points, total_length):
 	num_centroids = max(2, int(total_length / (10 * UNIT_SCALAR))) # one per 10 'units'

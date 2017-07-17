@@ -1,7 +1,7 @@
 import sys, json, multiprocessing, time, random, code, math, os
 import numpy as np
 
-from generator import CAMERA_MARKER, HEADER_DIVIDER, SKELETON_MARKER, angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
+from generator import CAMERA_MARKER, HEADER_DIVIDER, SKELETON_MARKER, get_skeleton_points, angle_between_points, rotate_around_x, rotate_around_y, rotate_around_z, rotate_around_u, get_axis_of_rotation_for
 # code.interact(local=dict(globals(), **locals())) 
 
 SCALE = 1
@@ -256,11 +256,7 @@ def get_batches_from_file(file):
 			# print CAMERA_MARKER,camera_location
 		
 		if SKELETON_MARKER in line:
-			skeleton_text = line[len(SKELETON_MARKER):]
-			skeleton_points = []
-			for point in skeleton_text.split("\t"):
-				point = [int(x) for x in point.split(",")]
-				skeleton_points.append(point)
+			skeleton_points = get_skeleton_points(line)
 			
 			continue
 		
