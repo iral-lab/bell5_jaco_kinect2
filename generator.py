@@ -16,13 +16,14 @@ SKELETON_MARKER = "#Skeleton#"
 LENGTHS_HEADER = "#Lengths#"
 
 LINK_COUNTS = [2,3,4,5,6]
-VARIATIONS = 100
 PERMUTATIONS = 100
+ROBOTS_PER_COUNT = 1000
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 
 DIMENSIONS = 3
 LINK_LENGTHS = (10 * UNIT_SCALAR, 75 * UNIT_SCALAR)
+LINK_STEP = 5 * UNIT_SCALAR
 LINK_RADIUS = (2 * UNIT_SCALAR, 4 * UNIT_SCALAR)
 WORKSPACE = 25 * UNIT_SCALAR
 OFFSET_FROM_ORIGIN = WORKSPACE * 2
@@ -412,7 +413,7 @@ def get_axis_of_rotation_for(p0, p1, p2):
 
 def compute_cloud(input):
 	# random.seed(3)
-	link_count, variation_i, link_lengths = input
+	link_count, robot_i, link_lengths = input
 	
 	frames_per_vertex = 10
 	frames_left = 0
@@ -426,14 +427,14 @@ def compute_cloud(input):
 	vertices = vertex_i = None
 	
 	padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
-	padded_variation_i = ('%0'+str(len(str(VARIATIONS)))+'d') % variation_i
+	padded_robot_i = ('%0'+str(len(str(ROBOTS_PER_COUNT)))+'d') % robot_i
 	
 	
 	this_permutation_out = []
-	outfile = "_".join([str(x) for x in [padded_link_count, padded_variation_i, int(time.time())]])+".txt"
+	outfile = "_".join([str(x) for x in [padded_link_count, padded_robot_i, int(time.time())]])+".txt"
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
-		print link_count, variation_i, permutation_i
+		print link_count, permutation_i
 		
 		
 		if not vertices:
@@ -565,11 +566,13 @@ def compute_skeleton(points, total_length):
 
 if '__main__' == __name__:
 	inputs = []
+	link_length_options = range(LINK_LENGTHS[0], LINK_LENGTHS[1], LINK_STEP)
 	for link_count in LINK_COUNTS:
-		for variation_i in xrange(VARIATIONS):
-			link_lengths = [random.randint(*LINK_LENGTHS) for _ in range(link_count)]
-			inputs.append( (link_count, variation_i, link_lengths) )
-	inputs.reverse()
+		for robot_i in range(ROBOTS_PER_COUNT):
+			link_lengths = tuple([random.choice(link_length_options) for _ in range(link_count)])
+			inputs.append( (link_count, robot_i, link_lengths) )
+	inputs = list(set(inputs))
+	inputs = sorted(inputs, reverse = True)
 	
 	# e0 = (10,0,0)
 	# e1 = (10,0,20)
