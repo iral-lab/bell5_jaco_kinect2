@@ -17,7 +17,8 @@ LENGTHS_HEADER = "#Lengths#"
 
 MAX_CENTROIDS = 40
 
-NUM_THREADS = 8
+NUM_THREADS = 1
+
 LINK_COUNTS = [3] #[2,3,4,5,6]
 MAX_LINKS = 8
 PERMUTATIONS = 100
@@ -93,6 +94,8 @@ def scale_vector(v, s):
 	return tuple([x * s for x in v])
 
 def vector_between(p0, p1):
+	if not p0 or not p1:
+		raise ValueError,"p0 or p1 not valid:"+str(p0)+","+str(p1)
 	return tuple([p0[i] - p1[i] for i in range(len(p1))])
 
 def distance_between(p0, p1):
@@ -116,6 +119,8 @@ def line_between_points(p0, p1, step_size = 1, gen_cloud = False, link_radius = 
 	data = []
 	if not gen_cloud:
 		data.append(p0)
+	if not p1 or not p0:
+		raise ValueError,"p0 or p1 not valid:"+str(p0)+","+str(p1)
 	vector = vector_between(p1, p0)
 	distance = vector_length(vector)
 	step_vector = scale_vector(normalize_vector(vector), step_size)
@@ -331,6 +336,8 @@ def gen_cloud(vertices, radii):
 		edges_and_radii.append( (p0,p1,radii[i]) )
 	
 	for p0,p1,radius in edges_and_radii:
+		if not p0 or not p1:
+			raise ValueError,"p0 or p1 not valid:"+str(p0)+","+str(p1)
 		points = line_between_points(p0, p1, step_size = DENSITY_STEP, gen_cloud = True, link_radius = radius)
 		
 		if CULL_OCCLUDED:
@@ -492,8 +499,12 @@ def compute_cloud(input):
 				new_vertex = point_plus_vector(this_vertex, rotated_vector)
 				# print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
 				vertices[move_vertex_i] = new_vertex
-			
-		cloud = gen_cloud(vertices, radii)
+		
+		try:
+			cloud = gen_cloud(vertices, radii)
+		except ValueError:
+			print "Something went wrong, skipping frame"
+			continue
 		
 		# recompute joint_normals after rotation
 		joint_normals = []
@@ -592,8 +603,8 @@ if '__main__' == __name__:
 	# print is_visible( p0, [ [e0, e1, 5 ] ] )
 	# exit()
 	
-	if len(inputs) == 1:
-		compute_cloud(inputs[0])
+	if len(inputs) == 1 or NUM_THREADS == 1:
+		[compute_cloud(x) for x in inputs]
 	else:
 		pool = multiprocessing.Pool(NUM_THREADS)
 		pool.map(compute_cloud, inputs)
