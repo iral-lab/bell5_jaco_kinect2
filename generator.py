@@ -15,9 +15,12 @@ CAMERA_MARKER = '#Camera#'
 SKELETON_MARKER = "#Skeleton#"
 LENGTHS_HEADER = "#Lengths#"
 
-NUM_THREADS = 6
-LINK_COUNTS = [2,3,4,5,6]
-PERMUTATIONS = 1000
+MAX_CENTROIDS = 40
+
+NUM_THREADS = 8
+LINK_COUNTS = [3] #[2,3,4,5,6]
+MAX_LINKS = 8
+PERMUTATIONS = 100
 ROBOTS_PER_COUNT = 1000
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
@@ -435,7 +438,8 @@ def compute_cloud(input):
 	outfile = "_".join([str(x) for x in [padded_link_count, padded_robot_i, int(time.time())]])+".txt"
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
-		print link_count, permutation_i
+		if permutation_i % 100 == 0:
+			print link_count, permutation_i
 		
 		
 		if not vertices:
@@ -558,7 +562,7 @@ def get_skeleton_points(line):
 	return skeleton_points
 
 def compute_skeleton(points, total_length):
-	num_centroids = max(2, int(total_length / (10 * UNIT_SCALAR))) # one per 10 'units'
+	num_centroids = min(MAX_CENTROIDS, max(2, int(total_length / (10 * UNIT_SCALAR)))) # one per 10 'units'
 	result = KMeans(n_clusters = num_centroids).fit(points)
 	skeleton = []
 	for point in result.cluster_centers_:
@@ -575,6 +579,10 @@ if '__main__' == __name__:
 	inputs = list(set(inputs))
 	inputs = sorted(inputs, reverse = True)
 	print "Processing:",len(inputs)
+#	for input in inputs:
+#		print input
+#	exit()
+
 	# e0 = (10,0,0)
 	# e1 = (10,0,20)
 	# p0 = (5,0,0)
