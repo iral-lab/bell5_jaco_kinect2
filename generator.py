@@ -15,13 +15,14 @@ CAMERA_MARKER = '#Camera#'
 SKELETON_MARKER = "#Skeleton#"
 LENGTHS_HEADER = "#Lengths#"
 
+NUM_THREADS = 6
 LINK_COUNTS = [2,3,4,5,6]
-PERMUTATIONS = 100
+PERMUTATIONS = 1000
 ROBOTS_PER_COUNT = 1000
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
-
 DIMENSIONS = 3
+
 LINK_LENGTHS = (10 * UNIT_SCALAR, 75 * UNIT_SCALAR)
 LINK_STEP = 5 * UNIT_SCALAR
 LINK_RADIUS = (2 * UNIT_SCALAR, 4 * UNIT_SCALAR)
@@ -573,7 +574,7 @@ if '__main__' == __name__:
 			inputs.append( (link_count, robot_i, link_lengths) )
 	inputs = list(set(inputs))
 	inputs = sorted(inputs, reverse = True)
-	
+	print "Processing:",len(inputs)
 	# e0 = (10,0,0)
 	# e1 = (10,0,20)
 	# p0 = (5,0,0)
@@ -586,7 +587,7 @@ if '__main__' == __name__:
 	if len(inputs) == 1:
 		compute_cloud(inputs[0])
 	else:
-		pool = multiprocessing.Pool(4)
+		pool = multiprocessing.Pool(NUM_THREADS)
 		pool.map(compute_cloud, inputs)
 	# [compute_cloud(input) for input in inputs]
 
