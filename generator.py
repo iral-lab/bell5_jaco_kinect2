@@ -453,7 +453,11 @@ def compute_cloud(input):
 			# generate initial verts once
 			while not vertices:
 				vertices = gen_vertices(link_lengths)
-		else:
+		
+		if len(vertices) == 0:
+			print "No verts for some reason.",vertices
+			break
+		if vertices:
 			# move some joints
 			if frames_left == 0:
 				vertex_i = random.choice(range(1,len(vertices) - 1))
@@ -502,7 +506,7 @@ def compute_cloud(input):
 		
 		try:
 			cloud = gen_cloud(vertices, radii)
-		except ValueError:
+		except: # ValueError:
 			print "Something went wrong, skipping frame"
 			continue
 		
