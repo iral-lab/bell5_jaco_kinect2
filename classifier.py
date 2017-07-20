@@ -1,11 +1,13 @@
-import sys, os
+import sys, os, random, cPickle
 import tensorflow as tf
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
 N_EPOCHS = 10
+N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
+DATA_CACHE = '_classifier_input.pickle'
 
 def get_label(lengths_line):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
@@ -30,6 +32,44 @@ def _pad_label(lengths):
 		new.append(0.0)
 	return new
 
+
+ACTUAL_DATA_CACHE = None
+def naive_batcher():
+	if not os.path.exists(DATA_CACHE):
+		print "No data cache, please generate first"
+		exit()
+	global ACTUAL_DATA_CACHE
+
+	if not ACTUAL_DATA_CACHE:
+		print "loading"
+		ACTUAL_DATA_CACHE = cPickle.load(open(DATA_CACHE,'r'))
+		print "loaded"
+
+	batch_size = 1
+	so_far = 0
+	size = len(ACTUAL_DATA_CACHE[0])
+
+	while so_far < size:
+		yield (ACTUAL_DATA_CACHE[0][so_far:so_far + batch_size], ACTUAL_DATA_CACHE[1][so_far:so_far+batch_size])
+		so_far += batch_size
+
+
+def gen_datacache(files):
+	files = sorted(files)[:100]
+	data = []
+	labels = []
+	for i,file in enumerate(files):
+		if i % 100 == 0:
+			print i,round(100.0 * i / len(files),2),"%"
+		pairs = [_ for _ in naive_frame_reader(file)]
+		data += [pair[0] for pair in pairs]
+		labels += [pair[1] for pair in pairs]
+
+	print "Saving"
+	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
+	print "Dumped"
+		
+
 def naive_frame_reader(file):
 	with open(INPUT_FOLDER+file, 'r') as handle:
 		skeleton_frame = None
@@ -44,7 +84,7 @@ def naive_frame_reader(file):
 			
 			if HEADER_DIVIDER == line and skeleton_frame:
 				if skeleton_frame and label:
-					yield (label, skeleton_frame)
+					yield (skeleton_frame, label)
 				else:
 					print "Missing skeleton_frame or label"
 				skeleton_frame = None
@@ -53,115 +93,68 @@ def naive_frame_reader(file):
 			
 			if SKELETON_MARKER in line:
 				skeleton_frame = prepare_skeleton(line)
+				continue
 			
 			if LENGTHS_HEADER in line:
 				label = get_label(line)
+				continue
 
-def xy_batcher(files):
-	batch_size = len(files) / N_EPOCHS
-	print "batch size:",batch_size
-	labels_batch = []
-	data_batch = []
-	for file in files:
-		for frame in naive_frame_reader(file):
-			label,data = frame
-			labels_batch.append(label)
-			data_batch.append(data)
-			if len(labels_batch) == batch_size:
-				yield (data_batch, labels_batch)
-				labels_batch = []
-				data_batch = []
-		if len(labels_batch) > 0:
-			yield (data_batch, labels_batch)
+		if skeleton_frame and label:
+			yield (skeleton_frame, label)
 
 
-def rnn_model(data):
-
-	n_nodes_hl1 = 50
-	n_nodes_hl2 = 50
-	n_nodes_hl3 = 50
-
-	hidden_1 = {'weights' : tf.Variable(tf.random_normal([MAX_CENTROIDS * 3, n_nodes_hl1])), 'biases' : tf.Variable(tf.random_normal([n_nodes_hl1]))}
-	hidden_2 = {'weights' : tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])), 'biases' : tf.Variable(tf.random_normal([n_nodes_hl2]))}
-	hidden_3 = {'weights' : tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])), 'biases' : tf.Variable(tf.random_normal([n_nodes_hl3]))}
+def mlp_model(x, w_h, w_o):
+	h = tf.nn.sigmoid(tf.matmul(x, w_h))
+	return tf.matmul(h, w_o)
 	
-	output_layer = {'weights' : tf.Variable(tf.random_normal([n_nodes_hl3, MAX_LINKS+1])), 'biases' : tf.Variable(tf.random_normal([MAX_LINKS+1]))}
-	
-	layer_1 = tf.add(tf.matmul(data, hidden_1['weights']), hidden_1['biases'])
-	layer_1 = tf.nn.relu(layer_1)
-	
-	layer_2 = tf.add(tf.matmul(layer_1, hidden_2['weights']), hidden_2['biases'])
-	layer_2 = tf.nn.relu(layer_2)
-	
-	layer_3 = tf.add(tf.matmul(layer_2, hidden_3['weights']), hidden_3['biases'])
-	layer_3 = tf.nn.relu(layer_3)
 
-	output = tf.add(tf.matmul(layer_3, output_layer['weights']), output_layer['biases'])
-	return output
+def init_weights(shape):
+	return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
-
-def train_neural_network(files, x, y, test_labels, test_data):
-	prediction = rnn_model(x)
-	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=y))
-	optimizer = tf.train.AdamOptimizer().minimize(cost)
-	
-	batcher = xy_batcher(files)
-	with tf.Session() as sess:
-		sess.run(tf.global_variables_initializer())
-
-		batch = batcher.next()
-		epoch_x,epoch_y = batch
-		#print epoch_x[0]
-		#exit()
-		epoch = 1
-		while epoch < 1000:
-			_,c = sess.run([optimizer, cost], feed_dict = {x: epoch_x, y: epoch_y})
-			print "Epoch",epoch,"completed of",N_EPOCHS,"loss:",c
-			epoch += 1
-		print prediction.eval(feed_dict={x:[epoch_x[0]]})
-		
-
-		"""
-		for epoch in range(N_EPOCHS):
-			
-			batch = batcher.next()
-			
-			if not batch:
-				break
-			epoch_x,epoch_y = batch
-			
-			#print len(epoch_x), len(epoch_y), len(epoch_x[0]), len(epoch_y[0])
-			_,c = sess.run([optimizer, cost], feed_dict = {x: epoch_x, y: epoch_y})
-			print "Epoch",epoch,"completed of",N_EPOCHS,"loss:",c
-		"""
-
-		#correct = tf.equal(tf.argmax(prediction, 0), tf.argmax(y, 0))
-		#accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-		#print "Accuracy:",accuracy.eval({x:test_data, y:test_labels})
-		#print tf.argmax(prediction,0)
-		#print tf.argmax(y,0)
-		#print prediction.eval(feed_dict={x:test_data})
-			
-			
 
 if '__main__' == __name__:
-	
-	input_files = os.listdir(INPUT_FOLDER)
-	print len(input_files)
-	
-	n_classes = len(input_files) * PERMUTATIONS # robots * variations, # of files * # of permutations
-	
-	x = tf.placeholder('float', [None, MAX_CENTROIDS * 3])
-	y = tf.placeholder('float', [None, MAX_LINKS+1])
-	
-	test_labels = [_pad_label((3,3500,5000,2500)), ]
-	test_data = [prepare_skeleton("#Skeleton#110,-2181,2125	776,-256,728	1452,-1181,2161	-920,-3102,2254	1999,-366,1674	272,-230,173	-322,-2666,2087	2288,-632,2110	-365,-2258,3122	579,-1719,2168	1441,-318,1257")]
 
-	#print test_labels, test_data
+	if not os.path.exists(DATA_CACHE):	
+		input_files = os.listdir(INPUT_FOLDER)
+		gen_datacache(input_files)
+		exit()
+	
 
-	train_neural_network(input_files, x, y, test_labels, test_data)
+	class_length = MAX_LINKS+1
 
+	X = tf.placeholder('float', [None, MAX_CENTROIDS * 3])
+	Y = tf.placeholder('float', [None, class_length])
 
+	hidden_layer_nodes = MAX_CENTROIDS * 3
+
+	w_h = init_weights([MAX_CENTROIDS * 3, hidden_layer_nodes])
+	w_o = init_weights([hidden_layer_nodes, class_length])
+
+	py_x = mlp_model(X, w_h, w_o)
+
+	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=py_x, labels=Y))
+	train_op = tf.train.GradientDescentOptimizer(0.05).minimize(cost)
+	predict_op = tf.argmax(py_x, 1)
+
+	with tf.Session() as sess:
+		# you need to initialize all variables
+		tf.global_variables_initializer().run()
+
+		for i in range(N_EPOCHS):
+			first_batch = None
+			for j,batch in enumerate(naive_batcher()):
+				if not first_batch:
+					first_batch = batch
+				epoch_x,epoch_y = batch
+
+				sess.run(train_op, feed_dict={X:epoch_x, Y: epoch_y})
+				guess = sess.run(predict_op, feed_dict = {X: epoch_x, Y:epoch_y})
+				print ">", i, j, epoch_y[:5], len(guess), guess
+				# print ">",j
+			if first_batch:
+				print "_", i, j, sess.run(predict_op, feed_dict = {X: first_batch[0], Y:first_batch[1]})
+
+		# print i, np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX}))
 
 
 
