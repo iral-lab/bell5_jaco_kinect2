@@ -4,7 +4,7 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 
 #code.interact(local=dict(globals(), **locals())) 
 
-N_EPOCHS = 10
+N_EPOCHS = 40
 N_BATCHES = 10
 
 
