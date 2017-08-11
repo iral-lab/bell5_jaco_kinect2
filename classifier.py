@@ -93,17 +93,21 @@ def get_label_lookup():
 			labels_so_far += 1
 	return lookup
 
-def gen_datacache(files):
+def gen_naive_datacache(files):
 	files = sorted(files)
 	data = []
 	labels = []
+	all_pairs = []
 	for i,file in enumerate(files):
-		if i % 100 == 0:
+		if i % 1000 == 0:
 			print i,round(100.0 * i / len(files),2),"%"
-		pairs = [_ for _ in naive_frame_reader(file)]
-		data += [pair[0] for pair in pairs]
-		labels += [pair[1] for pair in pairs]
+		all_pairs += [_ for _ in naive_frame_reader(file)]
+	random.shuffle(all_pairs)
 
+	data += [pair[0] for pair in all_pairs]
+	labels += [pair[1] for pair in all_pairs]
+
+	# code.interact(local=dict(globals(), **locals())) 
 	print "Saving",len(data),"pairs"
 	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
 	print "Dumped"
@@ -174,7 +178,7 @@ if '__main__' == __name__:
 
 	if not os.path.exists(DATA_CACHE):	
 		input_files = os.listdir(INPUT_FOLDER)
-		gen_datacache(input_files)
+		gen_naive_datacache(input_files)
 		exit()
 	
 
