@@ -1,4 +1,4 @@
-import sys, os, random, cPickle, time, code, math
+import sys, os, random, cPickle, time, code, math, gzip
 import tensorflow as tf
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
@@ -10,7 +10,7 @@ N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
-DATA_CACHE = '_classifier_input.pickle'
+DATA_CACHE = '_classifier_input.pickle.gz'
 
 def get_label(lengths_line):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
@@ -81,7 +81,7 @@ def get_label_lookup():
 	if not ACTUAL_DATA_CACHE:
 		print "loading"
 		start = time.time()
-		ACTUAL_DATA_CACHE = cPickle.load(open(DATA_CACHE,'r'))
+		ACTUAL_DATA_CACHE = cPickle.load(gzip.GzipFile(DATA_CACHE,'r'))
 		print "loaded",len(ACTUAL_DATA_CACHE[0]),"pairs in",int(time.time() - start),"seconds"
 
 	lookup = {}
@@ -98,9 +98,10 @@ def gen_naive_datacache(files):
 	data = []
 	labels = []
 	all_pairs = []
+	start = time.time()
 	for i,file in enumerate(files):
 		if i % 1000 == 0:
-			print i,round(100.0 * i / len(files),2),"%"
+			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%"
 		all_pairs += [_ for _ in naive_frame_reader(file)]
 	random.shuffle(all_pairs)
 
@@ -109,12 +110,12 @@ def gen_naive_datacache(files):
 
 	# code.interact(local=dict(globals(), **locals())) 
 	print "Saving",len(data),"pairs"
-	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
+	cPickle.dump([data,labels], gzip.GzipFile(DATA_CACHE,'w'))
 	print "Dumped"
 		
 
 def naive_frame_reader(file):
-	with open(INPUT_FOLDER+file, 'r') as handle:
+	with gzip.GzipFile(INPUT_FOLDER+file, 'r') as handle:
 		skeleton_frame = None
 		label = None
 		input = handle.readline()
