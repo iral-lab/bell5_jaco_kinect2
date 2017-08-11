@@ -10,7 +10,7 @@ N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
-SHORT_DATA_CACHE = '_classifier_short_input.pickle.gz'
+SHORT_DATA_CACHE = '_classifier_short_input.pickle'
 DATA_CACHE = '_classifier_input.pickle'
 BATCH_CACHE_STEM = '_classifier_batches.out_'
 
@@ -40,38 +40,43 @@ def _pad_label(lengths):
 	return new
 
 
-def naive_batcher():
-	for file in sorted(glob.glob(BATCH_CACHE_STEM+"*")):
-		print file
-		batch = cPickle.load(open(file, 'r'))
-		print "\tloaded"
-		yield batch
+BATCH_CACHE = None
+def naive_batcher(data_cache, label_cache, label_lookup):
+	global BATCH_CACHE
 
-def gen_batches(data_cache, label_cache, label_lookup):
-	so_far = 0
-	size = len(data_cache)
+	use_cache = False
 
-	batch_size = int(math.ceil(1.0 * size / N_BATCHES));
+	if not BATCH_CACHE or len(BATCH_CACHE) == 0:
+		BATCH_CACHE = []
 
-	print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
-	batch_i = 0
-	while so_far < size:
-		print "\t",batch_i,"of",N_BATCHES
-		outfile = BATCH_CACHE_STEM + str(('%0'+str(len(str(N_BATCHES)))+'d') % batch_i)
-		if os.path.exists(outfile):
-			continue
+		so_far = 0
+		size = len(data_cache)
 
-		data = data_cache[so_far:so_far + batch_size]
-		labels = label_cache[so_far:so_far + batch_size]
+		batch_size = int(math.ceil(1.0 * size / N_BATCHES));
 
-		for i,label in enumerate(labels):
-			labels[i] = [0] * len(label_lookup)
-			labels[i][label_lookup[tuple(label)]] = 1
+		batches = []
 
-		with open(outfile, 'w') as handle:
-			cPickle.dump( (data,labels), handle )
-		batch_i += 1
-		so_far += batch_size
+		print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
+		batch_i = 0
+		while so_far < size:
+			data = data_cache[so_far:so_far + batch_size]
+			labels = label_cache[so_far:so_far + batch_size]
+
+			for i,label in enumerate(labels):
+				labels[i] = [0] * len(label_lookup)
+				labels[i][label_lookup[tuple(label)]] = 1
+
+			batch = (data,labels)
+			if use_cache:
+				BATCH_CACHE.append( batch )
+			else:
+				yield batch
+
+			batch_i += 1
+			so_far += batch_size
+	if use_cache:
+		for batch in BATCH_CACHE:
+			yield batch
 
 
 def get_label_lookup():
@@ -116,7 +121,7 @@ def gen_naive_datacache(files):
 	start = time.time()
 	for i,file in enumerate(files):
 		if i % 1000 == 0:
-			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%"
+			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
 		all_pairs += [_ for _ in naive_frame_reader(file)]
 	random.shuffle(all_pairs)
 
@@ -224,10 +229,8 @@ if '__main__' == __name__:
 	data_cache, label_cache, label_lookup = get_label_lookup()
 	num_classes = len(label_lookup)
 	print "Classes:",num_classes
-	gen_batches(data_cache, label_cache, label_lookup)
-	data_cache = None
-	label_cache = None
-	label_lookup = None
+	
+	#batcher = naive_batcher(data_cache, label_cache, label_lookup)
 
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, num_classes])
@@ -251,7 +254,7 @@ if '__main__' == __name__:
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			for j,batch in enumerate(naive_batcher()):
+			for j,batch in enumerate(naive_batcher(data_cache, label_cache, label_lookup)):
 				if j == 0:
 					test_batch = batch
 					continue
