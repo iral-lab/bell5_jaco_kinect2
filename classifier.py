@@ -1,4 +1,4 @@
-import sys, os, random, cPickle, time, code, math, gzip
+import sys, os, random, cPickle, time, code, math, gzip, glob
 import tensorflow as tf
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
@@ -10,7 +10,10 @@ N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
+SHORT_DATA_CACHE = '_short_classifier_input.pickle'
 DATA_CACHE = '_classifier_input.pickle'
+BATCH_CACHE_STEM = '_classifier_batches.out_'
+
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 def get_label(lengths_line):
@@ -37,76 +40,66 @@ def _pad_label(lengths):
 	return new
 
 
-ACTUAL_DATA_CACHE = None
-ALREADY_MADE_BATCHES = None
-def naive_batcher(label_lookup = None):
-	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
-		print "No data cache, please generate first"
-		exit()
-	global ACTUAL_DATA_CACHE
-	global ALREADY_MADE_BATCHES
+def naive_batcher():
+	for file in sorted(glob.glob(BATCH_CACHE_STEM+"*")):
+		# print file
+		yield cPickle.load(open(file, 'r'))
 
-	if not ALREADY_MADE_BATCHES:
+def gen_batches(data_cache, label_cache, label_lookup):
+	so_far = 0
+	size = len(data_cache)
 
-		if not label_lookup:
-			label_lookup = get_label_lookup()
-		
-		so_far = 0
-		size = len(ACTUAL_DATA_CACHE[0])
+	batch_size = int(math.ceil(1.0 * size / N_BATCHES));
 
-		batch_size = int(math.ceil(1.0 * size / N_BATCHES));
+	print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
+	batch_i = 0
+	while so_far < size:
+		data = data_cache[so_far:so_far + batch_size]
+		labels = label_cache[so_far:so_far + batch_size]
 
-		print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
+		for i,label in enumerate(labels):
+			labels[i] = [0] * len(label_lookup)
+			labels[i][label_lookup[tuple(label)]] = 1
 
-		ALREADY_MADE_BATCHES = []
-		while so_far < size:
-			data = ACTUAL_DATA_CACHE[0][so_far:so_far + batch_size]
-			labels = ACTUAL_DATA_CACHE[1][so_far:so_far + batch_size]
+		with open(BATCH_CACHE_STEM + str(('%0'+str(len(str(N_BATCHES)))+'d') % batch_i), 'w') as handle:
+			cPickle.dump( (data,labels), handle )
+		batch_i += 1
+		so_far += batch_size
 
-			for i,label in enumerate(labels):
-				labels[i] = [0] * len(label_lookup)
-				labels[i][label_lookup[tuple(label)]] = 1
-
-			ALREADY_MADE_BATCHES.append((data, labels))
-			so_far += batch_size
-
-	for data,labels in ALREADY_MADE_BATCHES:
-		yield (data, labels)
 
 def get_label_lookup():
 	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
-	global ACTUAL_DATA_CACHE
 
-	if not ACTUAL_DATA_CACHE:
-		load_from = DATA_CACHE
-		if not os.path.exists(COMPRESSED_DATA_CACHE) and not os.path.exists(DATA_CACHE):
-			print "No cache file available. Please generate it first"
-			exit()
+	load_from = DATA_CACHE
+	if not os.path.exists(COMPRESSED_DATA_CACHE) and not os.path.exists(DATA_CACHE):
+		print "No cache file available. Please generate it first"
+		exit()
 
-		handle = None
-		if not os.path.exists(DATA_CACHE):
-			print "Loading from compressed data cache, will take longer. Consider decompressing with zcat"
-			load_from = COMPRESSED_DATA_CACHE
-			handle = gzip.GzipFile(load_from, 'r')
-		else:
-			print "Loading from decompressed data cache"
-			handle = open(load_from, 'r')
+	handle = None
+	if not os.path.exists(DATA_CACHE):
+		print "Loading from compressed data cache, will take longer."
+		print "Consider decompressing with 'zcat",COMPRESSED_DATA_CACHE," > ",DATA_CACHE,"'"
+		load_from = COMPRESSED_DATA_CACHE
+		handle = gzip.GzipFile(load_from, 'r')
+	else:
+		print "Loading from decompressed data cache"
+		handle = open(load_from, 'r')
 
-		start = time.time()
-		ACTUAL_DATA_CACHE = cPickle.load(handle)
-		handle.close()
-		print "loaded",len(ACTUAL_DATA_CACHE[0]),"pairs in",int(time.time() - start),"seconds"
+	start = time.time()
+	data_cache,label_cache = cPickle.load(handle)
+	handle.close()
+	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
 
 	lookup = {}
 	labels_so_far = 0
-	for label_i,label in enumerate(ACTUAL_DATA_CACHE[1]):
+	for label_i,label in enumerate(label_cache):
 		label = tuple(label)
 		if not label in lookup:
 			lookup[label] = labels_so_far
 			labels_so_far += 1
-	return lookup
+	return (data_cache, label_cache, lookup)
 
 def gen_naive_datacache(files):
 	files = sorted(files)
@@ -162,8 +155,8 @@ def naive_frame_reader(file):
 			yield (skeleton_frame, label)
 
 
-def mlp_model(x, n_input, num_classes):
-	n_hidden_1 = n_hidden_2 = 100
+def mlp_model(x, n_input, num_classes, hidden_layers, nodes_per_layer):
+	n_hidden_1 = n_hidden_2 = nodes_per_layer
 	# Store layers weight & bias
 	weights = {
 		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
@@ -192,44 +185,68 @@ def init_weights(shape):
 
 if '__main__' == __name__:
 
+	DEFAULT_HIDDEN_LAYERS = 2
+	DEFAULT_NODES_PER_LAYER = 100
+
+	if '-h' in sys.argv or '--help' in sys.argv:
+		print "Usage: python", sys.argv[0]
+		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
+		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
+		exit()
+
+
 	if not os.path.exists(COMPRESSED_DATA_CACHE):	
 		input_files = os.listdir(INPUT_FOLDER)
 		gen_naive_datacache(input_files)
 		exit()
 	
+	hidden_layers = DEFAULT_HIDDEN_LAYERS
+	nodes_per_layer = DEFAULT_NODES_PER_LAYER
 
+	if len(sys.argv) == 3:
+		hidden_layers = int(sys.argv[1])
+		nodes_per_layer = int(sys.argv[2])
+
+	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 
 	class_length = MAX_LINKS+1
 	n_input = MAX_CENTROIDS * 3
 
 	learning_rate = 0.001
-
-	label_lookup = get_label_lookup()
+	
+	data_cache, label_cache, label_lookup = get_label_lookup()
 	num_classes = len(label_lookup)
 	print "Classes:",num_classes
+	gen_batches(data_cache, label_cache, label_lookup)
+	data_cache = None
+	label_cache = None
+	label_lookup = None
 
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, num_classes])
 
-	pred = mlp_model(X, n_input, num_classes)
+	pred = mlp_model(X, n_input, num_classes, hidden_layers, nodes_per_layer)
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 	cost_stats = []
 	accuracy_stats = []
 
+	overall_start = time.time()
+
+
 	with tf.Session() as sess:
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
-		first_batch = None
+		
 		correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 		for i in range(N_EPOCHS):
-			
-			for j,batch in enumerate(naive_batcher(label_lookup)):
-				
-				if not first_batch:
-					first_batch = batch
+			epoch_start = time.time()
+			test_batch = None
+			for j,batch in enumerate(naive_batcher()):
+				if j == 0:
+					test_batch = batch
 					continue
 
 				while len(cost_stats) <= j:
@@ -239,17 +256,20 @@ if '__main__' == __name__:
 				epoch_x,epoch_y = batch
 
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
-				accuracy_val = accuracy.eval({X: first_batch[0], Y: first_batch[1]})
-				print ">", i, j, "Cost:", c, "Accuracy:", accuracy_val
+				accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
+				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c, "Accuracy:", accuracy_val
 
 				cost_stats[j].append(c)
 				accuracy_stats[j].append(accuracy_val)
 
-	with open('tf_cost_'+str(int(time.time()))+".csv",'w') as handle:
+	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
+	os.makedirs(stats_folder)
+
+	with open(stats_folder+'tf_cost.csv', 'w') as handle:
 		to_write = [",".join([str(x) for x in line]) for line in cost_stats]
 		handle.write("\n".join(to_write)+"\n")
 
-	with open('tf_accuracy_'+str(int(time.time()))+".csv",'w') as handle:
+	with open(stats_folder+'tf_accuracy.csv', 'w') as handle:
 		to_write = [",".join([str(x) for x in line]) for line in accuracy_stats]
 		handle.write("\n".join(to_write)+"\n")
 

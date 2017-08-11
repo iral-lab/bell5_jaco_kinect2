@@ -5,3 +5,4 @@ attachment
 clouds/*.txt
 clouds/*.gz
 *.pyc
+run_stats/*
