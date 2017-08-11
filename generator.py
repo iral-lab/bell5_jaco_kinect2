@@ -17,12 +17,14 @@ LENGTHS_HEADER = "#Lengths#"
 
 MAX_CENTROIDS = 40
 
-NUM_THREADS = 1
+NUM_THREADS = 6
 
-LINK_COUNTS = [3] #[2,3,4,5,6]
+WRITE_OUT_CLOUD = False
+
+LINK_COUNTS = [2,3,4,5,6]
 MAX_LINKS = 8
 PERMUTATIONS = 100
-ROBOTS_PER_COUNT = 1000
+ROBOTS_PER_COUNT = 10
 
 DENSITY_STEP = 0.1 * UNIT_SCALAR
 DIMENSIONS = 3
@@ -446,7 +448,7 @@ def compute_cloud(input):
 	for permutation_i in range(PERMUTATIONS):
 		# print "_______________"
 		if permutation_i % 100 == 0:
-			print link_count, permutation_i
+			print link_count, permutation_i, int(time.time())
 		
 		
 		if not vertices:
@@ -562,8 +564,9 @@ def compute_cloud(input):
 		to_write = [",".join([str(x) for x in point]) for point in skeleton]
 		this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
 		
-		to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
-		this_permutation_out.append("\n".join(to_write)+"\n")
+		if WRITE_OUT_CLOUD:
+			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
+			this_permutation_out.append("\n".join(to_write)+"\n")
 		
 	with open(OUTPUT_FOLDER+outfile,'a') as handle:
 		handle.write("".join(this_permutation_out))
