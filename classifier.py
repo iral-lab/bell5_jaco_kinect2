@@ -109,9 +109,9 @@ def gen_naive_datacache(files):
 	labels += [pair[1] for pair in all_pairs]
 
 	# code.interact(local=dict(globals(), **locals())) 
-	print "Saving",len(data),"pairs"
+	print round(time.time() - start,2), "Saving",len(data),"pairs"
 	cPickle.dump([data,labels], gzip.GzipFile(DATA_CACHE,'w'))
-	print "Dumped"
+	print round(time.time() - start,2), "Dumped"
 		
 
 def naive_frame_reader(file):
