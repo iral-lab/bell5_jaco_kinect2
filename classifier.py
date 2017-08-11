@@ -10,7 +10,7 @@ N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
-SHORT_DATA_CACHE = '_short_classifier_input.pickle'
+SHORT_DATA_CACHE = '_classifier_short_input.pickle.gz'
 DATA_CACHE = '_classifier_input.pickle'
 BATCH_CACHE_STEM = '_classifier_batches.out_'
 
@@ -42,8 +42,10 @@ def _pad_label(lengths):
 
 def naive_batcher():
 	for file in sorted(glob.glob(BATCH_CACHE_STEM+"*")):
-		# print file
-		yield cPickle.load(open(file, 'r'))
+		print file
+		batch = cPickle.load(open(file, 'r'))
+		print "\tloaded"
+		yield batch
 
 def gen_batches(data_cache, label_cache, label_lookup):
 	so_far = 0
@@ -54,6 +56,11 @@ def gen_batches(data_cache, label_cache, label_lookup):
 	print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
 	batch_i = 0
 	while so_far < size:
+		print "\t",batch_i,"of",N_BATCHES
+		outfile = BATCH_CACHE_STEM + str(('%0'+str(len(str(N_BATCHES)))+'d') % batch_i)
+		if os.path.exists(outfile):
+			continue
+
 		data = data_cache[so_far:so_far + batch_size]
 		labels = label_cache[so_far:so_far + batch_size]
 
@@ -61,7 +68,7 @@ def gen_batches(data_cache, label_cache, label_lookup):
 			labels[i] = [0] * len(label_lookup)
 			labels[i][label_lookup[tuple(label)]] = 1
 
-		with open(BATCH_CACHE_STEM + str(('%0'+str(len(str(N_BATCHES)))+'d') % batch_i), 'w') as handle:
+		with open(outfile, 'w') as handle:
 			cPickle.dump( (data,labels), handle )
 		batch_i += 1
 		so_far += batch_size
