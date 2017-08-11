@@ -142,7 +142,18 @@ def naive_frame_reader(file):
 			yield (skeleton_frame, label)
 
 
-def mlp_model(x, weights, biases):
+def mlp_model(x):
+	# Store layers weight & bias
+	weights = {
+		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+		'out': tf.Variable(tf.random_normal([n_hidden_2, num_classes]))
+	}
+	biases = {
+		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+		'out': tf.Variable(tf.random_normal([num_classes]))
+	}
 	# Hidden layer with RELU activation
 	layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
 	layer_1 = tf.nn.relu(layer_1)
@@ -166,6 +177,7 @@ if '__main__' == __name__:
 		exit()
 	
 
+
 	class_length = MAX_LINKS+1
 	n_input = MAX_CENTROIDS * 3
 
@@ -179,19 +191,9 @@ if '__main__' == __name__:
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, num_classes])
 
-	# Store layers weight & bias
-	weights = {
-		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([n_hidden_2, num_classes]))
-	}
-	biases = {
-		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([num_classes]))
-	}
+	
 
-	pred = mlp_model(X, weights, biases)
+	pred = mlp_model(X)
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
