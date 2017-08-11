@@ -1,11 +1,12 @@
-import sys, os, random, cPickle, time
+import sys, os, random, cPickle, time, code, math
 import tensorflow as tf
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
+
+#code.interact(local=dict(globals(), **locals())) 
 
 N_EPOCHS = 10
 N_BATCHES = 10
 
-BATCH_SIZE = 10000
 
 INPUT_FOLDER = 'clouds/'
 
@@ -36,28 +37,40 @@ def _pad_label(lengths):
 
 
 ACTUAL_DATA_CACHE = None
+ALREADY_MADE_BATCHES = None
 def naive_batcher(label_lookup = None):
 	if not os.path.exists(DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
 	global ACTUAL_DATA_CACHE
+	global ALREADY_MADE_BATCHES
 
-	if not label_lookup:
-		label_lookup = get_label_lookup()
-	
-	so_far = 0
-	size = len(ACTUAL_DATA_CACHE[0])
+	if not ALREADY_MADE_BATCHES:
 
-	while so_far < size:
-		data = ACTUAL_DATA_CACHE[0][so_far:so_far + BATCH_SIZE]
-		labels = ACTUAL_DATA_CACHE[1][so_far:so_far + BATCH_SIZE]
+		if not label_lookup:
+			label_lookup = get_label_lookup()
+		
+		so_far = 0
+		size = len(ACTUAL_DATA_CACHE[0])
 
-		for i,label in enumerate(labels):
-			labels[i] = [0] * len(label_lookup)
-			labels[i][label_lookup[tuple(label)]] = 1
+		batch_size = int(math.ceil(1.0 * size / N_BATCHES));
 
+		print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
+
+		ALREADY_MADE_BATCHES = []
+		while so_far < size:
+			data = ACTUAL_DATA_CACHE[0][so_far:so_far + batch_size]
+			labels = ACTUAL_DATA_CACHE[1][so_far:so_far + batch_size]
+
+			for i,label in enumerate(labels):
+				labels[i] = [0] * len(label_lookup)
+				labels[i][label_lookup[tuple(label)]] = 1
+
+			ALREADY_MADE_BATCHES.append((data, labels))
+			so_far += batch_size
+
+	for data,labels in ALREADY_MADE_BATCHES:
 		yield (data, labels)
-		so_far += BATCH_SIZE
 
 def get_label_lookup():
 	if not os.path.exists(DATA_CACHE):
@@ -182,36 +195,42 @@ if '__main__' == __name__:
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-	run_stats = []
+	cost_stats = []
+	accuracy_stats = []
 
 	with tf.Session() as sess:
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
 		first_batch = None
+		correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
+		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 		for i in range(N_EPOCHS):
 			
 			for j,batch in enumerate(naive_batcher(label_lookup)):
+				
+				if not first_batch:
+					first_batch = batch
+					continue
+
+				while len(cost_stats) <= j:
+					cost_stats.append( [] )
+					accuracy_stats.append( [] )
+
 				epoch_x,epoch_y = batch
 
-				if len(run_stats) < j+1:
-					run_stats.append( [] )
-
-				if not first_batch:
-					first_batch = [epoch_x,epoch_y]
-				
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
-				print ">",i,j,c
-				run_stats[j].append(c)
+				accuracy_val = accuracy.eval({X: first_batch[0], Y: first_batch[1]})
+				print ">", i, j, "Cost:", c, "Accuracy:", accuracy_val
 
-		if first_batch:
-			# Test model
-			correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
-			# Calculate accuracy
-			accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-			print("Accuracy:", accuracy.eval({X: first_batch[0], Y: first_batch[1]}))
+				cost_stats[j].append(c)
+				accuracy_stats[j].append(accuracy_val)
 
-	with open('tf_score_'+str(int(time.time()))+".csv",'w') as handle:
-		to_write = [",".join([str(x) for x in line]) for line in run_stats]
+	with open('tf_cost_'+str(int(time.time()))+".csv",'w') as handle:
+		to_write = [",".join([str(x) for x in line]) for line in cost_stats]
+		handle.write("\n".join(to_write)+"\n")
+
+	with open('tf_accuracy_'+str(int(time.time()))+".csv",'w') as handle:
+		to_write = [",".join([str(x) for x in line]) for line in accuracy_stats]
 		handle.write("\n".join(to_write)+"\n")
 
 
