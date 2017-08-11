@@ -10,7 +10,8 @@ N_BATCHES = 10
 
 INPUT_FOLDER = 'clouds/'
 
-DATA_CACHE = '_classifier_input.pickle.gz'
+DATA_CACHE = '_classifier_input.pickle'
+COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 def get_label(lengths_line):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
@@ -39,7 +40,7 @@ def _pad_label(lengths):
 ACTUAL_DATA_CACHE = None
 ALREADY_MADE_BATCHES = None
 def naive_batcher(label_lookup = None):
-	if not os.path.exists(DATA_CACHE):
+	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
 	global ACTUAL_DATA_CACHE
@@ -73,15 +74,29 @@ def naive_batcher(label_lookup = None):
 		yield (data, labels)
 
 def get_label_lookup():
-	if not os.path.exists(DATA_CACHE):
+	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
 	global ACTUAL_DATA_CACHE
 
 	if not ACTUAL_DATA_CACHE:
-		print "loading"
+		load_from = DATA_CACHE
+		if not os.path.exists(COMPRESSED_DATA_CACHE) and not os.path.exists(DATA_CACHE):
+			print "No cache file available. Please generate it first"
+			exit()
+
+		handle = None
+		if not os.path.exists(DATA_CACHE):
+			print "Loading from compressed data cache, will take longer. Consider decompressing with zcat"
+			load_from = COMPRESSED_DATA_CACHE
+			handle = gzip.GzipFile(load_from, 'r')
+		else:
+			print "Loading from decompressed data cache"
+			handle = open(load_from, 'r')
+
 		start = time.time()
-		ACTUAL_DATA_CACHE = cPickle.load(gzip.GzipFile(DATA_CACHE,'r'))
+		ACTUAL_DATA_CACHE = cPickle.load(handle)
+		handle.close()
 		print "loaded",len(ACTUAL_DATA_CACHE[0]),"pairs in",int(time.time() - start),"seconds"
 
 	lookup = {}
@@ -110,7 +125,7 @@ def gen_naive_datacache(files):
 
 	# code.interact(local=dict(globals(), **locals())) 
 	print round(time.time() - start,2), "Saving",len(data),"pairs"
-	cPickle.dump([data,labels], gzip.GzipFile(DATA_CACHE,'w'))
+	cPickle.dump([data,labels], gzip.GzipFile(COMPRESSED_DATA_CACHE,'w'))
 	print round(time.time() - start,2), "Dumped"
 		
 
@@ -177,7 +192,7 @@ def init_weights(shape):
 
 if '__main__' == __name__:
 
-	if not os.path.exists(DATA_CACHE):	
+	if not os.path.exists(COMPRESSED_DATA_CACHE):	
 		input_files = os.listdir(INPUT_FOLDER)
 		gen_naive_datacache(input_files)
 		exit()
