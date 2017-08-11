@@ -1,4 +1,4 @@
-import sys, random, math, code, os, multiprocessing, copy, time
+import sys, random, math, code, os, multiprocessing, copy, time, gzip
 import numpy as np
 from sklearn.cluster import KMeans
 
@@ -568,7 +568,7 @@ def compute_cloud(input):
 			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
 			this_permutation_out.append("\n".join(to_write)+"\n")
 		
-	with open(OUTPUT_FOLDER+outfile,'a') as handle:
+	with gzip.GzipFile(OUTPUT_FOLDER+outfile+".gz",'a') as handle:
 		handle.write("".join(this_permutation_out))
 
 def get_skeleton_points(line):
