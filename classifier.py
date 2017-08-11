@@ -142,7 +142,8 @@ def naive_frame_reader(file):
 			yield (skeleton_frame, label)
 
 
-def mlp_model(x):
+def mlp_model(x, n_input, num_classes):
+	n_hidden_1 = n_hidden_2 = 100
 	# Store layers weight & bias
 	weights = {
 		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
@@ -186,14 +187,11 @@ if '__main__' == __name__:
 	label_lookup = get_label_lookup()
 	num_classes = len(label_lookup)
 	print "Classes:",num_classes
-	n_hidden_1 = n_hidden_2 = 100
 
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, num_classes])
 
-	
-
-	pred = mlp_model(X)
+	pred = mlp_model(X, n_input, num_classes)
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
