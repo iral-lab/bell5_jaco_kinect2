@@ -7,6 +7,7 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 N_EPOCHS = 40
 N_BATCHES = 10
 
+MAX_FILES_TESTING = 100 # 
 
 INPUT_FOLDER = 'clouds/'
 
@@ -41,10 +42,10 @@ def _pad_label(lengths):
 
 
 BATCH_CACHE = None
-def naive_batcher(data_cache, label_cache, label_lookup):
+def naive_batcher(data_cache, label_cache):
 	global BATCH_CACHE
 
-	use_cache = False
+	use_cache = True
 
 	if not BATCH_CACHE or len(BATCH_CACHE) == 0:
 		BATCH_CACHE = []
@@ -62,10 +63,6 @@ def naive_batcher(data_cache, label_cache, label_lookup):
 			data = data_cache[so_far:so_far + batch_size]
 			labels = label_cache[so_far:so_far + batch_size]
 
-			for i,label in enumerate(labels):
-				labels[i] = [0] * len(label_lookup)
-				labels[i][label_lookup[tuple(label)]] = 1
-
 			batch = (data,labels)
 			if use_cache:
 				BATCH_CACHE.append( batch )
@@ -74,12 +71,12 @@ def naive_batcher(data_cache, label_cache, label_lookup):
 
 			batch_i += 1
 			so_far += batch_size
-	if use_cache:
+	if use_cache and BATCH_CACHE:
 		for batch in BATCH_CACHE:
 			yield batch
 
 
-def get_label_lookup():
+def load_data_cache():
 	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
@@ -104,14 +101,7 @@ def get_label_lookup():
 	handle.close()
 	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
 
-	lookup = {}
-	labels_so_far = 0
-	for label_i,label in enumerate(label_cache):
-		label = tuple(label)
-		if not label in lookup:
-			lookup[label] = labels_so_far
-			labels_so_far += 1
-	return (data_cache, label_cache, lookup)
+	return (data_cache, label_cache)
 
 def gen_naive_datacache(files):
 	files = sorted(files)
@@ -119,10 +109,15 @@ def gen_naive_datacache(files):
 	labels = []
 	all_pairs = []
 	start = time.time()
+	# files = random.shuffle(files)
+
 	for i,file in enumerate(files):
+		print file
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
 		all_pairs += [_ for _ in naive_frame_reader(file)]
+		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
+			break
 	random.shuffle(all_pairs)
 
 	data += [pair[0] for pair in all_pairs]
@@ -167,18 +162,18 @@ def naive_frame_reader(file):
 			yield (skeleton_frame, label)
 
 
-def mlp_model(x, n_input, num_classes, hidden_layers, nodes_per_layer):
+def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	n_hidden_1 = n_hidden_2 = nodes_per_layer
 	# Store layers weight & bias
 	weights = {
 		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
 		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([n_hidden_2, num_classes]))
+		'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
 	}
 	biases = {
 		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
 		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([num_classes]))
+		'out': tf.Variable(tf.random_normal([class_length]))
 	}
 	# Hidden layer with RELU activation
 	layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
@@ -207,7 +202,8 @@ if '__main__' == __name__:
 		exit()
 
 
-	if not os.path.exists(COMPRESSED_DATA_CACHE):	
+	if not os.path.exists(COMPRESSED_DATA_CACHE):
+		print "Generating data cache"
 		input_files = os.listdir(INPUT_FOLDER)
 		gen_naive_datacache(input_files)
 		exit()
@@ -226,16 +222,16 @@ if '__main__' == __name__:
 
 	learning_rate = 0.001
 	
-	data_cache, label_cache, label_lookup = get_label_lookup()
-	num_classes = len(label_lookup)
-	print "Classes:",num_classes
+	data_cache, label_cache = load_data_cache()
+
+	# code.interact(local=dict(globals(), **locals())) 
+	print "Class length:",class_length
 	
-	#batcher = naive_batcher(data_cache, label_cache, label_lookup)
 
 	X = tf.placeholder('float', [None, n_input])
-	Y = tf.placeholder('float', [None, num_classes])
+	Y = tf.placeholder('float', [None, class_length])
 
-	pred = mlp_model(X, n_input, num_classes, hidden_layers, nodes_per_layer)
+	pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -254,7 +250,7 @@ if '__main__' == __name__:
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			for j,batch in enumerate(naive_batcher(data_cache, label_cache, label_lookup)):
+			for j,batch in enumerate(naive_batcher(data_cache, label_cache)):
 				if j == 0:
 					test_batch = batch
 					continue
@@ -264,7 +260,7 @@ if '__main__' == __name__:
 					accuracy_stats.append( [] )
 
 				epoch_x,epoch_y = batch
-
+				# code.interact(local=dict(globals(), **locals())) 
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 				accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c, "Accuracy:", accuracy_val
