@@ -185,7 +185,11 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
 	return out_layer
 
-	
+
+def custom_cost_function(input):
+	print input
+	return [0.1]
+
 
 def init_weights(shape):
 	return tf.Variable(tf.random_normal(shape, stddev=0.01))
@@ -217,7 +221,7 @@ if '__main__' == __name__:
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 
-	class_length = MAX_LINKS+1
+	class_length = MAX_LINKS + 1
 	n_input = MAX_CENTROIDS * 3
 
 	learning_rate = 0.001
@@ -230,11 +234,15 @@ if '__main__' == __name__:
 
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, class_length])
-
 	pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+
+	#cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
+	# cost = tf.py_func(custom_cost_function, [pred, Y], [tf.float32])
 	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
+	
+	print "Trainable:", tf.trainable_variables()
+	
 	cost_stats = []
 	accuracy_stats = []
 
@@ -260,10 +268,13 @@ if '__main__' == __name__:
 					accuracy_stats.append( [] )
 
 				epoch_x,epoch_y = batch
-				# code.interact(local=dict(globals(), **locals())) 
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 				accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c, "Accuracy:", accuracy_val
+				# print test_batch[0][0]
+				# print test_batch[1][0]
+				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
+				# code.interact(local=dict(globals(), **locals())) 
 
 				cost_stats[j].append(c)
 				accuracy_stats[j].append(accuracy_val)
