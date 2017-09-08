@@ -55,6 +55,12 @@ penalty = l2_distance + wrong_link_counts
 
 total_penalty = tf.reduce_sum(penalty)
 
+considered_correct = link_count_importance * 0.1
+
+accurate_predictions = tf.cast(tf.less(penalty, considered_correct), tf.int32)
+
+accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(Y)[0], tf.float32)
+
 
 with tf.Session() as sess: # create a session to evaluate the symbolic expressions
 	
@@ -84,6 +90,9 @@ with tf.Session() as sess: # create a session to evaluate the symbolic expressio
 	print "\npenalty:\n", sess.run(penalty, feed_dict = {X: pred, Y: epoch_y})
 	print "\npenalty sum:\n", sess.run(total_penalty, feed_dict = {X: pred, Y: epoch_y})
 	
+	print "\naccurate predictions (penalty under",considered_correct,"):\n", sess.run(accurate_predictions, feed_dict = {X: pred, Y: epoch_y})
+	
+	print "\naccuracy %:\n", sess.run(accuracy_ratio, feed_dict = {X: pred, Y: epoch_y})
 	
 	
 	

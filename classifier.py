@@ -11,7 +11,7 @@ N_BATCHES = 10
 DEFAULT_HIDDEN_LAYERS = 2
 DEFAULT_NODES_PER_LAYER = 100
 
-MAX_FILES_TESTING = 100 #None #100
+MAX_FILES_TESTING = None #100
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 
@@ -118,7 +118,7 @@ def gen_naive_datacache(files):
 	# files = random.shuffle(files)
 
 	for i,file in enumerate(files):
-		print file
+		# print file
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
 		all_pairs += [_ for _ in naive_frame_reader(file)]
@@ -210,8 +210,10 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	return out_layer
 
 
-def get_cost(pred, y, class_length):
-	link_count_importance = 100000
+
+LINK_COUNT_WEIGHTING = 100000
+def get_cost(pred, y, class_length, reduced = True):
+
 
 	correct_noop = tf.transpose(tf.transpose(y))
 	pred_noop = tf.transpose(tf.transpose(pred))
@@ -238,13 +240,23 @@ def get_cost(pred, y, class_length):
 
 	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
 
-	wrong_link_counts = tf.cast(link_count_importance * tf.abs(correct_link_counts - predicted_link_counts), tf.float32)
+	wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING * tf.abs(correct_link_counts - predicted_link_counts), tf.float32)
 
 	penalty = l2_distance + wrong_link_counts
 	
 	penalty_sum = tf.reduce_sum(penalty)
 
-	return penalty_sum
+	return penalty_sum if reduced else penalty
+	
+def get_accuracy(pred, Y, class_length):
+	penalties = get_cost(pred, Y, class_length, False)
+	considered_correct = LINK_COUNT_WEIGHTING * 0.1
+	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
+	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(Y)[0], tf.float32)
+	
+	return accuracy_ratio
+	
+	
 
 def init_weights(shape):
 	return tf.Variable(tf.random_normal(shape, stddev=0.01))
@@ -308,8 +320,7 @@ if '__main__' == __name__:
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
 		
-		correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
-		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+		accuracy = get_accuracy(pred, Y, class_length)
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
