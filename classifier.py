@@ -1,5 +1,6 @@
 import sys, os, random, cPickle, time, code, math, gzip, glob
 import tensorflow as tf
+from tensorflow.python import debug as tf_debug
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
 #code.interact(local=dict(globals(), **locals())) 
@@ -7,7 +8,10 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 N_EPOCHS = 40
 N_BATCHES = 10
 
-MAX_FILES_TESTING = None #100
+DEFAULT_HIDDEN_LAYERS = 2
+DEFAULT_NODES_PER_LAYER = 100
+
+MAX_FILES_TESTING = 100 #None #100
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 
@@ -168,52 +172,86 @@ def naive_frame_reader(file):
 
 def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	n_hidden_1 = n_hidden_2 = nodes_per_layer
+	out_layer = None
+	
 	# Store layers weight & bias
-	weights = {
-		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
-	}
-	biases = {
-		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([class_length]))
-	}
-	# Hidden layer with RELU activation
-	layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-	layer_1 = tf.nn.relu(layer_1)
-	# Hidden layer with RELU activation
-	layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
-	layer_2 = tf.nn.relu(layer_2)
-	# Output layer with linear activation
-	out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
+	if False:
+	
+		weights = {
+			'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+			'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+			'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
+		}
+		biases = {
+			'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+			'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+			'out': tf.Variable(tf.random_normal([class_length]))
+		}
+		# Hidden layer with RELU activation
+		layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
+		layer_1 = tf.nn.relu(layer_1)
+		# Hidden layer with RELU activation
+		layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
+		layer_2 = tf.nn.relu(layer_2)
+		# Output layer with linear activation
+		out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
+		
+	else:
+		# super simple one
+		weights = {
+			'out': tf.Variable(tf.random_normal([n_input, class_length]))
+		}
+		biases = {
+			'out': tf.Variable(tf.random_normal([class_length]))
+		}
+		# Output layer with linear activation
+		out_layer = tf.matmul(x, weights['out']) + biases['out']
+	
 	return out_layer
 
 
-def custom_cost_function(input):
-	print input
-	return [0.1]
+def get_cost(pred, y, class_length):
+	link_count_importance = 100000
 
-def get_cost(pred, Y):
-	link_count_importance = 1000
-	correct_link_counts = tf.slice(Y, [0], [1])
-	predicted_link_counts = tf.slice(pred, [0], [1])
-	prediction_correctness = tf.abs(tf.sub(correct_link_counts, predicted_link_counts))
-	scaled_correctness = tf.scalar_mul(link_count_importance, prediction_correctness)
-	correct_link_lengths = tf.slice(Y, [1], correct_link_counts)
-	predicted_link_lengths = tf.slice(pred, [1], correct_link_counts)
-	euclid_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.sub(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
-	final_cost = tf.add(scaled_correctness, euclid_distance)
-	return final_cost
+	correct_noop = tf.transpose(tf.transpose(y))
+	pred_noop = tf.transpose(tf.transpose(pred))
+
+	correct_transpose = tf.transpose(y)
+	pred_transpose = tf.transpose(pred)
+
+	correct_link_counts = tf.cast(tf.gather(correct_transpose, 0), tf.int32)
+	predicted_link_counts = tf.cast(tf.gather(pred_transpose, 0), tf.int32)
+
+
+	correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
+
+	shift_mask = tf.cast(tf.zeros([tf.shape(correct_transpose)[1],1]), tf.int32)
+
+	shifted_correct_length_mask = tf.cast(tf.concat([shift_mask, correct_length_mask], 1), tf.float32)
+	reshaped_shifted_correct_length_mask = tf.reshape(shifted_correct_length_mask, [-1])
+
+	reshaped_correct = tf.reshape(y, [-1])
+	reshaped_pred = tf.reshape(pred, [-1])
+
+	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(Y))
+	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_pred, tf.shape(Y))
+
+	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
+
+	wrong_link_counts = tf.cast(link_count_importance * tf.abs(correct_link_counts - predicted_link_counts), tf.float32)
+
+	penalty = l2_distance + wrong_link_counts
+	
+	penalty_sum = tf.reduce_sum(penalty)
+
+	return penalty_sum
 
 def init_weights(shape):
 	return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
 if '__main__' == __name__:
 
-	DEFAULT_HIDDEN_LAYERS = 2
-	DEFAULT_NODES_PER_LAYER = 100
-
+	
 	if '-h' in sys.argv or '--help' in sys.argv:
 		print "Usage: python", sys.argv[0]
 		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
@@ -254,7 +292,7 @@ if '__main__' == __name__:
 	# cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
 	# cost = tf.py_func(custom_cost_function, [pred, Y], [tf.float32])
 	# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
-	cost = get_cost(pred, Y)
+	cost = get_cost(pred, Y, class_length)
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 	
 	print "Trainable:", tf.trainable_variables()
@@ -266,6 +304,7 @@ if '__main__' == __name__:
 
 
 	with tf.Session() as sess:
+		# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
 		
