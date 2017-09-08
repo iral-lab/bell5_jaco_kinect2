@@ -175,7 +175,7 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	out_layer = None
 	
 	# Store layers weight & bias
-	if False:
+	if True:
 	
 		weights = {
 			'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
@@ -211,18 +211,18 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 
 
 
-LINK_COUNT_WEIGHTING = 100000
-def get_cost(pred, y, class_length, reduced = True):
+LINK_COUNT_WEIGHTING = 100
+def get_cost(prediction, y, class_length, reduced = True):
 
 
 	correct_noop = tf.transpose(tf.transpose(y))
-	pred_noop = tf.transpose(tf.transpose(pred))
+	prediction_noop = tf.transpose(tf.transpose(prediction))
 
 	correct_transpose = tf.transpose(y)
-	pred_transpose = tf.transpose(pred)
+	prediction_transpose = tf.transpose(prediction)
 
 	correct_link_counts = tf.cast(tf.gather(correct_transpose, 0), tf.int32)
-	predicted_link_counts = tf.cast(tf.gather(pred_transpose, 0), tf.int32)
+	predicted_link_counts = tf.cast(tf.gather(prediction_transpose, 0), tf.int32)
 
 
 	correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
@@ -233,10 +233,10 @@ def get_cost(pred, y, class_length, reduced = True):
 	reshaped_shifted_correct_length_mask = tf.reshape(shifted_correct_length_mask, [-1])
 
 	reshaped_correct = tf.reshape(y, [-1])
-	reshaped_pred = tf.reshape(pred, [-1])
+	reshaped_prediction = tf.reshape(prediction, [-1])
 
 	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(Y))
-	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_pred, tf.shape(Y))
+	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(Y))
 
 	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
 
@@ -248,13 +248,13 @@ def get_cost(pred, y, class_length, reduced = True):
 
 	return penalty_sum if reduced else penalty
 	
-def get_accuracy(pred, Y, class_length):
-	penalties = get_cost(pred, Y, class_length, False)
-	considered_correct = LINK_COUNT_WEIGHTING * 0.1
+def get_accuracy(prediction, y, class_length):
+	penalties = get_cost(prediction, y, class_length, False)
+	considered_correct = 100 #LINK_COUNT_WEIGHTING * 0.001
 	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
-	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(Y)[0], tf.float32)
+	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(y)[0], tf.float32)
 	
-	return accuracy_ratio
+	return accurate_predictions
 	
 	
 
@@ -320,6 +320,8 @@ if '__main__' == __name__:
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
 		
+		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
+		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 		accuracy = get_accuracy(pred, Y, class_length)
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
@@ -340,7 +342,25 @@ if '__main__' == __name__:
 				# print test_batch[0][0]
 				# print test_batch[1][0]
 				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
-				# code.interact(local=dict(globals(), **locals())) 
+				# code.interact(local=dict(globals(), **locals()))
+				# print accuracy_val.tolist()
+				lst = accuracy_val.tolist()
+				if 1 in lst:
+					index = lst.index(1)
+					print index
+					print test_batch[0][index]
+					print test_batch[1][index]
+					print pred.eval(feed_dict = {X:[test_batch[0][index]]}).tolist()
+					print accuracy.eval({X: [test_batch[0][index]], Y: [test_batch[1][index]]})
+					print sess.run(cost, feed_dict = {X:[test_batch[0][index]], Y:[test_batch[1][index]]})
+					
+					
+					#print sess.run(cost, feed_dict = {X:[[-2821, 4738, 744, -3113, 1327, -1298, -1438, 5478, -2501, -2012, -743, -760, -2890, 2115, -1505, -3247, 356, 727, -1942, 5654, -799, -2177, 3839, -1989, -264, -245, -278, -3329, -642, -288, -1004, 6470, -2854, -2457, 5205, 13, -1437, 6330, -2332, -1133, -459, -554, -1844, 4634, -2280, -3142, 4265, 1481, -2767, -1004, -983, -1634, 6073, -1474, -2505, 2915, -1758, -3466, 508, -403, -3229, -70, 169, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], Y: [[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]], Y:[[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]]})
+					
+					#print accuracy.eval({X: [[-2821, 4738, 744, -3113, 1327, -1298, -1438, 5478, -2501, -2012, -743, -760, -2890, 2115, -1505, -3247, 356, 727, -1942, 5654, -799, -2177, 3839, -1989, -264, -245, -278, -3329, -642, -288, -1004, 6470, -2854, -2457, 5205, 13, -1437, 6330, -2332, -1133, -459, -554, -1844, 4634, -2280, -3142, 4265, 1481, -2767, -1004, -983, -1634, 6073, -1474, -2505, 2915, -1758, -3466, 508, -403, -3229, -70, 169, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], Y: [[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]]})
+					print
+					print
+					print
 
 				cost_stats[j].append(c)
 				accuracy_stats[j].append(accuracy_val)
