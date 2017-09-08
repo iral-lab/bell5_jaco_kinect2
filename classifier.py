@@ -238,10 +238,15 @@ def get_cost(prediction, y, class_length, reduced = True):
 	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(Y))
 	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(Y))
 
-	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
+	adjusted_correct_link_lengths = correct_link_lengths / 10000
+	adjusted_predicted_link_lengths = predicted_link_lengths / 10000
 
-	wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING * tf.abs(correct_link_counts - predicted_link_counts), tf.float32)
+	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(adjusted_correct_link_lengths, adjusted_predicted_link_lengths)), reduction_indices=1))
+	
+	abs_diff_counts = tf.abs(correct_link_counts - predicted_link_counts)
 
+	wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING, tf.float32) * tf.cast(abs_diff_counts, tf.float32)
+	
 	penalty = l2_distance + wrong_link_counts
 	
 	penalty_sum = tf.reduce_sum(penalty)
@@ -250,11 +255,11 @@ def get_cost(prediction, y, class_length, reduced = True):
 	
 def get_accuracy(prediction, y, class_length):
 	penalties = get_cost(prediction, y, class_length, False)
-	considered_correct = 100 #LINK_COUNT_WEIGHTING * 0.001
+	considered_correct = LINK_COUNT_WEIGHTING * 0.1
 	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
 	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(y)[0], tf.float32)
 	
-	return accurate_predictions
+	return accuracy_ratio
 	
 	
 
@@ -344,23 +349,19 @@ if '__main__' == __name__:
 				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
 				# code.interact(local=dict(globals(), **locals()))
 				# print accuracy_val.tolist()
-				lst = accuracy_val.tolist()
-				if 1 in lst:
-					index = lst.index(1)
-					print index
-					print test_batch[0][index]
-					print test_batch[1][index]
-					print pred.eval(feed_dict = {X:[test_batch[0][index]]}).tolist()
-					print accuracy.eval({X: [test_batch[0][index]], Y: [test_batch[1][index]]})
-					print sess.run(cost, feed_dict = {X:[test_batch[0][index]], Y:[test_batch[1][index]]})
-					
-					
-					#print sess.run(cost, feed_dict = {X:[[-2821, 4738, 744, -3113, 1327, -1298, -1438, 5478, -2501, -2012, -743, -760, -2890, 2115, -1505, -3247, 356, 727, -1942, 5654, -799, -2177, 3839, -1989, -264, -245, -278, -3329, -642, -288, -1004, 6470, -2854, -2457, 5205, 13, -1437, 6330, -2332, -1133, -459, -554, -1844, 4634, -2280, -3142, 4265, 1481, -2767, -1004, -983, -1634, 6073, -1474, -2505, 2915, -1758, -3466, 508, -403, -3229, -70, 169, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], Y: [[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]], Y:[[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]]})
-					
-					#print accuracy.eval({X: [[-2821, 4738, 744, -3113, 1327, -1298, -1438, 5478, -2501, -2012, -743, -760, -2890, 2115, -1505, -3247, 356, 727, -1942, 5654, -799, -2177, 3839, -1989, -264, -245, -278, -3329, -642, -288, -1004, 6470, -2854, -2457, 5205, 13, -1437, 6330, -2332, -1133, -459, -554, -1844, 4634, -2280, -3142, 4265, 1481, -2767, -1004, -983, -1634, 6073, -1474, -2505, 2915, -1758, -3466, 508, -403, -3229, -70, 169, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]], Y: [[5, 3500, 2500, 2000, 7000, 6000, 0.0, 0.0, 0.0]]})
-					print
-					print
-					print
+				# lst = accuracy_val.tolist()
+# 				if 1 in lst:
+# 					index = lst.index(1)
+# 					print index
+# 					print test_batch[0][index]
+# 					print test_batch[1][index]
+# 					print pred.eval(feed_dict = {X:[test_batch[0][index]]}).tolist()
+# 					print accuracy.eval({X: [test_batch[0][index]], Y: [test_batch[1][index]]})
+# 					print sess.run(cost, feed_dict = {X:[test_batch[0][index]], Y:[test_batch[1][index]]})
+#
+# 					print
+# 					print
+# 					print
 
 				cost_stats[j].append(c)
 				accuracy_stats[j].append(accuracy_val)
