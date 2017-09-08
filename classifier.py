@@ -7,9 +7,11 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 N_EPOCHS = 40
 N_BATCHES = 10
 
-MAX_FILES_TESTING = 100 # 
+MAX_FILES_TESTING = None #100
 
-INPUT_FOLDER = 'clouds/'
+RUNNING_ON_MAC = os.path.exists('./.on_mac')
+
+INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
 
 SHORT_DATA_CACHE = '_classifier_short_input.pickle'
 DATA_CACHE = '_classifier_input.pickle'
@@ -89,7 +91,7 @@ def load_data_cache():
 	handle = None
 	if not os.path.exists(DATA_CACHE):
 		print "Loading from compressed data cache, will take longer."
-		print "Consider decompressing with 'zcat",COMPRESSED_DATA_CACHE," > ",DATA_CACHE,"'"
+		print "Consider decompressing with ' zcat",COMPRESSED_DATA_CACHE," > ",DATA_CACHE,"'"
 		load_from = COMPRESSED_DATA_CACHE
 		handle = gzip.GzipFile(load_from, 'r')
 	else:
@@ -126,8 +128,10 @@ def gen_naive_datacache(files):
 	# code.interact(local=dict(globals(), **locals())) 
 	print round(time.time() - start,2), "Saving",len(data),"pairs"
 	cPickle.dump([data,labels], gzip.GzipFile(COMPRESSED_DATA_CACHE,'w'))
-	print round(time.time() - start,2), "Dumped"
-		
+	print round(time.time() - start,2), "Dumped to", COMPRESSED_DATA_CACHE
+	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
+	print round(time.time() - start,2), "Dumped to", DATA_CACHE
+	
 
 def naive_frame_reader(file):
 	with gzip.GzipFile(INPUT_FOLDER+file, 'r') as handle:
@@ -190,6 +194,17 @@ def custom_cost_function(input):
 	print input
 	return [0.1]
 
+def get_cost(pred, Y):
+	link_count_importance = 1000
+	correct_link_counts = tf.slice(Y, [0], [1])
+	predicted_link_counts = tf.slice(pred, [0], [1])
+	prediction_correctness = tf.abs(tf.sub(correct_link_counts, predicted_link_counts))
+	scaled_correctness = tf.scalar_mul(link_count_importance, prediction_correctness)
+	correct_link_lengths = tf.slice(Y, [1], correct_link_counts)
+	predicted_link_lengths = tf.slice(pred, [1], correct_link_counts)
+	euclid_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.sub(correct_link_lengths, predicted_link_lengths)), reduction_indices=1))
+	final_cost = tf.add(scaled_correctness, euclid_distance)
+	return final_cost
 
 def init_weights(shape):
 	return tf.Variable(tf.random_normal(shape, stddev=0.01))
@@ -207,7 +222,7 @@ if '__main__' == __name__:
 
 
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
-		print "Generating data cache"
+		print "Generating data cache from", INPUT_FOLDER
 		input_files = os.listdir(INPUT_FOLDER)
 		gen_naive_datacache(input_files)
 		exit()
@@ -236,9 +251,10 @@ if '__main__' == __name__:
 	Y = tf.placeholder('float', [None, class_length])
 	pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 
-	#cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
+	# cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
 	# cost = tf.py_func(custom_cost_function, [pred, Y], [tf.float32])
-	cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
+	# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
+	cost = get_cost(pred, Y)
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 	
 	print "Trainable:", tf.trainable_variables()
