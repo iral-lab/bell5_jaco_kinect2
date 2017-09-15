@@ -320,7 +320,6 @@ if '__main__' == __name__:
 	print "Trainable:", tf.trainable_variables()
 	
 	cost_stats = []
-	accuracy_stats = []
 
 	overall_start = time.time()
 
@@ -341,47 +340,26 @@ if '__main__' == __name__:
 					test_batch = batch
 					continue
 
-				while len(cost_stats) <= j:
-					cost_stats.append( [] )
-					accuracy_stats.append( [] )
-
 				epoch_x,epoch_y = batch
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 				# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
 				test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
-				# print test_batch[0][0]
-				# print test_batch[1][0]
-				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
-				# code.interact(local=dict(globals(), **locals()))
-				# print accuracy_val.tolist()
-				# lst = accuracy_val.tolist()
-# 				if 1 in lst:
-# 					index = lst.index(1)
-# 					print index
-# 					print test_batch[0][index]
-# 					print test_batch[1][index]
-# 					print pred.eval(feed_dict = {X:[test_batch[0][index]]}).tolist()
-# 					print accuracy.eval({X: [test_batch[0][index]], Y: [test_batch[1][index]]})
-# 					print sess.run(cost, feed_dict = {X:[test_batch[0][index]], Y:[test_batch[1][index]]})
-#
-# 					print
-# 					print
-# 					print
+				
 
-				cost_stats[j].append(c)
-				# accuracy_stats[j].append(accuracy_val)
+				cost_stats.append( "\t".join([str(x) for x in [i, j, c, test_cost, 1/test_cost]]))
 
 	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
 
-	with open(stats_folder+'tf_cost.csv', 'w') as handle:
-		to_write = [",".join([str(x) for x in line]) for line in cost_stats]
-		handle.write("\n".join(to_write)+"\n")
+	with open(stats_folder+'tf_results.csv', 'w') as handle:
+		handle.write("\t".join(['Epoch', 'Batch', 'Train cost', 'Test cost', '1/Test cost'])+"\n")
+		handle.write("\n".join(cost_stats)+"\n")
 
-	# with open(stats_folder+'tf_accuracy.csv', 'w') as handle:
-	# 	to_write = [",".join([str(x) for x in line]) for line in accuracy_stats]
-	# 	handle.write("\n".join(to_write)+"\n")
+
+
+
+
 
 
 
