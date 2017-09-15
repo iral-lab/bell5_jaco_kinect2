@@ -35,7 +35,9 @@ correct_link_counts = tf.cast(tf.gather(correct_transpose, 0), tf.int32)
 predicted_link_counts = tf.cast(tf.gather(prediction_transpose, 0), tf.int32)
 
 
-correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
+#correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
+# This mask allows for all values beyond the link counts to remain
+correct_length_mask = tf.cast(tf.ones([tf.shape(correct_transpose)[1], tf.shape(correct_transpose)[0]-1]), tf.int32)
 
 shift_mask = tf.cast(tf.zeros([tf.shape(correct_transpose)[1],1]), tf.int32)
 

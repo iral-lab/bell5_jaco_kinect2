@@ -225,7 +225,9 @@ def get_cost(prediction, y, class_length, reduced = True):
 	predicted_link_counts = tf.cast(tf.gather(prediction_transpose, 0), tf.int32)
 
 
-	correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
+	#correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
+	# This mask below doesn't mask away the extra values, only will zero out the link-counts.
+	correct_length_mask = tf.cast(tf.ones([tf.shape(correct_transpose)[1], tf.shape(correct_transpose)[0]-1]), tf.int32)
 
 	shift_mask = tf.cast(tf.zeros([tf.shape(correct_transpose)[1],1]), tf.int32)
 
@@ -247,7 +249,8 @@ def get_cost(prediction, y, class_length, reduced = True):
 
 	wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING, tf.float32) * tf.cast(abs_diff_counts, tf.float32)
 	
-	penalty = l2_distance + wrong_link_counts
+	# remove the link-count penalty
+	penalty = l2_distance #+ wrong_link_counts
 	
 	penalty_sum = tf.reduce_sum(penalty)
 
