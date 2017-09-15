@@ -227,8 +227,8 @@ def get_cost(prediction, y, class_length, reduced = True):
 	reshaped_correct = tf.reshape(y, [-1])
 	reshaped_prediction = tf.reshape(prediction, [-1])
 
-	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(Y))
-	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(Y))
+	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(y))
+	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(y))
 
 	adjusted_correct_link_lengths = correct_link_lengths / 10000
 	adjusted_predicted_link_lengths = predicted_link_lengths / 10000
@@ -255,48 +255,21 @@ def get_cost(prediction, y, class_length, reduced = True):
 # 	return accuracy_ratio
 	
 	
-
-def init_weights(shape):
-	return tf.Variable(tf.random_normal(shape, stddev=0.01))
-
-if '__main__' == __name__:
-
+def run_test(batcher, hidden_layers, nodes_per_layer):
 	
-	if '-h' in sys.argv or '--help' in sys.argv:
-		print "Usage: python", sys.argv[0]
-		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
-		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
-		exit()
-
-
-	if not os.path.exists(COMPRESSED_DATA_CACHE):
-		print "Generating data cache from", INPUT_FOLDER
-		input_files = os.listdir(INPUT_FOLDER)
-		gen_naive_datacache(input_files)
-		exit()
-	
-	hidden_layers = DEFAULT_HIDDEN_LAYERS
-	nodes_per_layer = DEFAULT_NODES_PER_LAYER
-
-	if len(sys.argv) == 3:
-		hidden_layers = int(sys.argv[1])
-		nodes_per_layer = int(sys.argv[2])
-
-	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-
 	class_length = MAX_LINKS + 1
 	n_input = MAX_CENTROIDS * 3
 
 	learning_rate = 0.001
 	
-	data_cache, label_cache = load_data_cache()
-
+	
 	# code.interact(local=dict(globals(), **locals())) 
 	print "Class length:",class_length
 	
 
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, class_length])
+	
 	pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 
 	# cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
@@ -323,7 +296,7 @@ if '__main__' == __name__:
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			for j,batch in enumerate(naive_batcher(data_cache, label_cache)):
+			for j,batch in enumerate(batcher):
 				if j == 0:
 					test_batch = batch
 					continue
@@ -344,7 +317,37 @@ if '__main__' == __name__:
 		handle.write("\t".join(['Epoch', 'Batch', 'Train cost', 'Test cost', '1/Test cost'])+"\n")
 		handle.write("\n".join(cost_stats)+"\n")
 
+	
+if '__main__' == __name__:
 
+	
+	if '-h' in sys.argv or '--help' in sys.argv:
+		print "Usage: python", sys.argv[0]
+		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
+		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
+		exit()
+
+
+	if not os.path.exists(COMPRESSED_DATA_CACHE):
+		print "Generating data cache from", INPUT_FOLDER
+		input_files = os.listdir(INPUT_FOLDER)
+		gen_naive_datacache(input_files)
+		exit()
+	
+	hidden_layers = DEFAULT_HIDDEN_LAYERS
+	nodes_per_layer = DEFAULT_NODES_PER_LAYER
+
+	if len(sys.argv) == 3:
+		hidden_layers = int(sys.argv[1])
+		nodes_per_layer = int(sys.argv[2])
+
+	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
+	
+	data_cache, label_cache = load_data_cache()
+	batcher = naive_batcher(data_cache, label_cache)
+	
+	run_test(batcher, hidden_layers, nodes_per_layer)
+	
 
 
 
