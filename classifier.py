@@ -256,13 +256,13 @@ def get_cost(prediction, y, class_length, reduced = True):
 
 	return penalty_sum if reduced else penalty
 	
-def get_accuracy(prediction, y, class_length):
-	penalties = get_cost(prediction, y, class_length, False)
-	considered_correct = LINK_COUNT_WEIGHTING * 0.1
-	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
-	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(y)[0], tf.float32)
-	
-	return accuracy_ratio
+# def get_accuracy(prediction, y, class_length):
+# 	penalties = get_cost(prediction, y, class_length, False)
+# 	considered_correct = LINK_COUNT_WEIGHTING * 0.1
+# 	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
+# 	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(y)[0], tf.float32)
+#
+# 	return accuracy_ratio
 	
 	
 
@@ -330,7 +330,7 @@ if '__main__' == __name__:
 		
 		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-		accuracy = get_accuracy(pred, Y, class_length)
+		# accuracy = get_accuracy(pred, Y, class_length)
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
@@ -345,8 +345,8 @@ if '__main__' == __name__:
 
 				epoch_x,epoch_y = batch
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
-				accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
-				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c, "Accuracy:", accuracy_val
+				# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
+				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c #, "Accuracy:", accuracy_val
 				# print test_batch[0][0]
 				# print test_batch[1][0]
 				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
@@ -367,7 +367,7 @@ if '__main__' == __name__:
 # 					print
 
 				cost_stats[j].append(c)
-				accuracy_stats[j].append(accuracy_val)
+				# accuracy_stats[j].append(accuracy_val)
 
 	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
@@ -376,9 +376,9 @@ if '__main__' == __name__:
 		to_write = [",".join([str(x) for x in line]) for line in cost_stats]
 		handle.write("\n".join(to_write)+"\n")
 
-	with open(stats_folder+'tf_accuracy.csv', 'w') as handle:
-		to_write = [",".join([str(x) for x in line]) for line in accuracy_stats]
-		handle.write("\n".join(to_write)+"\n")
+	# with open(stats_folder+'tf_accuracy.csv', 'w') as handle:
+	# 	to_write = [",".join([str(x) for x in line]) for line in accuracy_stats]
+	# 	handle.write("\n".join(to_write)+"\n")
 
 
 
