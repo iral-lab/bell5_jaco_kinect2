@@ -324,8 +324,13 @@ def run_hyper(data_cache, label_cache):
 	for layers in layer_range:
 		for nodes_per_layer in nodes_per_layer_range:
 			print "HYPER: ", layers, nodes_per_layer
-			batcher = naive_batcher(data_cache, label_cache)
-			run_test(batcher, layers, nodes_per_layer)
+			try:
+				batcher = naive_batcher(data_cache, label_cache)
+				run_test(batcher, layers, nodes_per_layer)
+			except:
+				print "Caught error, continuing"
+				pass
+
 
 if '__main__' == __name__:
 
