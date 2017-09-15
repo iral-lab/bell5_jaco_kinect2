@@ -118,6 +118,8 @@ def gen_naive_datacache(files):
 	# files = random.shuffle(files)
 
 	for i,file in enumerate(files):
+		if ".DS_Store" == file:
+			continue
 		# print file
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
@@ -346,7 +348,8 @@ if '__main__' == __name__:
 				epoch_x,epoch_y = batch
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 				# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
-				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c #, "Accuracy:", accuracy_val
+				test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
+				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
 				# print test_batch[0][0]
 				# print test_batch[1][0]
 				# print pred.eval(feed_dict = {X:[test_batch[0][0]]})
