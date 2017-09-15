@@ -6,3 +6,5 @@ clouds/*.txt
 clouds/*.gz
 *.pyc
 run_stats/*
+.DS_Store
+.on_mac
