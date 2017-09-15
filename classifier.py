@@ -173,33 +173,32 @@ def naive_frame_reader(file):
 
 
 def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
-	n_hidden_1 = n_hidden_2 = nodes_per_layer
-	out_layer = None
+	if hidden_layers < 1:
+		print "Hidden_layers must be at least 1"
+		exit()
 	
-	# Store layers weight & bias
+	# print n_input, class_length, hidden_layers, nodes_per_layer
+	weights = {}
+	biases = {}
 	
+	for i in range(hidden_layers + 1):
+		if i == 0:
+			# first layer
+			weights[i] = tf.Variable(tf.random_normal([ n_input, nodes_per_layer ]))			
+			biases[i] = tf.Variable(tf.random_normal([nodes_per_layer])),
+		elif i == hidden_layers:
+			# out layer
+			weights[i] = tf.Variable(tf.random_normal([ nodes_per_layer, class_length ]))
+			biases[i] = tf.Variable(tf.random_normal([class_length])),
+		else:
+			# internal layers
+			weights[i] = tf.Variable(tf.random_normal([ nodes_per_layer, nodes_per_layer ]))
+			biases[i] = tf.Variable(tf.random_normal([nodes_per_layer])),
 	
-	weights = {
-		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
-	}
-	biases = {
-		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-		'out': tf.Variable(tf.random_normal([class_length]))
-	}
-	# Hidden layer with RELU activation
-	layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-	layer_1 = tf.nn.relu(layer_1)
-	# Hidden layer with RELU activation
-	layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
-	layer_2 = tf.nn.relu(layer_2)
-	# Output layer with linear activation
-	out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
-	
-	return out_layer
-
+	network = tf.nn.relu(tf.add(tf.matmul(x, weights[0]), biases[0]))
+	for i in range(1, hidden_layers + 1):
+		network = tf.nn.relu(tf.add(tf.matmul(network, weights[i]), biases[i]))
+	return network
 
 
 LINK_COUNT_WEIGHTING = 100
