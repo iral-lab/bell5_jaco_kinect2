@@ -177,37 +177,26 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	out_layer = None
 	
 	# Store layers weight & bias
-	if True:
 	
-		weights = {
-			'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-			'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-			'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
-		}
-		biases = {
-			'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-			'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-			'out': tf.Variable(tf.random_normal([class_length]))
-		}
-		# Hidden layer with RELU activation
-		layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
-		layer_1 = tf.nn.relu(layer_1)
-		# Hidden layer with RELU activation
-		layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
-		layer_2 = tf.nn.relu(layer_2)
-		# Output layer with linear activation
-		out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
-		
-	else:
-		# super simple one
-		weights = {
-			'out': tf.Variable(tf.random_normal([n_input, class_length]))
-		}
-		biases = {
-			'out': tf.Variable(tf.random_normal([class_length]))
-		}
-		# Output layer with linear activation
-		out_layer = tf.matmul(x, weights['out']) + biases['out']
+	
+	weights = {
+		'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+		'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+		'out': tf.Variable(tf.random_normal([n_hidden_2, class_length]))
+	}
+	biases = {
+		'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+		'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+		'out': tf.Variable(tf.random_normal([class_length]))
+	}
+	# Hidden layer with RELU activation
+	layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
+	layer_1 = tf.nn.relu(layer_1)
+	# Hidden layer with RELU activation
+	layer_2 = tf.add(tf.matmul(layer_1, weights['h2']), biases['b2'])
+	layer_2 = tf.nn.relu(layer_2)
+	# Output layer with linear activation
+	out_layer = tf.matmul(layer_2, weights['out']) + biases['out']
 	
 	return out_layer
 
