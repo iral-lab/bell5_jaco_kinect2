@@ -278,7 +278,7 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 	cost = get_cost(pred, Y, class_length)
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 	
-	print "Trainable:", tf.trainable_variables()
+	# print "Trainable:", tf.trainable_variables()
 	
 	cost_stats = []
 
@@ -317,7 +317,16 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 		handle.write("\t".join(['Epoch', 'Batch', 'Train cost', 'Test cost', '1/Test cost'])+"\n")
 		handle.write("\n".join(cost_stats)+"\n")
 
+def run_hyper(data_cache, label_cache):
+	layer_range = range(1,10)
+	nodes_per_layer_range = range(20, 200, 10)
 	
+	for layers in layer_range:
+		for nodes_per_layer in nodes_per_layer_range:
+			print "HYPER: ", layers, nodes_per_layer
+			batcher = naive_batcher(data_cache, label_cache)
+			run_test(batcher, layers, nodes_per_layer)
+
 if '__main__' == __name__:
 
 	
@@ -337,15 +346,19 @@ if '__main__' == __name__:
 	hidden_layers = DEFAULT_HIDDEN_LAYERS
 	nodes_per_layer = DEFAULT_NODES_PER_LAYER
 
-	if len(sys.argv) == 3:
+	data_cache, label_cache = load_data_cache()
+
+	if '--hyper' in sys.argv:
+		run_hyper(data_cache, label_cache)
+		sys.exit()
+	
+	elif len(sys.argv) == 3:
 		hidden_layers = int(sys.argv[1])
 		nodes_per_layer = int(sys.argv[2])
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-	
-	data_cache, label_cache = load_data_cache()
+
 	batcher = naive_batcher(data_cache, label_cache)
-	
 	run_test(batcher, hidden_layers, nodes_per_layer)
 	
 
