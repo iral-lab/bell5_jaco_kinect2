@@ -15,6 +15,7 @@ tar zxf cudnn-8.0-linux-x64-v6.0.tgz
 cd cuda
 sudo cp lib64/* /usr/local/cuda/lib64/
 sudo cp include/* /usr/local/cuda/include/
+cd ~
 
 
 echo "export CUDA_HOME=/usr/local/cuda" >> ~/.bashrc
