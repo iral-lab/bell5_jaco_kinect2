@@ -432,157 +432,160 @@ def get_axis_of_rotation_for(p0, p1, p2):
 	
 
 def compute_cloud(input):
-	# random.seed(3)
-	link_count, robot_i, link_lengths = input
+	try:
+		# random.seed(3)
+		link_count, robot_i, link_lengths = input
 	
-	frames_per_vertex = 10
-	frames_left = 0
+		frames_per_vertex = 10
+		frames_left = 0
 	
-	joint_types = [random.choice(JOINT_TYPES.keys()) for _ in range(link_count-1)]
-	# print joint_types
-	angles = [Angle() for _ in range(link_count-1)]
+		joint_types = [random.choice(JOINT_TYPES.keys()) for _ in range(link_count-1)]
+		# print joint_types
+		angles = [Angle() for _ in range(link_count-1)]
 	
-	radii = [random.randint(*LINK_RADIUS) for _ in range(link_count)]
+		radii = [random.randint(*LINK_RADIUS) for _ in range(link_count)]
 	
-	vertices = vertex_i = None
+		vertices = vertex_i = None
 	
-	padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
-	padded_robot_i = ('%0'+str(len(str(ROBOTS_PER_COUNT)))+'d') % robot_i
+		padded_link_count = ('%0'+str(len(str(max(LINK_COUNTS))))+'d') % link_count
+		padded_robot_i = ('%0'+str(len(str(ROBOTS_PER_COUNT)))+'d') % robot_i
 	
 	
-	this_permutation_out = []
-	outfile = "_".join([str(x) for x in [padded_link_count, padded_robot_i, int(time.time())]])+".txt"
-	for permutation_i in range(PERMUTATIONS):
-		# print "_______________"
-		if permutation_i % 100 == 0:
-			print link_count, permutation_i, int(time.time())
+		this_permutation_out = []
+		outfile = "_".join([str(x) for x in [padded_link_count, padded_robot_i, int(time.time())]])+".txt"
+		for permutation_i in range(PERMUTATIONS):
+			# print "_______________"
+			if permutation_i % 100 == 0:
+				print link_count, permutation_i, int(time.time())
 		
 		
-		if not vertices:
-			# generate initial verts once
-			while not vertices:
-				vertices = gen_vertices(link_lengths)
+			if not vertices:
+				# generate initial verts once
+				while not vertices:
+					vertices = gen_vertices(link_lengths)
 		
-		if len(vertices) == 0:
-			print "No verts for some reason.",vertices
-			break
-		if vertices:
-			# move some joints
-			if frames_left == 0:
-				vertex_i = random.choice(range(1,len(vertices) - 1))
-				frames_left = frames_per_vertex
-			# else:
-			# 	print"using",vertex_i,frames_left
-			frames_left -= 1
-			this_vertex = vertices[vertex_i]
-			angle_i = vertex_i - 1
-			this_angle = angles[angle_i]
+			if len(vertices) == 0:
+				print "No verts for some reason.",vertices
+				break
+			if vertices:
+				# move some joints
+				if frames_left == 0:
+					vertex_i = random.choice(range(1,len(vertices) - 1))
+					frames_left = frames_per_vertex
+				# else:
+				# 	print"using",vertex_i,frames_left
+				frames_left -= 1
+				this_vertex = vertices[vertex_i]
+				angle_i = vertex_i - 1
+				this_angle = angles[angle_i]
 			
-			axis_of_rotation = None
-			this_joint_type = joint_types[angle_i]
-			step = 0
-			if EXTENSION == this_joint_type:
-				this_angle.value = angle_between_points(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
-				step = this_angle.step()
-				this_angle.take_step()
-				axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
-			elif ROTATION == this_joint_type:
-				# semi-fictional steps, since no set starting angle. Results in it reversing periodically
-				step = this_angle.step()
-				this_angle.take_step()
-				axis_of_rotation = vector_between(vertices[vertex_i-1], this_vertex)
-			else:
-				print "Unknown joint type"
-				exit()
+				axis_of_rotation = None
+				this_joint_type = joint_types[angle_i]
+				step = 0
+				if EXTENSION == this_joint_type:
+					this_angle.value = angle_between_points(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
+					step = this_angle.step()
+					this_angle.take_step()
+					axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
+				elif ROTATION == this_joint_type:
+					# semi-fictional steps, since no set starting angle. Results in it reversing periodically
+					step = this_angle.step()
+					this_angle.take_step()
+					axis_of_rotation = vector_between(vertices[vertex_i-1], this_vertex)
+				else:
+					print "Unknown joint type"
+					exit()
 			
 			
 			
-			# print ">",this_joint_type,axis_of_rotation
-			# print e0,e1
-			# print np.dot(v0, v1)
-			# print np.dot(v0, axis_of_rotation)
-			# print np.dot(v1, axis_of_rotation)
-			# print this_angle.value
-			# print angle_between_points(vertices[vertex_i-1], vertices[vertex_i], vertices[vertex_i+1])
+				# print ">",this_joint_type,axis_of_rotation
+				# print e0,e1
+				# print np.dot(v0, v1)
+				# print np.dot(v0, axis_of_rotation)
+				# print np.dot(v1, axis_of_rotation)
+				# print this_angle.value
+				# print angle_between_points(vertices[vertex_i-1], vertices[vertex_i], vertices[vertex_i+1])
 			
-			for move_vertex_i in range(vertex_i + 1, len(vertices)):
+				for move_vertex_i in range(vertex_i + 1, len(vertices)):
 				
-				vector_to_this_vertex = vector_between(vertices[move_vertex_i], this_vertex)
-				rotated_vector = rotate_around_u(axis_of_rotation, vector_to_this_vertex, step)
-				new_vertex = point_plus_vector(this_vertex, rotated_vector)
-				# print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
-				vertices[move_vertex_i] = new_vertex
+					vector_to_this_vertex = vector_between(vertices[move_vertex_i], this_vertex)
+					rotated_vector = rotate_around_u(axis_of_rotation, vector_to_this_vertex, step)
+					new_vertex = point_plus_vector(this_vertex, rotated_vector)
+					# print "moving",move_vertex_i, vertices[move_vertex_i], vector_to_this_vertex, rotated_vector, new_vertex
+					vertices[move_vertex_i] = new_vertex
 		
-		try:
-			cloud = gen_cloud(vertices, radii)
-		except: # ValueError:
-			print "Something went wrong, skipping frame"
-			continue
+			try:
+				cloud = gen_cloud(vertices, radii)
+			except: # ValueError:
+				print "Something went wrong, skipping frame"
+				continue
 		
-		# recompute joint_normals after rotation
-		joint_normals = []
-		for some_vertex_i in range(1, len(vertices) - 1):
-			angle_i = some_vertex_i - 1
-			axis_of_rotation = None
-			this_joint_type = joint_types[angle_i]
-			if EXTENSION == this_joint_type:
-				axis_of_rotation = get_axis_of_rotation_for(vertices[some_vertex_i-1], vertices[some_vertex_i], vertices[some_vertex_i+1])
-			elif ROTATION == this_joint_type:
-				axis_of_rotation = vector_between(vertices[some_vertex_i-1], vertices[some_vertex_i])
-			else:
-				print "Unknown joint type"
-				exit()
-			joint_normals.append(tuple([round(x,2) for x in axis_of_rotation]))
-		
-		
-		# remove camera, so the arm is zero-based
-		start = vertices[0]
-		camera_location = vector_between(CAMERA_LOCATION, start)
-		shifted_vertices = [vector_between(vertex, start) for vertex in vertices]
-		shifted_cloud = [vector_between(point, start) for point in cloud]
+			# recompute joint_normals after rotation
+			joint_normals = []
+			for some_vertex_i in range(1, len(vertices) - 1):
+				angle_i = some_vertex_i - 1
+				axis_of_rotation = None
+				this_joint_type = joint_types[angle_i]
+				if EXTENSION == this_joint_type:
+					axis_of_rotation = get_axis_of_rotation_for(vertices[some_vertex_i-1], vertices[some_vertex_i], vertices[some_vertex_i+1])
+				elif ROTATION == this_joint_type:
+					axis_of_rotation = vector_between(vertices[some_vertex_i-1], vertices[some_vertex_i])
+				else:
+					print "Unknown joint type"
+					exit()
+				joint_normals.append(tuple([round(x,2) for x in axis_of_rotation]))
 		
 		
-		padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
+			# remove camera, so the arm is zero-based
+			start = vertices[0]
+			camera_location = vector_between(CAMERA_LOCATION, start)
+			shifted_vertices = [vector_between(vertex, start) for vertex in vertices]
+			shifted_cloud = [vector_between(point, start) for point in cloud]
 		
-		this_permutation_out.append(HEADER_DIVIDER+"\n")
-		this_permutation_out.append("#Perm#"+str(padded_permutation_i)+"\n")
-		this_permutation_out.append(LENGTHS_HEADER+("\t".join([str(x) for x in link_lengths]))+"\n")
-		this_permutation_out.append("#Vertices#")
-		vert_out = []
-		for vertex in shifted_vertices:
-			vert_out.append(",".join([str(int(x)) for x in vertex]))
-		this_permutation_out.append("\t".join(vert_out)+"\n")
 		
-		this_permutation_out.append("#JointTypes#"+("\t".join([JOINT_TYPES[x] for x in joint_types]))+"\n")
+			padded_permutation_i = ('%0'+str(len(str(PERMUTATIONS)))+'d') % permutation_i
 		
-		normals_out = [",".join([str(x) for x in normal]) for normal in joint_normals]
-		this_permutation_out.append("#JointNormals#"+("\t".join(normals_out))+"\n")
+			this_permutation_out.append(HEADER_DIVIDER+"\n")
+			this_permutation_out.append("#Perm#"+str(padded_permutation_i)+"\n")
+			this_permutation_out.append(LENGTHS_HEADER+("\t".join([str(x) for x in link_lengths]))+"\n")
+			this_permutation_out.append("#Vertices#")
+			vert_out = []
+			for vertex in shifted_vertices:
+				vert_out.append(",".join([str(int(x)) for x in vertex]))
+			this_permutation_out.append("\t".join(vert_out)+"\n")
 		
-		# handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
+			this_permutation_out.append("#JointTypes#"+("\t".join([JOINT_TYPES[x] for x in joint_types]))+"\n")
 		
-		this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
+			normals_out = [",".join([str(x) for x in normal]) for normal in joint_normals]
+			this_permutation_out.append("#JointNormals#"+("\t".join(normals_out))+"\n")
 		
-		try:
-			skeleton = compute_skeleton(shifted_cloud, sum(link_lengths))
-		except:
-			print "invalid skeleton, skip a frame"
-			continue
+			# handle.write("#Angles#"+("\t".join([str(round(angle.value,3)) for angle in angles]))+"\n")
 		
-		to_write = [",".join([str(x) for x in point]) for point in skeleton]
-		this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
+			this_permutation_out.append(CAMERA_MARKER+(",".join([str(x) for x in camera_location]))+"\n")
 		
-		if WRITE_OUT_CLOUD:
-			to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
-			this_permutation_out.append("\n".join(to_write)+"\n")
+			try:
+				skeleton = compute_skeleton(shifted_cloud, sum(link_lengths))
+			except:
+				print "invalid skeleton, skip a frame"
+				continue
 		
-	with gzip.GzipFile(OUTPUT_FOLDER+outfile+".gz",'a') as handle:
-		handle.write("".join(this_permutation_out))
+			to_write = [",".join([str(x) for x in point]) for point in skeleton]
+			this_permutation_out.append(SKELETON_MARKER+"\t".join(to_write)+"\n")
+		
+			if WRITE_OUT_CLOUD:
+				to_write = [",".join([str(x) for x in point]) for point in shifted_cloud]
+				this_permutation_out.append("\n".join(to_write)+"\n")
+		
+		with gzip.GzipFile(OUTPUT_FOLDER+outfile+".gz",'a') as handle:
+			handle.write("".join(this_permutation_out))
 	
-	if RUNNING_ON_AWS:
-		cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
-		print cmd
-		run_cmd(cmd)
-		run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
+		if RUNNING_ON_AWS:
+			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
+			print cmd
+			run_cmd(cmd)
+			run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
+	except Exception as inst:
+		print "Hit error: ",inst
 		
 
 def get_skeleton_points(line):
