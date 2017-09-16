@@ -42,16 +42,19 @@ time nvidia-smi
 
 sudo chown ubuntu:ubuntu -R /usr/lib/python*
 sudo chown ubuntu:ubuntu -R /usr/local/lib/python*
+sudo chown ubuntu:ubuntu -R /usr/local/lib64/python*
 
 sudo python -m pip install --upgrade pip
 
 sudo chown ubuntu:ubuntu -R /usr/lib/python*
 sudo chown ubuntu:ubuntu -R /usr/local/lib/python*
+sudo chown ubuntu:ubuntu -R /usr/local/lib64/python*
 
 pip install --upgrade pip
 
 sudo chown ubuntu:ubuntu -R /usr/lib/python*
 sudo chown ubuntu:ubuntu -R /usr/local/lib/python*
+sudo chown ubuntu:ubuntu -R /usr/local/lib64/python*
 
 pip install --user numpy scipy matplotlib ipython jupyter pandas sympy nose pylru
 pip install -U scikit-learn
@@ -60,6 +63,7 @@ sudo pip install tensorflow-gpu
 
 sudo chown ubuntu:ubuntu -R /usr/lib/python*
 sudo chown ubuntu:ubuntu -R /usr/local/lib/python*
+sudo chown ubuntu:ubuntu -R /usr/local/lib64/python*
 
 python -c "import tensorflow as tf; print tf.__version__"
 
