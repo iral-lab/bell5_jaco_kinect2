@@ -19,7 +19,7 @@ RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
 MAX_CENTROIDS = 40
 
-NUM_THREADS = 7
+NUM_THREADS = int(sys.argv[sys.argv.index('-n') + 1]) if '-n' in sys.argv else 7
 
 WRITE_OUT_CLOUD = False
 
@@ -582,6 +582,7 @@ def compute_cloud(input):
 		cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
 		print cmd
 		run_cmd(cmd)
+		run_cmd("rm "OUTPUT_FOLDER+outfile+".gz")
 		
 
 def get_skeleton_points(line):
