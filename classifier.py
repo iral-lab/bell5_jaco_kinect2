@@ -1,11 +1,11 @@
-import sys, os, random, cPickle, time, code, math, gzip, glob
+import sys, os, random, cPickle, time, code, math, gzip, glob, popen2
 import tensorflow as tf
 from tensorflow.python import debug as tf_debug
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
 #code.interact(local=dict(globals(), **locals())) 
 
-N_EPOCHS = 40
+N_EPOCHS = 50
 N_BATCHES = 10
 
 DEFAULT_HIDDEN_LAYERS = 2
@@ -14,6 +14,7 @@ DEFAULT_NODES_PER_LAYER = 100
 MAX_FILES_TESTING = None #100
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
+RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
 INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
 
@@ -22,6 +23,11 @@ DATA_CACHE = '_classifier_input.pickle'
 BATCH_CACHE_STEM = '_classifier_batches.out_'
 
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
+
+def run_cmd(cmd):
+	o,i = popen2.popen2(cmd)
+	return o.read()
+
 
 def get_label(lengths_line):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
@@ -137,6 +143,10 @@ def gen_naive_datacache(files):
 	print round(time.time() - start,2), "Dumped to", COMPRESSED_DATA_CACHE
 	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
 	print round(time.time() - start,2), "Dumped to", DATA_CACHE
+	if RUNNING_ON_AWS:
+		print "Uploading to s3"
+		run_cmd("aws s3 --region us-east-1 cp "+COMPRESSED_DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
+		run_cmd("aws s3 --region us-east-1 cp "+DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
 	
 
 def naive_frame_reader(file):
@@ -316,6 +326,11 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
 		handle.write("\t".join(['Epoch', 'Batch', 'Train cost', 'Test cost', '1/Test cost'])+"\n")
 		handle.write("\n".join(cost_stats)+"\n")
+	
+	if RUNNING_ON_AWS:
+		cmd = "aws s3 --region us-east-1 cp "+stats_folder+"* s3://umbc.research/robot_learn_classifier/"+stats_folder
+		print cmd
+		run_cmd(cmd)
 
 def run_hyper(data_cache, label_cache):
 	layer_range = range(1,10)
@@ -333,7 +348,6 @@ def run_hyper(data_cache, label_cache):
 
 
 if '__main__' == __name__:
-
 	
 	if '-h' in sys.argv or '--help' in sys.argv:
 		print "Usage: python", sys.argv[0]
@@ -343,9 +357,25 @@ if '__main__' == __name__:
 
 
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
-		print "Generating data cache from", INPUT_FOLDER
-		input_files = os.listdir(INPUT_FOLDER)
-		gen_naive_datacache(input_files)
+		should_generate = True
+		if RUNNING_ON_AWS:
+			should_generate = False
+			result = run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/"+COMPRESSED_DATA_CACHE+" .")
+			if "NoSuchKey" in result:
+				should_generate = True
+			result = run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/"+DATA_CACHE+" .")
+			if "NoSuchKey" in result:
+				should_generate = True
+			
+			if should_generate:
+				print "Could not download from s3"
+			else:
+				print "Successfully downloaded from s3"
+		
+		if should_generate:
+			print "Generating data cache from", INPUT_FOLDER
+			input_files = os.listdir(INPUT_FOLDER)
+			gen_naive_datacache(input_files)
 		exit()
 	
 	hidden_layers = DEFAULT_HIDDEN_LAYERS
