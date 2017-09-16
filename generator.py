@@ -1,4 +1,4 @@
-import sys, random, math, code, os, multiprocessing, copy, time, gzip
+import sys, random, math, code, os, multiprocessing, copy, time, gzip, popen2
 import numpy as np
 from sklearn.cluster import KMeans
 
@@ -14,6 +14,8 @@ HEADER_DIVIDER = "$$$$$$$$$"
 CAMERA_MARKER = '#Camera#'
 SKELETON_MARKER = "#Skeleton#"
 LENGTHS_HEADER = "#Lengths#"
+
+RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
 MAX_CENTROIDS = 40
 
@@ -50,6 +52,11 @@ INCREASING_STEP = ROTATION_THETA
 
 EXTENSION, ROTATION  = range(2)
 JOINT_TYPES = {EXTENSION : 'extension', }#ROTATION : 'rotation', }
+
+def run_cmd(cmd):
+	o,i = popen2.popen2(cmd)
+	return o.read()
+
 
 class Angle:
 	def __init__(self, value = None):
@@ -570,6 +577,12 @@ def compute_cloud(input):
 		
 	with gzip.GzipFile(OUTPUT_FOLDER+outfile+".gz",'a') as handle:
 		handle.write("".join(this_permutation_out))
+	
+	if RUNNING_ON_AWS:
+		cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
+		print cmd
+		run_cmd(cmd)
+		
 
 def get_skeleton_points(line):
 	skeleton_text = line[len(SKELETON_MARKER):]
