@@ -3,7 +3,7 @@
 
 sudo apt-get update
 sudo apt-get upgrade -y
-sudo apt-get install -y awscli build-essential python-pip python-dev git python-numpy swig python-dev default-jdk zip zlib1g-dev htop screen git gcc
+sudo apt-get install -y awscli build-essential python-pip python-dev git python-numpy swig python-dev default-jdk zip zlib1g-dev htop screen git gcc ruby
 
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_8.0.61-1_amd64.deb
 sudo dpkg -i cuda-repo-ubuntu1404_8.0.61-1_amd64.deb
