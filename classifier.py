@@ -340,6 +340,7 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 		cmd = "aws s3 --region us-east-1 cp "+stats_folder+"* s3://umbc.research/robot_learn_classifier/"+stats_folder
 		print cmd
 		run_cmd(cmd)
+		run_cmd("rm -rf "+stats_folder)
 
 def run_hyper(data_cache, label_cache):
 	layer_range = range(1,10)
