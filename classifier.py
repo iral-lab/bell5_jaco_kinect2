@@ -274,7 +274,7 @@ def get_cost(prediction, y, class_length, reduced = True):
 # 	return accuracy_ratio
 	
 	
-def run_test(batcher, hidden_layers, nodes_per_layer):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	
 	class_length = MAX_LINKS + 1
 	n_input = MAX_CENTROIDS * 3
@@ -283,7 +283,7 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 	
 	
 	# code.interact(local=dict(globals(), **locals())) 
-	print "Class length:",class_length
+	# print "Class length:",class_length
 	
 
 	X = tf.placeholder('float', [None, n_input])
@@ -315,7 +315,7 @@ def run_test(batcher, hidden_layers, nodes_per_layer):
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			for j,batch in enumerate(batcher):
+			for j,batch in enumerate(naive_batcher(data_cache, label_cache)):
 				if j == 0:
 					test_batch = batch
 					continue
@@ -350,8 +350,7 @@ def run_hyper(data_cache, label_cache):
 		for nodes_per_layer in nodes_per_layer_range:
 			print "HYPER: ", layers, nodes_per_layer
 			try:
-				batcher = naive_batcher(data_cache, label_cache)
-				run_test(batcher, layers, nodes_per_layer)
+				run_test(data_cache, label_cache, layers, nodes_per_layer)
 			except:
 				print "Caught error, continuing"
 				pass
@@ -407,9 +406,8 @@ if '__main__' == __name__:
 		nodes_per_layer = int(sys.argv[2])
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-
-	batcher = naive_batcher(data_cache, label_cache)
-	run_test(batcher, hidden_layers, nodes_per_layer)
+	
+	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer)
 	
 
 
