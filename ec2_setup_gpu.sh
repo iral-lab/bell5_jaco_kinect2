@@ -30,6 +30,7 @@ export CUDA_ROOT=/usr/local/cuda
 export PATH=$PATH:/usr/local/cuda/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 
+sudo reboot
 
 time nvidia-smi
 sudo nvidia-smi -pm 1
