@@ -115,7 +115,7 @@ def load_data_cache():
 
 	return (data_cache, label_cache)
 
-def gen_naive_datacache(files):
+def gen_naive_datacache(files, from_AWS = False):
 	files = sorted(files)
 	data = []
 	labels = []
@@ -123,13 +123,22 @@ def gen_naive_datacache(files):
 	start = time.time()
 	# files = random.shuffle(files)
 
-	for i,file in enumerate(files):
-		if ".DS_Store" == file:
+	for i, file in enumerate(files):
+		if file in [".DS_Store", ""]:
 			continue
-		# print file
+		
+		if from_AWS:
+			cmd = "aws s3 cp s3://umbc.research/robot_learn_classifier/clouds/"+file+" clouds/"+file
+			print "downloading: "+cmd
+			run_cmd(cmd)
+		
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
 		all_pairs += [_ for _ in naive_frame_reader(file)]
+		
+		if from_AWS:
+			run_cmd("rm clouds/"+file)
+		
 		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
 			break
 	random.shuffle(all_pairs)
@@ -359,20 +368,25 @@ if '__main__' == __name__:
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
 		should_generate = True
 		if RUNNING_ON_AWS:
-			should_generate = False
-			result = run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/"+COMPRESSED_DATA_CACHE+" .")
-			if "NoSuchKey" in result:
-				should_generate = True
-			result = run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/"+DATA_CACHE+" .")
-			if "NoSuchKey" in result:
-				should_generate = True
+			compressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls s3://umbc.research/robot_learn_classifier/" + COMPRESSED_DATA_CACHE)
+			uncompressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls s3://umbc.research/robot_learn_classifier/" + DATA_CACHE)
 			
-			if should_generate:
-				print "Could not download from s3"
-			else:
+			if compressed_available:
+				run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/" + COMPRESSED_DATA_CACHE + " .")
+			if uncompressed_available:
+				run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/" + DATA_CACHE + " .")
+			
+			if compressed_available or uncompressed_available:
 				print "Successfully downloaded from s3"
+				should_generate = False
+			else:
+				print "Could not download from s3"
 		
-		if should_generate:
+		if should_generate and RUNNING_ON_AWS:
+			print "Generating data cache from AWS"
+			input_files = run_cmd("aws s3 ls umbc.research/robot_learn_classifier/clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
+			gen_naive_datacache(input_files, True)
+		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
 			input_files = os.listdir(INPUT_FOLDER)
 			gen_naive_datacache(input_files)
