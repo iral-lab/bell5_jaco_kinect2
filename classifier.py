@@ -122,14 +122,14 @@ def gen_naive_datacache(files, from_AWS = False):
 	all_pairs = []
 	start = time.time()
 	# files = random.shuffle(files)
-
+	num_files = len(files)
 	for i, file in enumerate(files):
 		if file in [".DS_Store", ""]:
 			continue
 		
 		if from_AWS:
 			cmd = "aws s3 cp s3://umbc.research/robot_learn_classifier/clouds/"+file+" clouds/"+file
-			print "downloading: "+cmd
+			print num_files,i,">",cmd
 			run_cmd(cmd)
 		
 		if i % 1000 == 0:
