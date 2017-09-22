@@ -1,5 +1,5 @@
 sudo yum -y update
-sudo yum -y install htop screen numpy git gcc
+sudo yum -y install htop screen numpy git gcc awscli
 
 sudo chown ec2-user:ec2-user -R /usr/lib/python*
 sudo chown ec2-user:ec2-user -R /usr/local/lib/python*
