@@ -322,12 +322,12 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 
 				epoch_x,epoch_y = batch
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
-				# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
-				test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
-				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
-				
-
-				cost_stats.append( "\t".join([str(x) for x in [i, j, c, test_cost, 1/test_cost]]))
+			
+			# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
+			test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
+			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
+			
+			cost_stats.append( "\t".join([str(x) for x in [i, c, test_cost, 1/test_cost]]))
 
 	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
