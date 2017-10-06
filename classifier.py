@@ -5,6 +5,9 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 
 #code.interact(local=dict(globals(), **locals())) 
 
+RUN_MLP, RUN_RNN = range(2)
+RUN_TYPE = RUN_MLP
+
 N_EPOCHS = 50
 N_BATCHES = 10
 
@@ -54,7 +57,7 @@ def _pad_label(lengths):
 
 
 BATCH_CACHE = None
-def naive_batcher(data_cache, label_cache):
+def mlp_batcher(data_cache, label_cache):
 	global BATCH_CACHE
 
 	use_cache = True
@@ -105,11 +108,12 @@ def load_data_cache():
 		load_from = COMPRESSED_DATA_CACHE
 		handle = gzip.GzipFile(load_from, 'r')
 	else:
-		print "Loading from decompressed data cache"
+		print "Loading from decompressed data cache:",load_from
 		handle = open(load_from, 'r')
 
 	start = time.time()
 	data_cache,label_cache = cPickle.load(handle)
+	code.interact(local=dict(globals(), **locals())) 
 	handle.close()
 	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
 
@@ -219,6 +223,19 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 		network = tf.nn.relu(tf.add(tf.matmul(network, weights[i]), biases[i]))
 	return network
 
+def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
+	# RNN output node weights and biases
+	weights = {
+	    'out': tf.Variable(tf.random_normal([n_input, class_length]))
+	}
+	biases = {
+	    'out': tf.Variable(tf.random_normal([class_length]))
+	}
+	rnn_cell = rnn.BasicLSTMCell(nodes_per_layer)
+	outputs, states = rnn.static_rnn(rnn_cell, x, dtype=tf.float32)
+	network = tf.matmul(outputs[-1], weights['out']) + biases['out']
+	return network
+	
 
 LINK_COUNT_WEIGHTING = 100
 def get_cost(prediction, y, class_length, reduced = True):
@@ -255,10 +272,9 @@ def get_cost(prediction, y, class_length, reduced = True):
 	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(adjusted_correct_link_lengths, adjusted_predicted_link_lengths)), reduction_indices=1))
 	
 	abs_diff_counts = tf.abs(correct_link_counts - predicted_link_counts)
-
-	wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING, tf.float32) * tf.cast(abs_diff_counts, tf.float32)
 	
 	# remove the link-count penalty
+	# wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING, tf.float32) * tf.cast(abs_diff_counts, tf.float32)
 	penalty = l2_distance #+ wrong_link_counts
 	
 	penalty_sum = tf.reduce_sum(penalty)
@@ -289,11 +305,12 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	X = tf.placeholder('float', [None, n_input])
 	Y = tf.placeholder('float', [None, class_length])
 	
-	pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
-
-	# cost = tf.reduce_mean(tf.cast(tf.size(Y), "float") - tf.cast(tf.size(pred), "float"))
-	# cost = tf.py_func(custom_cost_function, [pred, Y], [tf.float32])
-	# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=Y))
+	pred = None
+	if RUN_TYPE == RUN_MLP:
+		pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+	elif RUN_TYPE == RUN_RNN:
+		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+	
 	cost = get_cost(pred, Y, class_length)
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 	
@@ -315,7 +332,13 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			for j,batch in enumerate(naive_batcher(data_cache, label_cache)):
+			batcher = None
+			if RUN_TYPE == RUN_MLP:
+				batcher = mlp_batcher(data_cache, label_cache)
+			elif RUN_TYPE == RUN_RNN:
+				batcher = rnn_batcher(data_cache, label_cache)
+			
+			for j,batch in enumerate(batcher):
 				if j == 0:
 					test_batch = batch
 					continue
@@ -396,7 +419,7 @@ if '__main__' == __name__:
 	nodes_per_layer = DEFAULT_NODES_PER_LAYER
 
 	data_cache, label_cache = load_data_cache()
-
+	
 	if '--hyper' in sys.argv:
 		run_hyper(data_cache, label_cache)
 		sys.exit()
