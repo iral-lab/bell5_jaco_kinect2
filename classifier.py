@@ -6,7 +6,7 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 #code.interact(local=dict(globals(), **locals())) 
 
 RUN_MLP, RUN_RNN = range(2)
-RUN_TYPE = RUN_MLP
+RUN_TYPE = RUN_RNN
 
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
@@ -113,22 +113,15 @@ def load_data_cache():
 
 	start = time.time()
 	data_cache,label_cache = cPickle.load(handle)
-	code.interact(local=dict(globals(), **locals()))
+	#code.interact(local=dict(globals(), **locals()))
 	handle.close()
 	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
 
 	return (data_cache, label_cache)
 
 def gen_datacache(files, from_AWS = False):
-	data,labels = None,None
-	
-	if RUN_TYPE == RUN_MLP:
-		data, labels = gen_mlp_datacache(files, from_AWS)
-	elif RUN_TYPE == RUN_RNN:
-		data, labels = gen_rnn_datacache(files, from_AWS)
-	else:
-		print "No datacache to generate."
-		exit()
+	start = time.time()
+	data, labels = get_data_labels(files, from_AWS)
 	
 	if data and labels:
 		# code.interact(local=dict(globals(), **locals())) 
@@ -146,8 +139,10 @@ def gen_datacache(files, from_AWS = False):
 		exit()
 	
 
-def _read_files(files, fromAWS):
+def _read_files(files, from_AWS):
+	start = time.time()
 	num_files = len(files)
+	
 	for i, file in enumerate(files):
 		if file in [".DS_Store", ""]:
 			continue
@@ -168,31 +163,29 @@ def _read_files(files, fromAWS):
 		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
 			break
 
-def gen_rnn_datacache(files, from_AWS = False):
-	pass
-
-def gen_mlp_datacache(files, from_AWS = False):
+def get_data_labels(files, from_AWS = False):
 	files = sorted(files)
 	data = []
 	labels = []
 	all_pairs = []
-	start = time.time()
 	# files = random.shuffle(files)
 	
 	for file in _read_files(files, from_AWS):
-		all_pairs += [_ for _ in naive_frame_reader(file)]
+		all_pairs += [_ for _ in frame_reader(file)]
+		#code.interact(local=dict(globals(), **locals())) 
 	
 	random.shuffle(all_pairs)
-
+	
 	data += [pair[0] for pair in all_pairs]
 	labels += [pair[1] for pair in all_pairs]
 	
 	return [data, labels]	
 
-def naive_frame_reader(file):
+def frame_reader(file):
 	with gzip.GzipFile(INPUT_FOLDER+file, 'r') as handle:
 		skeleton_frame = None
 		label = None
+		skeleton_frames = []
 		input = handle.readline()
 		while input:
 			line = input.strip()
@@ -201,7 +194,7 @@ def naive_frame_reader(file):
 			if "" == line:
 				continue
 			
-			if HEADER_DIVIDER == line and skeleton_frame:
+			if RUN_TYPE == RUN_MLP and HEADER_DIVIDER == line and skeleton_frame:
 				if skeleton_frame and label:
 					yield (skeleton_frame, label)
 				else:
@@ -212,14 +205,18 @@ def naive_frame_reader(file):
 			
 			if SKELETON_MARKER in line:
 				skeleton_frame = prepare_skeleton(line)
+				if RUN_TYPE == RUN_RNN:
+					skeleton_frames.append(skeleton_frame)
 				continue
 			
 			if LENGTHS_HEADER in line:
 				label = get_label(line)
 				continue
 
-		if skeleton_frame and label:
+		if RUN_TYPE == RUN_MLP and skeleton_frame and label:
 			yield (skeleton_frame, label)
+		elif RUN_TYPE == RUN_RNN:
+			yield (skeleton_frames, label)
 
 
 def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
