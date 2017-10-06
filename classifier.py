@@ -8,6 +8,9 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 RUN_MLP, RUN_RNN = range(2)
 RUN_TYPE = RUN_MLP
 
+MLP_TAG = "MLP"
+RNN_TAG = "RNN"
+
 N_EPOCHS = 50
 N_BATCHES = 10
 
@@ -21,10 +24,7 @@ RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
 INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
 
-SHORT_DATA_CACHE = '_classifier_short_input.pickle'
-DATA_CACHE = '_classifier_input.pickle'
-BATCH_CACHE_STEM = '_classifier_batches.out_'
-
+DATA_CACHE = '_classifier_input_'+(MLP_TAG if RUN_TYPE == RUN_MLP else RNN_TAG)+'.pickle'
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 def run_cmd(cmd):
@@ -113,19 +113,40 @@ def load_data_cache():
 
 	start = time.time()
 	data_cache,label_cache = cPickle.load(handle)
-	code.interact(local=dict(globals(), **locals())) 
+	code.interact(local=dict(globals(), **locals()))
 	handle.close()
 	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
 
 	return (data_cache, label_cache)
 
-def gen_naive_datacache(files, from_AWS = False):
-	files = sorted(files)
-	data = []
-	labels = []
-	all_pairs = []
-	start = time.time()
-	# files = random.shuffle(files)
+def gen_datacache(files, from_AWS = False):
+	data,labels = None,None
+	
+	if RUN_TYPE == RUN_MLP:
+		data, labels = gen_mlp_datacache(files, from_AWS)
+	elif RUN_TYPE == RUN_RNN:
+		data, labels = gen_rnn_datacache(files, from_AWS)
+	else:
+		print "No datacache to generate."
+		exit()
+	
+	if data and labels:
+		# code.interact(local=dict(globals(), **locals())) 
+		print round(time.time() - start,2), "Saving",len(data),"pairs"
+		cPickle.dump([data,labels], gzip.GzipFile(COMPRESSED_DATA_CACHE,'w'))
+		print round(time.time() - start,2), "Dumped to", COMPRESSED_DATA_CACHE
+		cPickle.dump([data,labels], open(DATA_CACHE,'w'))
+		print round(time.time() - start,2), "Dumped to", DATA_CACHE
+		if RUNNING_ON_AWS:
+			print "Uploading to s3"
+			run_cmd("aws s3 --region us-east-1 cp "+COMPRESSED_DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
+			run_cmd("aws s3 --region us-east-1 cp "+DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
+	else:
+		print "No data or no labels returned"
+		exit()
+	
+
+def _read_files(files, fromAWS):
 	num_files = len(files)
 	for i, file in enumerate(files):
 		if file in [".DS_Store", ""]:
@@ -138,29 +159,35 @@ def gen_naive_datacache(files, from_AWS = False):
 		
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
-		all_pairs += [_ for _ in naive_frame_reader(file)]
+		yield file
+		
 		
 		if from_AWS:
 			run_cmd("rm clouds/"+file)
 		
 		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
 			break
+
+def gen_rnn_datacache(files, from_AWS = False):
+	pass
+
+def gen_mlp_datacache(files, from_AWS = False):
+	files = sorted(files)
+	data = []
+	labels = []
+	all_pairs = []
+	start = time.time()
+	# files = random.shuffle(files)
+	
+	for file in _read_files(files, from_AWS):
+		all_pairs += [_ for _ in naive_frame_reader(file)]
+	
 	random.shuffle(all_pairs)
 
 	data += [pair[0] for pair in all_pairs]
 	labels += [pair[1] for pair in all_pairs]
-
-	# code.interact(local=dict(globals(), **locals())) 
-	print round(time.time() - start,2), "Saving",len(data),"pairs"
-	cPickle.dump([data,labels], gzip.GzipFile(COMPRESSED_DATA_CACHE,'w'))
-	print round(time.time() - start,2), "Dumped to", COMPRESSED_DATA_CACHE
-	cPickle.dump([data,labels], open(DATA_CACHE,'w'))
-	print round(time.time() - start,2), "Dumped to", DATA_CACHE
-	if RUNNING_ON_AWS:
-		print "Uploading to s3"
-		run_cmd("aws s3 --region us-east-1 cp "+COMPRESSED_DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
-		run_cmd("aws s3 --region us-east-1 cp "+DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
 	
+	return [data, labels]	
 
 def naive_frame_reader(file):
 	with gzip.GzipFile(INPUT_FOLDER+file, 'r') as handle:
@@ -387,7 +414,7 @@ if '__main__' == __name__:
 		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 
-
+	
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
 		should_generate = True
 		if RUNNING_ON_AWS:
@@ -408,11 +435,11 @@ if '__main__' == __name__:
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
 			input_files = run_cmd("aws s3 ls umbc.research/robot_learn_classifier/clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
-			gen_naive_datacache(input_files, True)
+			gen_datacache(input_files, True)
 		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
 			input_files = os.listdir(INPUT_FOLDER)
-			gen_naive_datacache(input_files)
+			gen_datacache(input_files)
 		exit()
 	
 	hidden_layers = DEFAULT_HIDDEN_LAYERS
