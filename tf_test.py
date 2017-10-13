@@ -3,7 +3,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.python import debug as tf_debug
-from classifier import MAX_LINKS, MAX_CENTROIDS, load_data_cache, naive_batcher
+from classifier import MAX_LINKS, MAX_CENTROIDS, load_data_cache
 
 
 class_length = 9 #MAX_LINKS + 1
