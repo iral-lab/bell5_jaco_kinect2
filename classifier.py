@@ -371,8 +371,8 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		cost = get_mlp_cost(pred, Y, class_length)
 	
 	elif RUN_TYPE == RUN_RNN:
-		X = tf.placeholder('float', [1, PERMUTATIONS, n_input])
-		Y = tf.placeholder('float', [1, class_length])
+		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+		Y = tf.placeholder('float', [None, class_length])
 		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_cost(pred, Y)
 	
