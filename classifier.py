@@ -72,7 +72,7 @@ def mlp_batcher(data_cache, label_cache):
 
 		batches = []
 
-		print "Creating",N_BATCHES,"of",batch_size,"items, total of",size
+		print "Creating",N_BATCHES,"batches of",batch_size,"items, total of",size
 		batch_i = 0
 		while so_far < size:
 			data = data_cache[so_far:so_far + batch_size]
