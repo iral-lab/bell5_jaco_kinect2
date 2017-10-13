@@ -1,5 +1,6 @@
 import sys, os, random, cPickle, time, code, math, gzip, glob, popen2
 import tensorflow as tf
+from tensorflow.contrib import rnn
 from tensorflow.python import debug as tf_debug
 from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
 
@@ -57,11 +58,10 @@ def _pad_label(lengths):
 
 
 BATCH_CACHE = None
+USE_BATCH_CACHE = True
 def mlp_batcher(data_cache, label_cache):
 	global BATCH_CACHE
-
-	use_cache = True
-
+	
 	if not BATCH_CACHE or len(BATCH_CACHE) == 0:
 		BATCH_CACHE = []
 
@@ -79,17 +79,29 @@ def mlp_batcher(data_cache, label_cache):
 			labels = label_cache[so_far:so_far + batch_size]
 
 			batch = (data,labels)
-			if use_cache:
+			if USE_BATCH_CACHE:
 				BATCH_CACHE.append( batch )
 			else:
 				yield batch
 
 			batch_i += 1
 			so_far += batch_size
-	if use_cache and BATCH_CACHE:
+	if USE_BATCH_CACHE and BATCH_CACHE:
 		for batch in BATCH_CACHE:
 			yield batch
 
+def rnn_batcher(data_cache, label_cache):
+	# outputting just one sequence/label at a time
+	# code.interact(local=dict(globals(), **locals()))
+	
+	# for i in xrange(len(data_cache)):
+	# 	data = [data_cache[i]]
+	# 	labels = [label_cache[i]]
+	# 	yield [data, labels]
+	
+	for batch in mlp_batcher(data_cache, label_cache):
+		yield batch
+	
 
 def load_data_cache():
 	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
@@ -250,19 +262,20 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	# RNN output node weights and biases
 	weights = {
-	    'out': tf.Variable(tf.random_normal([n_input, class_length]))
+	    'out': tf.Variable(tf.random_normal([nodes_per_layer, class_length]))
 	}
 	biases = {
 	    'out': tf.Variable(tf.random_normal([class_length]))
 	}
-	rnn_cell = rnn.BasicLSTMCell(nodes_per_layer)
-	outputs, states = rnn.static_rnn(rnn_cell, x, dtype=tf.float32)
-	network = tf.matmul(outputs[-1], weights['out']) + biases['out']
-	return network
+	#init_state = tf.zeros([n_hidden, frame_length])
+
+	rnn_cell = tf.contrib.rnn.LSTMCell(nodes_per_layer)
+	outputs, states = tf.nn.dynamic_rnn(rnn_cell, x, dtype = tf.float32)
+	return tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
 	
 
 LINK_COUNT_WEIGHTING = 100
-def get_cost(prediction, y, class_length, reduced = True):
+def get_mlp_cost(prediction, y, class_length, reduced = True):
 
 
 	correct_noop = tf.transpose(tf.transpose(y))
@@ -304,16 +317,13 @@ def get_cost(prediction, y, class_length, reduced = True):
 	penalty_sum = tf.reduce_sum(penalty)
 
 	return penalty_sum if reduced else penalty
+
+def get_rnn_cost(pred, y):
+	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(pred, y)), reduction_indices=1))
+	penalty_sum = tf.reduce_sum(l2_distance)
+	return penalty_sum
 	
-# def get_accuracy(prediction, y, class_length):
-# 	penalties = get_cost(prediction, y, class_length, False)
-# 	considered_correct = LINK_COUNT_WEIGHTING * 0.1
-# 	accurate_predictions = tf.cast(tf.less(penalties, considered_correct), tf.int32)
-# 	accuracy_ratio = tf.cast(tf.count_nonzero(accurate_predictions), tf.float32) / tf.cast(tf.shape(y)[0], tf.float32)
-#
-# 	return accuracy_ratio
-	
-	
+
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	
 	class_length = MAX_LINKS + 1
@@ -326,16 +336,22 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	# print "Class length:",class_length
 	
 
-	X = tf.placeholder('float', [None, n_input])
-	Y = tf.placeholder('float', [None, class_length])
-	
+	X = None
+	Y = None
 	pred = None
+	cost = None
 	if RUN_TYPE == RUN_MLP:
+		X = tf.placeholder('float', [None, n_input])
+		Y = tf.placeholder('float', [None, class_length])
 		pred = mlp_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
-	elif RUN_TYPE == RUN_RNN:
-		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+		cost = get_mlp_cost(pred, Y, class_length)
 	
-	cost = get_cost(pred, Y, class_length)
+	elif RUN_TYPE == RUN_RNN:
+		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+		Y = tf.placeholder('float', [None, class_length])
+		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+		cost = get_rnn_cost(pred, Y)
+	
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 	
 	# print "Trainable:", tf.trainable_variables()
@@ -443,7 +459,7 @@ if '__main__' == __name__:
 	nodes_per_layer = DEFAULT_NODES_PER_LAYER
 
 	data_cache, label_cache = load_data_cache()
-	
+	# code.interact(local=dict(globals(), **locals()))
 	if '--hyper' in sys.argv:
 		run_hyper(data_cache, label_cache)
 		sys.exit()
