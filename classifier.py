@@ -98,14 +98,15 @@ def mlp_batcher(data_cache, label_cache):
 def rnn_batcher(data_cache, label_cache):
 	# outputting just one sequence/label at a time
 	# code.interact(local=dict(globals(), **locals()))
-	
-	# for i in xrange(len(data_cache)):
-	# 	data = [data_cache[i]]
-	# 	labels = [label_cache[i]]
-	# 	yield [data, labels]
-	
+
 	for batch in mlp_batcher(data_cache, label_cache):
-		yield batch
+		# yield batch
+	
+		for i in xrange(len(batch[0])):
+			data = [batch[0][i]]
+			labels = [batch[1][i]]
+			yield [data, labels]
+	
 	
 
 def load_data_cache():
@@ -277,7 +278,8 @@ def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	rnn_cell = tf.contrib.rnn.LSTMCell(nodes_per_layer)
 	outputs, states = tf.nn.dynamic_rnn(rnn_cell, x, dtype = tf.float32)
 	pred = tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
-	
+	print
+	print	
 	print "X:",x
 	print "rnn_cell:",rnn_cell
 	print "outputs:",outputs
@@ -287,6 +289,8 @@ def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	print "hidden_layers",hidden_layers
 	print "nodes_per_layer",nodes_per_layer
 	print "pred",pred
+	print
+	print
 	return pred
 	
 	
@@ -367,8 +371,8 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		cost = get_mlp_cost(pred, Y, class_length)
 	
 	elif RUN_TYPE == RUN_RNN:
-		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
-		Y = tf.placeholder('float', [None, class_length])
+		X = tf.placeholder('float', [1, PERMUTATIONS, n_input])
+		Y = tf.placeholder('float', [1, class_length])
 		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_cost(pred, Y)
 	
@@ -404,8 +408,9 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 					continue
 				
 				epoch_x,epoch_y = batch
-				print len(epoch_x), len(epoch_y)
-				code.interact(local=dict(globals(), **locals()))
+				# print len(epoch_x), len(epoch_y)
+				# code.interact(local=dict(globals(), **locals()))
+				
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 			
 			# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
