@@ -58,7 +58,6 @@ def _pad_label(lengths):
 
 
 BATCH_CACHE = None
-USE_BATCH_CACHE = True
 def mlp_batcher(data_cache, label_cache):
 	global BATCH_CACHE
 	
@@ -79,16 +78,22 @@ def mlp_batcher(data_cache, label_cache):
 			labels = label_cache[so_far:so_far + batch_size]
 
 			batch = (data,labels)
-			if USE_BATCH_CACHE:
-				BATCH_CACHE.append( batch )
-			else:
-				yield batch
-
+			BATCH_CACHE.append( batch )
+			
 			batch_i += 1
 			so_far += batch_size
-	if USE_BATCH_CACHE and BATCH_CACHE:
-		for batch in BATCH_CACHE:
-			yield batch
+	
+		# prune out bad data based on how many permutations we expect
+		for i,batch in enumerate(BATCH_CACHE):
+			invalid_indexes = [index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS]
+			if len(invalid_indexes) > 0:
+				new_data = [record for index,record in enumerate(batch[0]) if not index in invalid_indexes]
+				new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
+			
+				BATCH_CACHE[i] = [new_data, new_labels]
+	
+	for batch in BATCH_CACHE:
+		yield batch
 
 def rnn_batcher(data_cache, label_cache):
 	# outputting just one sequence/label at a time
@@ -271,7 +276,20 @@ def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 
 	rnn_cell = tf.contrib.rnn.LSTMCell(nodes_per_layer)
 	outputs, states = tf.nn.dynamic_rnn(rnn_cell, x, dtype = tf.float32)
-	return tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
+	pred = tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
+	
+	print "X:",x
+	print "rnn_cell:",rnn_cell
+	print "outputs:",outputs
+	print "states:",states
+	print "n_input",n_input
+	print "class_length",class_length
+	print "hidden_layers",hidden_layers
+	print "nodes_per_layer",nodes_per_layer
+	print "pred",pred
+	return pred
+	
+	
 	
 
 LINK_COUNT_WEIGHTING = 100
@@ -319,6 +337,8 @@ def get_mlp_cost(prediction, y, class_length, reduced = True):
 	return penalty_sum if reduced else penalty
 
 def get_rnn_cost(pred, y):
+	print "pred:",pred
+	print "Y:",y
 	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(pred, y)), reduction_indices=1))
 	penalty_sum = tf.reduce_sum(l2_distance)
 	return penalty_sum
@@ -382,8 +402,10 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 				if j == 0:
 					test_batch = batch
 					continue
-
+				
 				epoch_x,epoch_y = batch
+				print len(epoch_x), len(epoch_y)
+				code.interact(local=dict(globals(), **locals()))
 				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
 			
 			# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
