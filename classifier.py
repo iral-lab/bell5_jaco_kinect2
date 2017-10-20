@@ -58,7 +58,7 @@ def _pad_label(lengths):
 
 
 BATCH_CACHE = None
-def mlp_batcher(data_cache, label_cache):
+def data_label_batcher(data_cache, label_cache):
 	global BATCH_CACHE
 	
 	if not BATCH_CACHE or len(BATCH_CACHE) == 0:
@@ -94,19 +94,6 @@ def mlp_batcher(data_cache, label_cache):
 	
 	for batch in BATCH_CACHE:
 		yield batch
-
-def rnn_batcher(data_cache, label_cache):
-	# outputting just one sequence/label at a time
-	# code.interact(local=dict(globals(), **locals()))
-
-	for batch in mlp_batcher(data_cache, label_cache):
-		# yield batch
-	
-		for i in xrange(len(batch[0])):
-			data = [batch[0][i]]
-			labels = [batch[1][i]]
-			yield [data, labels]
-	
 	
 
 def load_data_cache():
@@ -346,7 +333,29 @@ def get_rnn_cost(pred, y):
 	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(pred, y)), reduction_indices=1))
 	penalty_sum = tf.reduce_sum(l2_distance)
 	return penalty_sum
+
+def run_batch(X, Y, sess, batch, cost, optimizer = None):
+	batch_cost = 0
 	
+	to_run = [cost]
+	if optimizer:
+		to_run.append(optimizer)
+	
+	if RUN_TYPE == RUN_MLP:
+		epoch_x,epoch_y = batch
+		results = sess.run(to_run, feed_dict = {X: epoch_x, Y: epoch_y})
+		
+		batch_cost = results[0]
+	
+	elif RUN_TYPE == RUN_RNN:
+		data, labels = batch
+		for i in xrange(len(data)):
+			epoch_x = [data[i]]
+			epoch_y = [labels[i]]
+			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: epoch_y})
+			batch_cost += results[0]
+	
+	return batch_cost
 
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	
@@ -396,25 +405,17 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		for i in range(N_EPOCHS):
 			epoch_start = time.time()
 			test_batch = None
-			batcher = None
-			if RUN_TYPE == RUN_MLP:
-				batcher = mlp_batcher(data_cache, label_cache)
-			elif RUN_TYPE == RUN_RNN:
-				batcher = rnn_batcher(data_cache, label_cache)
+			batcher = data_label_batcher(data_cache, label_cache)
 			
 			for j,batch in enumerate(batcher):
 				if j == 0:
 					test_batch = batch
 					continue
 				
-				epoch_x,epoch_y = batch
-				# print len(epoch_x), len(epoch_y)
-				# code.interact(local=dict(globals(), **locals()))
-				
-				_,c = sess.run([optimizer, cost], feed_dict={X:epoch_x, Y: epoch_y})
+				batch_cost = run_batch(X, Y, sess, batch, cost, optimizer)
 			
-			# accuracy_val = accuracy.eval({X: test_batch[0], Y: test_batch[1]})
-			test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
+			test_cost = run_batch(X, Y, sess, test_batch, cost)
+			# test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
 			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
 			
 			cost_stats.append( "\t".join([str(x) for x in [i, c, test_cost, 1/test_cost]]))
