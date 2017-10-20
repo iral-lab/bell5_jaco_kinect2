@@ -43,10 +43,12 @@ def get_label(lengths_line):
 	while len(lengths) < MAX_LINKS:
 		lengths.append(0.0)
 	return _pad_label([num_lengths] + lengths)
-	
+
+def _flatten(lst):
+	return [item for sublist in lst for item in sublist]
 
 def _flatten_and_pad_points(skeleton_frame):
-	flat = [item for sublist in skeleton_frame for item in sublist]
+	flat = _flatten(skeleton_frame)
 	while len(flat) < MAX_CENTROIDS * 3:
 		flat.append(0.0)
 	return flat
