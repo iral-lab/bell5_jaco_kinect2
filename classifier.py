@@ -29,16 +29,7 @@ DATA_CACHE = '_classifier_input_'+(MLP_TAG if RUN_TYPE == RUN_MLP else RNN_TAG)+
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 
-S3_DESTINATION = None
-S3_FOLDER = None
-if RUN_TYPE == RUN_RNN:
-	S3_FOLDER = "umbc.research/robot_learn_classifier_rnn/"
-elif RUN_TYPE == RUN_MLP:
-	S3_FOLDER = "umbc.research/robot_learn_classifier/"
-
-if RUNNING_ON_AWS and not S3_FOLDER:
-	print "Could not set AWS S3 location"
-	exit()
+S3_FOLDER = "umbc.research/robot_learn_classifier_rnn/"
 S3_DESTINATION = "s3://" + S3_FOLDER
 
 def run_cmd(cmd):
