@@ -15,7 +15,7 @@ RNN_TAG = "RNN"
 N_EPOCHS = 50
 N_BATCHES = 10
 
-DEFAULT_HIDDEN_LAYERS = 2
+DEFAULT_HIDDEN_LAYERS = 3
 DEFAULT_NODES_PER_LAYER = 100
 
 MAX_FILES_TESTING = None #100
@@ -261,23 +261,28 @@ def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	    'out': tf.Variable(tf.random_normal([class_length]))
 	}
 	#init_state = tf.zeros([n_hidden, frame_length])
-
-	rnn_cell = tf.contrib.rnn.LSTMCell(nodes_per_layer)
-	outputs, states = tf.nn.dynamic_rnn(rnn_cell, x, dtype = tf.float32)
-	pred = tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
+	
+	cells = [tf.contrib.rnn.LSTMCell(nodes_per_layer) for _ in xrange(hidden_layers)]
+	multi_rnn_cell = tf.contrib.rnn.MultiRNNCell(cells)
 	print
 	print	
-	print "X:",x
-	print "rnn_cell:",rnn_cell
-	print "outputs:",outputs
-	print "states:",states
 	print "n_input",n_input
 	print "class_length",class_length
 	print "hidden_layers",hidden_layers
 	print "nodes_per_layer",nodes_per_layer
+	print "X:",x
+	print "single rnn cells:",cells
+	print "multi_rnn_cell:",multi_rnn_cell
+		
+	outputs, states = tf.nn.dynamic_rnn(multi_rnn_cell, x, dtype = tf.float32)
+	print "outputs:",outputs
+	print "states:",states
+	
+	pred = tf.nn.relu(tf.add(tf.matmul(outputs[-1], weights['out']), biases['out']))
 	print "pred",pred
 	print
 	print
+	
 	return pred
 	
 	
@@ -417,11 +422,11 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 				
 				epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
 				num_batches += 1
-			
+				# print i,j,epoch_cost
 			avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
 			test_cost = run_batch(X, Y, sess, test_batch, cost)
-			# test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
+			
 			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 			
 			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
