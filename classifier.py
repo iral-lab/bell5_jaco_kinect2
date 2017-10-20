@@ -151,13 +151,16 @@ def gen_datacache(files, from_AWS = False):
 def _read_files(files, from_AWS):
 	start = time.time()
 	num_files = len(files)
+
+	if not os.path.exists(INPUT_FOLDER):
+		os.mkdir(INPUT_FOLDER)
 	
 	for i, file in enumerate(files):
 		if file in [".DS_Store", ""]:
 			continue
 		
 		if from_AWS:
-			cmd = "aws s3 cp " + S3_DESTINATION + "clouds/"+file+" clouds/"+file
+			cmd = "aws s3 cp " + S3_DESTINATION + "clouds/"+file+" " + INPUT_FOLDER + file
 			print num_files,i,">",cmd
 			run_cmd(cmd)
 		
@@ -167,7 +170,7 @@ def _read_files(files, from_AWS):
 		
 		
 		if from_AWS:
-			run_cmd("rm clouds/"+file)
+			run_cmd("rm " + INPUT_FOLDER + file)
 		
 		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
 			break
@@ -490,7 +493,7 @@ if '__main__' == __name__:
 		
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
-			input_files = run_cmd("aws s3 ls " + S3_FOLDER + "/clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
+			input_files = run_cmd("aws s3 ls " + S3_FOLDER + "clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
 			gen_datacache(input_files, True)
 		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
