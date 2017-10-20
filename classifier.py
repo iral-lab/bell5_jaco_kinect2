@@ -472,7 +472,6 @@ if '__main__' == __name__:
 		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
 		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
-
 	
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
 		should_generate = True
@@ -481,8 +480,10 @@ if '__main__' == __name__:
 			uncompressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls " + S3_DESTINATION + DATA_CACHE)
 			
 			if compressed_available:
+				print "Downloading compressed:", S3_DESTINATION + COMPRESSED_DATA_CACHE
 				run_cmd("aws s3 --region us-east-1 cp " + S3_DESTINATION + COMPRESSED_DATA_CACHE + " .")
 			if uncompressed_available:
+				print "Downloading uncompressed:", S3_DESTINATION + DATA_CACHE
 				run_cmd("aws s3 --region us-east-1 cp " + S3_DESTINATION + DATA_CACHE + " .")
 			
 			if compressed_available or uncompressed_available:
@@ -493,7 +494,7 @@ if '__main__' == __name__:
 		
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
-			input_files = run_cmd("aws s3 ls " + S3_FOLDER + "clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
+			input_files = run_cmd("aws s3 ls " + S3_DESTINATION + "clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
 			gen_datacache(input_files, True)
 		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
