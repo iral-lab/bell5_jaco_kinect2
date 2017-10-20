@@ -160,7 +160,7 @@ def _read_files(files, from_AWS):
 			continue
 		
 		if from_AWS:
-			cmd = "aws s3 cp " + S3_DESTINATION + "clouds/"+file+" " + INPUT_FOLDER + file
+			cmd = "aws s3 --region us-east-1 cp " + S3_DESTINATION + "clouds/"+file+" " + INPUT_FOLDER + file
 			print num_files,i,">",cmd
 			run_cmd(cmd)
 		
@@ -490,7 +490,7 @@ if '__main__' == __name__:
 				print "Successfully downloaded from s3"
 				should_generate = False
 			else:
-				print "Could not download from s3"
+				print "Could not download pre-generated batch data from s3"
 		
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
