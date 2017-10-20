@@ -28,6 +28,19 @@ INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
 DATA_CACHE = '_classifier_input_'+(MLP_TAG if RUN_TYPE == RUN_MLP else RNN_TAG)+'.pickle'
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
+
+S3_DESTINATION = None
+S3_FOLDER = None
+if RUN_TYPE == RUN_RNN:
+	S3_FOLDER = "umbc.research/robot_learn_classifier_rnn/"
+elif RUN_TYPE == RUN_MLP:
+	S3_FOLDER = "umbc.research/robot_learn_classifier/"
+
+if RUNNING_ON_AWS and not S3_FOLDER:
+	print "Could not set AWS S3 location"
+	exit()
+S3_DESTINATION = "s3://" + S3_FOLDER
+
 def run_cmd(cmd):
 	o,i = popen2.popen2(cmd)
 	return o.read()
@@ -137,8 +150,8 @@ def gen_datacache(files, from_AWS = False):
 		print round(time.time() - start,2), "Dumped to", DATA_CACHE
 		if RUNNING_ON_AWS:
 			print "Uploading to s3"
-			run_cmd("aws s3 --region us-east-1 cp "+COMPRESSED_DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
-			run_cmd("aws s3 --region us-east-1 cp "+DATA_CACHE+" s3://umbc.research/robot_learn_classifier/")
+			run_cmd("aws s3 --region us-east-1 cp "+COMPRESSED_DATA_CACHE+" "+S3_DESTINATION)
+			run_cmd("aws s3 --region us-east-1 cp "+DATA_CACHE+" "+S3_DESTINATION)
 	else:
 		print "No data or no labels returned"
 		exit()
@@ -153,7 +166,7 @@ def _read_files(files, from_AWS):
 			continue
 		
 		if from_AWS:
-			cmd = "aws s3 cp s3://umbc.research/robot_learn_classifier/clouds/"+file+" clouds/"+file
+			cmd = "aws s3 cp " + S3_DESTINATION + "clouds/"+file+" clouds/"+file
 			print num_files,i,">",cmd
 			run_cmd(cmd)
 		
@@ -439,7 +452,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		handle.write("\n".join(cost_stats)+"\n")
 	
 	if RUNNING_ON_AWS:
-		cmd = "aws s3 --region us-east-1 cp "+stats_folder+"* s3://umbc.research/robot_learn_classifier/"+stats_folder
+		cmd = "aws s3 --region us-east-1 cp " + stats_folder + "* " + S3_DESTINATION + stats_folder
 		print cmd
 		run_cmd(cmd)
 		run_cmd("rm -rf "+stats_folder)
@@ -470,13 +483,13 @@ if '__main__' == __name__:
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
 		should_generate = True
 		if RUNNING_ON_AWS:
-			compressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls s3://umbc.research/robot_learn_classifier/" + COMPRESSED_DATA_CACHE)
-			uncompressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls s3://umbc.research/robot_learn_classifier/" + DATA_CACHE)
+			compressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls " + S3_DESTINATION + COMPRESSED_DATA_CACHE)
+			uncompressed_available = not "" == run_cmd("aws s3 --region us-east-1 ls " + S3_DESTINATION + DATA_CACHE)
 			
 			if compressed_available:
-				run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/" + COMPRESSED_DATA_CACHE + " .")
+				run_cmd("aws s3 --region us-east-1 cp " + S3_DESTINATION + COMPRESSED_DATA_CACHE + " .")
 			if uncompressed_available:
-				run_cmd("aws s3 --region us-east-1 cp s3://umbc.research/robot_learn_classifier/" + DATA_CACHE + " .")
+				run_cmd("aws s3 --region us-east-1 cp " + S3_DESTINATION + DATA_CACHE + " .")
 			
 			if compressed_available or uncompressed_available:
 				print "Successfully downloaded from s3"
@@ -486,7 +499,7 @@ if '__main__' == __name__:
 		
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
-			input_files = run_cmd("aws s3 ls umbc.research/robot_learn_classifier/clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
+			input_files = run_cmd("aws s3 ls " + S3_FOLDER + "/clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
 			gen_datacache(input_files, True)
 		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
