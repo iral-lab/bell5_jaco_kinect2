@@ -407,18 +407,24 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 			test_batch = None
 			batcher = data_label_batcher(data_cache, label_cache)
 			
+			epoch_cost = 0
+			num_batches = 0
+			
 			for j,batch in enumerate(batcher):
 				if j == 0:
 					test_batch = batch
 					continue
 				
-				batch_cost = run_batch(X, Y, sess, batch, cost, optimizer)
+				epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
+				num_batches += 1
+			
+			avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
 			test_cost = run_batch(X, Y, sess, test_batch, cost)
 			# test_cost = sess.run(cost, feed_dict={X:test_batch[0], Y: test_batch[1]})
-			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Cost:", c , "Test cost:", test_cost
+			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 			
-			cost_stats.append( "\t".join([str(x) for x in [i, c, test_cost, 1/test_cost]]))
+			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
 
 	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
