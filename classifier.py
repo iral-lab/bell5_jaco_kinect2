@@ -150,7 +150,7 @@ def gen_datacache(files, from_AWS = False):
 		exit()
 	
 
-def _read_files(files, from_AWS):
+def _prep_files(files, from_AWS):
 	start = time.time()
 	num_files = len(files)
 
@@ -184,7 +184,7 @@ def get_data_labels(files, from_AWS = False):
 	all_pairs = []
 	# files = random.shuffle(files)
 	
-	for file in _read_files(files, from_AWS):
+	for file in _prep_files(files, from_AWS):
 		all_pairs += [_ for _ in frame_reader(file)]
 		#code.interact(local=dict(globals(), **locals())) 
 	
