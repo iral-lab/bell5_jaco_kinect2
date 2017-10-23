@@ -464,7 +464,7 @@ def hyper_params():
 	if RUN_TYPE == RUN_MLP:
 		return [xrange(1,10), xrange(20, 200, 10)]
 	elif RUN_TYPE == RUN_RNN:
-		return [xrange(1,5), xrange(20, 200, 30)]
+		return [xrange(1,4), xrange(20, 200, 40)]
 	
 	print "unknown hyper params"
 	exit()
