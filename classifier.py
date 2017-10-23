@@ -372,6 +372,7 @@ def run_batch(X, Y, sess, batch, cost, optimizer = None):
 	return batch_cost
 
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
+	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS + 1
 	n_input = MAX_CENTROIDS * 3
@@ -406,8 +407,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	cost_stats = []
 
 	overall_start = time.time()
-
-	tf.reset_default_graph()
+	
 	with tf.Session() as sess:
 		# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 		# you need to initialize all variables
@@ -464,7 +464,7 @@ def hyper_params():
 	if RUN_TYPE == RUN_MLP:
 		return [xrange(1,10), xrange(20, 200, 10)]
 	elif RUN_TYPE == RUN_RNN:
-		return [xrange(1,5), xrange(20, 200, 10)]
+		return [xrange(1,5), xrange(20, 200, 30)]
 	
 	print "unknown hyper params"
 	exit()
