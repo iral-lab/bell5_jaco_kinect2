@@ -407,7 +407,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 
 	overall_start = time.time()
 
-
+	tf.reset_default_graph()
 	with tf.Session() as sess:
 		# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 		# you need to initialize all variables
@@ -431,7 +431,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 				
 				epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
 				num_batches += 1
-				# print i,j,epoch_cost
+				
 			avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
 			test_cost = run_batch(X, Y, sess, test_batch, cost)
@@ -439,8 +439,14 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 			
 			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
-
-	stats_folder = "run_stats/run_"+str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
+	
+	type_string = ""
+	if RUN_TYPE == RUN_MLP:
+		type_string = "MLP_"
+	elif RUN_TYPE == RUN_RNN:
+		type_string = "RNN_"
+	
+	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
 
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
@@ -453,17 +459,27 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		run_cmd(cmd)
 		run_cmd("rm -rf "+stats_folder)
 
+def hyper_params():
+	# num_layer_range, nodes_per_layer
+	if RUN_TYPE == RUN_MLP:
+		return [xrange(1,10), xrange(20, 200, 10)]
+	elif RUN_TYPE == RUN_RNN:
+		return [xrange(1,5), xrange(20, 200, 10)]
+	
+	print "unknown hyper params"
+	exit()
+
 def run_hyper(data_cache, label_cache):
-	layer_range = range(1,10)
-	nodes_per_layer_range = range(20, 200, 10)
+	layer_range, nodes_per_layer_range = hyper_params()
 	
 	for layers in layer_range:
 		for nodes_per_layer in nodes_per_layer_range:
 			print "HYPER: ", layers, nodes_per_layer
 			try:
 				run_test(data_cache, label_cache, layers, nodes_per_layer)
-			except:
+			except Exception as error:
 				print "Caught error, continuing"
+				print error
 				pass
 
 
