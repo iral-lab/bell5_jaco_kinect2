@@ -2,6 +2,12 @@ import sys, os
 
 IN_DIR = "run_stats/"
 
+RUN_MLP, RUN_RNN = range(2)
+RUN_TYPE = RUN_RNN
+
+MLP_SUFFIXES = ["_20", "_80", "_140", "_190",]
+RNN_SUFFIXES = ["_20", "_60", "_100", "_140", "_180"]
+
 if "__main__" == __name__:
 	
 	train_cost_index = 2
@@ -14,10 +20,15 @@ if "__main__" == __name__:
 		if not os.path.isdir(IN_DIR + folder):
 			continue
 		
-		folder_parts = folder.split("_")
-		n_layers, n_nodes = [int(x) for x in folder_parts[2:]]
+		if RUN_TYPE == RUN_RNN and not "RNN" in folder:
+			continue
+		if RUN_TYPE == RUN_MLP and not "MLP" in folder:
+			continue
 		
-		run_label = str(n_layers) + "  " + str(n_nodes)
+		folder_parts = folder.split("_")
+		n_layers, n_nodes = [int(x) for x in folder_parts[3:]]
+		
+		run_label = str(n_layers) + " layers,  " + str(n_nodes) + " nodes/layer"
 		while len(data) < 1:
 			data.append([])
 		if first_time:
@@ -25,9 +36,7 @@ if "__main__" == __name__:
 			first_time = False
 		
 		if True:
-			valid_suffixes = [
-				"_20", "_80", "_140", "_190",
-			]
+			valid_suffixes = MLP_SUFFIXES if RUN_TYPE == RUN_MLP else RNN_SUFFIXES
 			valid = False
 			for suffix in valid_suffixes:
 				if folder[-1 * len(suffix):] == suffix:
@@ -55,10 +64,8 @@ if "__main__" == __name__:
 			if not labels:
 				labels = []
 				for row in parts:
-					epoch, batch = [int(x) for x in row[:2]]
-					label = epoch * 100 + batch
-					# print epoch, batch, label
-					labels.append(label)
+					epoch = row[0]
+					labels.append(epoch)
 				while len(data) < len(labels)+1:
 					data.append([])
 				for i, label in enumerate(labels):
@@ -67,21 +74,13 @@ if "__main__" == __name__:
 			for i,row in enumerate(parts):
 				data[i+1].append(row[train_cost_index])
 			
-			
-			# print data
-			
-			# break
-		# break
-	
 	to_write = []
 	for i,row in enumerate(data):
 		# print only after final training
-		if not row[0] == "" and not row[0] % 100 == 9:
-			continue
-		
 		row = [str(x) for x in row]
 		to_write.append("\t".join(row))
-	open("merged_run_stats.tsv", "w").write("\n".join(to_write))
+	type = "_RNN" if RUN_TYPE == RUN_RNN else "_MLP"
+	open("merged_run_stats"+type+".tsv", "w").write("\n".join(to_write))
 	
 	
 	
