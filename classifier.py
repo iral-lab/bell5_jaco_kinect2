@@ -450,7 +450,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 	os.makedirs(stats_folder)
 
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
-		handle.write("\t".join(['Epoch', 'Batch', 'Train cost', 'Test cost', '1/Test cost'])+"\n")
+		handle.write("\t".join(['Epoch', 'Epoch Train cost', 'Epoch Test cost', '1/Epoch Test cost'])+"\n")
 		handle.write("\n".join(cost_stats)+"\n")
 	
 	if RUNNING_ON_AWS:
