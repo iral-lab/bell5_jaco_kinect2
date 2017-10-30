@@ -18,6 +18,8 @@ N_BATCHES = 10
 DEFAULT_HIDDEN_LAYERS = 3
 DEFAULT_NODES_PER_LAYER = 100
 
+SPECIFIC_HYPER = [ (1, 120,30), (2,120,30), (3,120,30), (3,140,30), (3,180,30), ]
+
 MAX_FILES_TESTING = None #100
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
@@ -371,7 +373,7 @@ def run_batch(X, Y, sess, batch, cost, optimizer = None):
 	
 	return batch_cost
 
-def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs):
 	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS + 1
@@ -416,7 +418,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer):
 		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 		# accuracy = get_accuracy(pred, Y, class_length)
-		for i in range(N_EPOCHS):
+		for i in range(num_epochs):
 			epoch_start = time.time()
 			test_batch = None
 			batcher = data_label_batcher(data_cache, label_cache)
@@ -470,13 +472,26 @@ def hyper_params():
 	exit()
 
 def run_hyper(data_cache, label_cache):
+	
+	if SPECIFIC_HYPER:
+		print "Running specific hyper params"
+		for layers, nodes_per_layer, num_epochs in SPECIFIC_HYPER:
+			try:
+				run_test(data_cache, label_cache, layers, nodes_per_layer, num_epochs)
+			except Exception as error:
+				print "Caught error, continuing"
+				print error
+				pass
+		
+		return
+	
 	layer_range, nodes_per_layer_range = hyper_params()
 	
 	for layers in layer_range:
 		for nodes_per_layer in nodes_per_layer_range:
 			print "HYPER: ", layers, nodes_per_layer
 			try:
-				run_test(data_cache, label_cache, layers, nodes_per_layer)
+				run_test(data_cache, label_cache, layers, nodes_per_layer, N_EPOCHS)
 			except Exception as error:
 				print "Caught error, continuing"
 				print error
@@ -535,7 +550,7 @@ if '__main__' == __name__:
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 	
-	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer)
+	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS)
 	
 
 
