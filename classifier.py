@@ -22,7 +22,7 @@ SPECIFIC_HYPER = None #[ (1, 120,30), (2,120,30), (3,120,30), (3,140,30), (3,180
 
 MAX_FILES_TESTING = None #100
 
-MODEL_SAVE_FOLDER = "./models/"
+MODEL_SAVE_FOLDER = "models/"
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
@@ -413,18 +413,18 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	overall_start = time.time()
 	
 	
-	model_save_file = MODEL_SAVE_FOLDER
+	model_save_folder = MODEL_SAVE_FOLDER
 	type_string = ""
 	if RUN_TYPE == RUN_MLP:
 		type_string = "MLP_"
-		model_save_file += "MLP_"
+		model_save_folder += "MLP_"
 	elif RUN_TYPE == RUN_RNN:
 		type_string = "RNN_"
-		model_save_file += "RNN_"
-	model_save_file += str(int(overall_start)) + "_"
-	model_save_file += str(hidden_layers) + "_" + str(nodes_per_layer) + "/"
-	os.makedirs(model_save_file)
-	model_save_file += "model.tf"
+		model_save_folder += "RNN_"
+	model_save_folder += str(int(overall_start)) + "_"
+	model_save_folder += str(hidden_layers) + "_" + str(nodes_per_layer) + "/"
+	os.makedirs(model_save_folder)
+	model_save_file = model_save_folder + "model.tf"
 
 	saver = tf.train.Saver()
 	
@@ -467,6 +467,10 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		if save_model:
 			save_path = saver.save(sess, model_save_file)
 			print "Model saved as", save_path
+			if RUNNING_ON_AWS:
+				cmd = "aws s3 --region us-east-1 cp " + model_save_folder + "* " + S3_DESTINATION + model_save_folder
+				print cmd
+				run_cmd(cmd)
 	
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
@@ -573,6 +577,9 @@ if '__main__' == __name__:
 	load_model_file = None
 	if len(sys.argv) == 4:
 		load_model_file = sys.argv[3]
+		if not os.path.exists(load_model_file):
+			print "Model load file does not exist:", load_model_file
+			exit()
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 	
