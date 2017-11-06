@@ -101,7 +101,7 @@ def data_label_batcher(data_cache, label_cache):
 				new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
 			
 				BATCH_CACHE[i] = [new_data, new_labels]
-	
+		print "Done creating batches"
 	for batch in BATCH_CACHE:
 		yield batch
 	
