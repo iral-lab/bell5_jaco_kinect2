@@ -476,6 +476,7 @@ def run_hyper(data_cache, label_cache):
 	if SPECIFIC_HYPER:
 		print "Running specific hyper params"
 		for layers, nodes_per_layer, num_epochs in SPECIFIC_HYPER:
+			print "HYPER: ", layers, nodes_per_layer, num_epochs
 			try:
 				run_test(data_cache, label_cache, layers, nodes_per_layer, num_epochs)
 			except Exception as error:
