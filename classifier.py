@@ -7,7 +7,7 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 #code.interact(local=dict(globals(), **locals())) 
 
 RUN_MLP, RUN_RNN = range(2)
-RUN_TYPE = RUN_RNN
+RUN_TYPE = RUN_RNN if len(sys.argv) > 0 and 'RNN' == sys.argv[1] else RUN_MLP
 
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
@@ -525,11 +525,10 @@ def run_hyper(data_cache, label_cache):
 
 if '__main__' == __name__:
 	
-	if '-h' in sys.argv or '--help' in sys.argv:
-		print "Usage: python", sys.argv[0]
-		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
-		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer saved_model_file"
-		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
+	if '-h' in sys.argv or '--help' in sys.argv or len(sys.argv) < 4:
+		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer"
+		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer saved_model_file"
+		print "Default: python", sys.argv[0], "RNN",DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 	
 	if not os.path.exists(COMPRESSED_DATA_CACHE):
@@ -570,18 +569,18 @@ if '__main__' == __name__:
 		run_hyper(data_cache, label_cache)
 		sys.exit()
 	
-	if len(sys.argv) >= 3:
-		hidden_layers = int(sys.argv[1])
-		nodes_per_layer = int(sys.argv[2])
+	if len(sys.argv) >= 4:
+		hidden_layers = int(sys.argv[2])
+		nodes_per_layer = int(sys.argv[3])
 	
 	load_model_file = None
-	if len(sys.argv) == 4:
-		load_model_file = sys.argv[3]
+	if len(sys.argv) == 5:
+		load_model_file = sys.argv[4]
 		if not os.path.exists(load_model_file):
 			print "Model load file does not exist:", load_model_file
 			exit()
-
-	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
+	
+	print "Running",("MLP" if RUN_TYPE == RUN_MLP else "RNN"),"with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 	
 	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True)
 	
