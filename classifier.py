@@ -18,9 +18,11 @@ N_BATCHES = 10
 DEFAULT_HIDDEN_LAYERS = 3
 DEFAULT_NODES_PER_LAYER = 100
 
-SPECIFIC_HYPER = [ (1, 120,30), (2,120,30), (3,120,30), (3,140,30), (3,180,30), ]
+SPECIFIC_HYPER = None #[ (1, 120,30), (2,120,30), (3,120,30), (3,140,30), (3,180,30), ]
 
 MAX_FILES_TESTING = None #100
+
+MODEL_SAVE_FOLDER = "./models/"
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
@@ -373,7 +375,7 @@ def run_batch(X, Y, sess, batch, cost, optimizer = None):
 	
 	return batch_cost
 
-def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model):
 	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS + 1
@@ -410,10 +412,30 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 
 	overall_start = time.time()
 	
+	
+	model_save_file = MODEL_SAVE_FOLDER
+	type_string = ""
+	if RUN_TYPE == RUN_MLP:
+		type_string = "MLP_"
+		model_save_file += "MLP_"
+	elif RUN_TYPE == RUN_RNN:
+		type_string = "RNN_"
+		model_save_file += "RNN_"
+	model_save_file += str(int(overall_start)) + "_"
+	model_save_file += str(hidden_layers) + "_" + str(nodes_per_layer) + "/"
+	os.makedirs(model_save_file)
+	model_save_file += "model.tf"
+
+	saver = tf.train.Saver()
+	
 	with tf.Session() as sess:
 		# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 		# you need to initialize all variables
 		tf.global_variables_initializer().run()
+		
+		if load_model_file:
+			print "Restoring model from", load_model_file
+			saver.restore(sess, load_model_file)
 		
 		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -441,12 +463,10 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 			
 			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
-	
-	type_string = ""
-	if RUN_TYPE == RUN_MLP:
-		type_string = "MLP_"
-	elif RUN_TYPE == RUN_RNN:
-		type_string = "RNN_"
+		
+		if save_model:
+			save_path = saver.save(sess, model_save_file)
+			print "Model saved as", save_path
 	
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
@@ -478,7 +498,7 @@ def run_hyper(data_cache, label_cache):
 		for layers, nodes_per_layer, num_epochs in SPECIFIC_HYPER:
 			print "HYPER: ", layers, nodes_per_layer, num_epochs
 			try:
-				run_test(data_cache, label_cache, layers, nodes_per_layer, num_epochs)
+				run_test(data_cache, label_cache, layers, nodes_per_layer, num_epochs, False, False)
 			except Exception as error:
 				print "Caught error, continuing"
 				print error
@@ -492,7 +512,7 @@ def run_hyper(data_cache, label_cache):
 		for nodes_per_layer in nodes_per_layer_range:
 			print "HYPER: ", layers, nodes_per_layer
 			try:
-				run_test(data_cache, label_cache, layers, nodes_per_layer, N_EPOCHS)
+				run_test(data_cache, label_cache, layers, nodes_per_layer, N_EPOCHS, False, False)
 			except Exception as error:
 				print "Caught error, continuing"
 				print error
@@ -504,6 +524,7 @@ if '__main__' == __name__:
 	if '-h' in sys.argv or '--help' in sys.argv:
 		print "Usage: python", sys.argv[0]
 		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer"
+		print "Usage: python", sys.argv[0],"num_hidden_layers num_nodes_per_layer saved_model_file"
 		print "Default: python", sys.argv[0], DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 	
@@ -545,13 +566,17 @@ if '__main__' == __name__:
 		run_hyper(data_cache, label_cache)
 		sys.exit()
 	
-	elif len(sys.argv) == 3:
+	if len(sys.argv) >= 3:
 		hidden_layers = int(sys.argv[1])
 		nodes_per_layer = int(sys.argv[2])
+	
+	load_model_file = None
+	if len(sys.argv) == 4:
+		load_model_file = sys.argv[3]
 
 	print "Running with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
 	
-	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS)
+	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True)
 	
 
 
