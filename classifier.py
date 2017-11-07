@@ -12,7 +12,9 @@ RUN_TYPE = RUN_RNN if len(sys.argv) > 0 and 'RNN' == sys.argv[1] else RUN_MLP
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
 
-N_EPOCHS = 50
+SAVE_EVERY_N = 10
+
+N_EPOCHS = 999999999
 N_BATCHES = 10
 
 DEFAULT_HIDDEN_LAYERS = 3
@@ -92,15 +94,17 @@ def data_label_batcher(data_cache, label_cache):
 			
 			batch_i += 1
 			so_far += batch_size
-	
-		# prune out bad data based on how many permutations we expect
-		for i,batch in enumerate(BATCH_CACHE):
-			invalid_indexes = [index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS]
-			if len(invalid_indexes) > 0:
-				new_data = [record for index,record in enumerate(batch[0]) if not index in invalid_indexes]
-				new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
+
+		if RUN_TYPE == RUN_RNN:
+			# prune out bad data based on how many permutations we expect
+			for i,batch in enumerate(BATCH_CACHE):
+				invalid_indexes = [index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS]
+				if len(invalid_indexes) > 0:
+					new_data = [record for index,record in enumerate(batch[0]) if not index in invalid_indexes]
+					new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
 			
-				BATCH_CACHE[i] = [new_data, new_labels]
+					BATCH_CACHE[i] = [new_data, new_labels]
+		
 		print "Done creating batches"
 	for batch in BATCH_CACHE:
 		yield batch
@@ -464,13 +468,14 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 			
 			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
 		
-		if save_model:
-			save_path = saver.save(sess, model_save_file)
-			print "Model saved as", save_path
-			if RUNNING_ON_AWS:
-				cmd = "aws s3 --region us-east-1 cp " + model_save_folder + "* " + S3_DESTINATION + model_save_folder
-				print cmd
-				run_cmd(cmd)
+			if save_model and i > 0 and i % SAVE_EVERY_N == 0:
+				print "Saving model as", model_save_file
+				save_path = saver.save(sess, model_save_file)
+				print "... Saved"
+				if RUNNING_ON_AWS:
+					cmd = "aws s3 --region us-east-1 cp " + model_save_folder + "* " + S3_DESTINATION + model_save_folder
+					print cmd
+					run_cmd(cmd)
 	
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
