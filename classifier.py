@@ -12,7 +12,7 @@ RUN_TYPE = RUN_RNN if len(sys.argv) > 0 and 'RNN' == sys.argv[1] else RUN_MLP
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
 
-SAVE_EVERY_N = 10
+SAVE_EVERY_N = 50
 
 N_EPOCHS = 999999999
 N_BATCHES = 10
