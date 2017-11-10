@@ -475,7 +475,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				save_path = saver.save(sess, model_save_file)
 				print "... Saved"
 				if RUNNING_ON_AWS:
-					cmd = "aws s3 --region us-east-1 cp " + model_save_folder + "* " + S3_DESTINATION + model_save_folder
+					cmd = "aws s3 --region us-east-1 cp --recursive " + model_save_folder + " " + S3_DESTINATION + model_save_folder
 					print cmd
 					run_cmd(cmd)
 	
