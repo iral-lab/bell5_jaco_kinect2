@@ -471,6 +471,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]])
 				handle.write(cost_line + "\n")
+				handle.flush()
 		
 				if save_model and i > 0 and i % SAVE_EVERY_N == 0:
 					this_round_save_folder = model_save_folder + "_" + str(i) + "/"
