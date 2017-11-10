@@ -250,7 +250,7 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	weights = {}
 	biases = {}
 	
-	for i in range(hidden_layers + 1):
+	for i in xrange(hidden_layers + 1):
 		if i == 0:
 			# first layer
 			weights[i] = tf.Variable(tf.random_normal([ n_input, nodes_per_layer ]))			
@@ -265,7 +265,7 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 			biases[i] = tf.Variable(tf.random_normal([nodes_per_layer])),
 	
 	network = tf.nn.relu(tf.add(tf.matmul(x, weights[0]), biases[0]))
-	for i in range(1, hidden_layers + 1):
+	for i in xrange(1, hidden_layers + 1):
 		network = tf.nn.relu(tf.add(tf.matmul(network, weights[i]), biases[i]))
 	return network
 
@@ -444,7 +444,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 		# accuracy = get_accuracy(pred, Y, class_length)
-		for i in range(num_epochs):
+		for i in xrange(num_epochs):
 			epoch_start = time.time()
 			test_batch = None
 			batcher = data_label_batcher(data_cache, label_cache)
