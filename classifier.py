@@ -12,7 +12,7 @@ RUN_TYPE = RUN_RNN if len(sys.argv) > 0 and 'RNN' == sys.argv[1] else RUN_MLP
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
 
-SAVE_EVERY_N = 50
+SAVE_EVERY_N = 30
 
 N_EPOCHS = 999999999
 N_BATCHES = 10
@@ -426,9 +426,8 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		type_string = "RNN_"
 		model_save_folder += "RNN_"
 	model_save_folder += str(int(overall_start)) + "_"
-	model_save_folder += str(hidden_layers) + "_" + str(nodes_per_layer) + "/"
-	os.makedirs(model_save_folder)
-	model_save_file = model_save_folder + "model.tf"
+	model_save_folder += str(hidden_layers) + "_" + str(nodes_per_layer)
+	
 
 	saver = tf.train.Saver()
 	
@@ -469,7 +468,10 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
 		
 			if save_model and i > 0 and i % SAVE_EVERY_N == 0:
+				this_round_save_folder = model_save_folder + "_" + str(i) + "/"
+				model_save_file = this_round_save_folder + "model.tf"
 				print "Saving model as", model_save_file
+				os.makedirs(this_round_save_folder)
 				save_path = saver.save(sess, model_save_file)
 				print "... Saved"
 				if RUNNING_ON_AWS:
