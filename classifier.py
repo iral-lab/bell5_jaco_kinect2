@@ -431,60 +431,59 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 
 	saver = tf.train.Saver()
 	
-	with tf.Session() as sess:
-		# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
-		# you need to initialize all variables
-		tf.global_variables_initializer().run()
-		
-		if load_model_file:
-			print "Restoring model from", load_model_file
-			saver.restore(sess, load_model_file)
-		
-		# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
-		# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-		# accuracy = get_accuracy(pred, Y, class_length)
-		for i in xrange(num_epochs):
-			epoch_start = time.time()
-			test_batch = None
-			batcher = data_label_batcher(data_cache, label_cache)
-			
-			epoch_cost = 0
-			num_batches = 0
-			
-			for j,batch in enumerate(batcher):
-				if j == 0:
-					test_batch = batch
-					continue
-				
-				epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
-				num_batches += 1
-				
-			avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
-			
-			test_cost = run_batch(X, Y, sess, test_batch, cost)
-			
-			print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
-			
-			cost_stats.append( "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]]))
-		
-			if save_model and i > 0 and i % SAVE_EVERY_N == 0:
-				this_round_save_folder = model_save_folder + "_" + str(i) + "/"
-				model_save_file = this_round_save_folder + "model.tf"
-				print "Saving model as", model_save_file
-				os.makedirs(this_round_save_folder)
-				save_path = saver.save(sess, model_save_file)
-				print "... Saved"
-				if RUNNING_ON_AWS:
-					cmd = "aws s3 --region us-east-1 cp --recursive " + this_round_save_folder + " " + S3_DESTINATION + this_round_save_folder
-					print cmd
-					run_cmd(cmd)
-	
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
-
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
 		handle.write("\t".join(['Epoch', 'Epoch Train cost', 'Epoch Test cost', '1/Epoch Test cost'])+"\n")
-		handle.write("\n".join(cost_stats)+"\n")
+		
+		with tf.Session() as sess:
+			# sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+			# you need to initialize all variables
+			tf.global_variables_initializer().run()
+		
+			if load_model_file:
+				print "Restoring model from", load_model_file
+				saver.restore(sess, load_model_file)
+		
+			# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
+			# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+			# accuracy = get_accuracy(pred, Y, class_length)
+			for i in xrange(num_epochs):
+				epoch_start = time.time()
+				test_batch = None
+				batcher = data_label_batcher(data_cache, label_cache)
+			
+				epoch_cost = 0
+				num_batches = 0
+			
+				for j,batch in enumerate(batcher):
+					if j == 0:
+						test_batch = batch
+						continue
+				
+					epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
+					num_batches += 1
+				
+				avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
+			
+				test_cost = run_batch(X, Y, sess, test_batch, cost)
+			
+				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
+				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]])
+				handle.write(cost_line + "\n")
+		
+				if save_model and i > 0 and i % SAVE_EVERY_N == 0:
+					this_round_save_folder = model_save_folder + "_" + str(i) + "/"
+					model_save_file = this_round_save_folder + "model.tf"
+					print "Saving model as", model_save_file
+					os.makedirs(this_round_save_folder)
+					save_path = saver.save(sess, model_save_file)
+					print "... Saved"
+					if RUNNING_ON_AWS:
+						cmd = "aws s3 --region us-east-1 cp --recursive " + this_round_save_folder + " " + S3_DESTINATION + this_round_save_folder
+						print cmd
+						run_cmd(cmd)
+				
 	
 	if RUNNING_ON_AWS:
 		cmd = "aws s3 --region us-east-1 cp " + stats_folder + "* " + S3_DESTINATION + stats_folder
