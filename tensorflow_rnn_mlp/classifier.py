@@ -1,4 +1,5 @@
 import sys, os, random, cPickle, time, code, math, gzip, glob, popen2
+sys.path.append('../simulator/')
 import tensorflow as tf
 from tensorflow.contrib import rnn
 from tensorflow.python import debug as tf_debug
@@ -7,7 +8,7 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 #code.interact(local=dict(globals(), **locals())) 
 
 RUN_MLP, RUN_RNN = range(2)
-RUN_TYPE = RUN_RNN if len(sys.argv) > 0 and 'RNN' == sys.argv[1] else RUN_MLP
+RUN_TYPE = RUN_RNN if len(sys.argv) > 1 and 'RNN' == sys.argv[1] else RUN_MLP
 
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
@@ -347,7 +348,7 @@ def get_mlp_cost(prediction, y, class_length, reduced = True):
 	reshaped_prediction = tf.reshape(prediction, [-1])
 
 	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(y))
-	predicted_lin k_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(y))
+	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(y))
 
 	adjusted_correct_link_lengths = correct_link_lengths / 10000
 	adjusted_predicted_link_lengths = predicted_link_lengths / 10000
