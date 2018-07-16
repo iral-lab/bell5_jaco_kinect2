@@ -1,0 +1,1 @@
+aws s3 ls --region us-east-1 s3://umbc.research/robot_learn_classifier/run_stats/ | grep run_RNN | ruby -e "STDIN.readlines.each{|x| puts x.split[1]}" | xargs -i{} sh -c "mkdir run_stats/{} && aws s3 sync --region us-east-1 s3://umbc.research/robot_learn_classifier/run_stats/{} run_stats/{}/"

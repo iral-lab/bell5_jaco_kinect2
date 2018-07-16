@@ -1,1 +1,0 @@
-aws s3 ls umbc.research/robot_learn_classifier/clouds/ | ruby -e "STDIN.readlines.each{|x| puts x.split.join(' ')}" | cut -d' ' -f4 | cut -d'_' -f1 | sort | uniq -c | ruby -e "STDIN.readlines.each{|x| puts x.strip}"
