@@ -395,10 +395,26 @@ def get_rnn_cost(pred, y):
 	return penalty_sum
 
 
+def savePredictions(prediction, ground_truth, batch_cost, run, epoch):
+    predicted_file = open("predictions/" + str(run) + "/predicted.csv", "a+")
+    loss_file = open("predictions/" + str(run) + "/loss.csv", "a+")
+        
+    if epoch is 1:
+        actual_file = open("predictions/ground_truth.csv", "w+")
+        actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
+        predicted_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
+        loss_file.write("epoch, total loss\n")
+    for instance in range(0, len(prediction)):
+        predicted_links = ','.join(map(str, prediction[instance]))
+        predicted_file.write("arm_" + str(instance) + "," + str(epoch) + "," + predicted_links + "\n")
+
+        if epoch is 1:
+            links = ','.join(map(str, ground_truth[instance]))
+            actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
+    loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
 
 
-
-def run_batch(X, Y, sess, batch, cost, optimizer = None):
+def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, run, optimizer = None):
 	batch_cost = 0
 	
 	to_run = [cost]
@@ -413,15 +429,25 @@ def run_batch(X, Y, sess, batch, cost, optimizer = None):
 	
 	elif RUN_TYPE == RUN_RNN:
 		data, labels = batch
+    
+		prediction = []
+		ground_truth = []
+	
 		for i in xrange(len(data)):
 			epoch_x = [data[i]]
 			epoch_y = [labels[i]]
 			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: epoch_y})
 			batch_cost += results[0]
-	
+			if predict is True:
+				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][99])
+				if epoch is 1:
+					ground_truth.append(epoch_y[0])
+                        
+		if predict is True:
+			savePredictions(prediction, ground_truth, batch_cost, run, epoch)
 	return batch_cost
 
-def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, run):
 	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS + 1
@@ -503,12 +529,12 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 						test_batch = batch
 						continue
 				
-					epoch_cost += run_batch(X, Y, sess, batch, cost, optimizer)
+					epoch_cost += run_batch(X, Y, sess, batch, cost, pred, False, i+1, run, optimizer)
 					num_batches += 1
 				
 				avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
-				test_cost = run_batch(X, Y, sess, test_batch, cost)
+				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, run)
 			
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]])
@@ -623,15 +649,15 @@ if '__main__' == __name__:
 		nodes_per_layer = int(sys.argv[3])
 	
 	load_model_file = None
-	if len(sys.argv) == 5:
-		load_model_file = sys.argv[4]
+	if len(sys.argv) == 6:
+		load_model_file = sys.argv[5]
 		if not os.path.exists(load_model_file):
 			print "Model load file does not exist:", load_model_file
 			exit()
 	
 	print "Running",("MLP" if RUN_TYPE == RUN_MLP else "RNN"),"with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-	
-	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True)
+	os.mkdir("predictions/" + str(sys.argv[4]))
+	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True, sys.argv[4])
 	
 
 
