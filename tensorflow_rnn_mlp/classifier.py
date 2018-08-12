@@ -17,6 +17,7 @@ RNN_ONE_HOT_TAG = "RNN_ONE_HOT"
 RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG]
 
 RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if len(sys.argv) > 1 else -1
+RUN_TAG = sys.argv[1] if len(sys.argv) > 0 else None
 
 SAVE_EVERY_N = 30
 
@@ -38,7 +39,7 @@ RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
 INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
 
-DATA_CACHE = '_classifier_input_'+(MLP_TAG if RUN_TYPE == RUN_MLP else RNN_TAG)+'.pickle'
+DATA_CACHE = '_classifier_input_' + RUN_TAG + '.pickle'
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 
