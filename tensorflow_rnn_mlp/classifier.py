@@ -340,7 +340,48 @@ def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	return pred
 	
 	
+def rnn_one_hot_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
+	# RNN output node weights and biases
+	weights = {
+		'out': tf.Variable(tf.random_normal([nodes_per_layer, class_length]))
+	}
+	biases = {
+		'out': tf.Variable(tf.random_normal([class_length]))
+	}
 	
+	cells = [tf.contrib.rnn.LSTMCell(nodes_per_layer) for _ in xrange(hidden_layers)]
+	multi_rnn_cell = tf.contrib.rnn.MultiRNNCell(cells)
+	print
+	print
+	print "n_input",n_input
+	print "class_length",class_length
+	print "hidden_layers",hidden_layers
+	print "nodes_per_layer",nodes_per_layer
+	print "X:",x
+	print "single rnn cells:",cells
+	print "multi_rnn_cell:",multi_rnn_cell
+	
+	outputs, states = tf.nn.dynamic_rnn(multi_rnn_cell, x, dtype = tf.float32)
+	print "outputs:",outputs
+	print "states:",states
+
+	logits_series = tf.add(tf.matmul(outputs[-1], weights['out']), biases['out'])
+	pred = tf.nn.softmax(logits_series)
+	print "logits:", logits_series
+	print "pred",pred
+	print
+	print
+	
+	return (logits_series, pred)
+
+def get_rnn_one_hot_cost(logits_series, y):
+	print "logits_series:",logits_series
+	print "Y:",y
+	losses = tf.nn.softmax_cross_entropy_with_logits(logits = logits_series, labels = y)
+	print "losses:",losses
+	total_loss = tf.reduce_mean(losses)
+	print "total loss:", total_loss
+	return total_loss
 	
 	
 	
@@ -434,7 +475,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 		
 		batch_cost = results[0]
 	
-	elif RUN_TYPE == RUN_RNN:
+	elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 		data, labels = batch
     
 		prediction = []
@@ -443,7 +484,11 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 		for i in xrange(len(data)):
 			epoch_x = [data[i]]
 			epoch_y = [labels[i]]
-			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: epoch_y})
+			training_epoch_y = epoch_y
+			if RUN_TYPE == RUN_RNN_ONE_HOT:
+				training_epoch_y = [labels[i]] * len(data[i])
+			
+			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: training_epoch_y})
 			batch_cost += results[0]
 			if predict is True:
 				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][99])
@@ -482,11 +527,17 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		Y = tf.placeholder('float', [None, class_length])
 		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_cost(pred, Y)
+	elif RUN_TYPE == RUN_RNN_ONE_HOT:
+		class_length = MAX_LINKS # because it's one-hot, of course
+		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+		Y = tf.placeholder('int32', [None, class_length])
+		logits_series, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+		cost = get_rnn_one_hot_cost(logits_series, Y)
 	
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-	
+
 	# print "Trainable:", tf.trainable_variables()
-	
+
 	cost_stats = []
 
 	overall_start = time.time()
@@ -544,7 +595,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, predictions_folder)
 			
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
-				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]])
+				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, (1/test_cost if test_cost > 0 else 0)]])
 				handle.write(cost_line + "\n")
 				handle.flush()
 		
