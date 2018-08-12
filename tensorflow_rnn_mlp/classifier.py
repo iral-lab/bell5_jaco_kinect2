@@ -69,47 +69,64 @@ def _pad_label(lengths):
 		new.append(0.0)
 	return new
 
+def _shuffle_caches(cache_1, cache_2):
+	combined = list(zip(cache_1, cache_2))
+	random.shuffle(combined)
+	return zip(*combined)
 
-BATCH_CACHE = None
-def data_label_batcher(data_cache, label_cache):
-	global BATCH_CACHE
+def _get_shuffled_batches(n_batches, cache_1, cache_2):
+	batches = []
+	batch_i = 0
+	so_far = 0
+	size = len(cache_1)
+	batch_size = int(math.ceil(1.0 * size / n_batches));
 	
-	if not BATCH_CACHE or len(BATCH_CACHE) == 0:
-		BATCH_CACHE = []
+	print "Creating",n_batches,"batches of",batch_size,"items, total of",size
+	
+	# do a shuffle on, randomness!
+	shuffled_cache_1, shuffled_cache_2 = _shuffle_caches(cache_1, cache_2)
+	
+	while so_far < size:
+		from_1 = shuffled_cache_1[so_far:so_far + batch_size]
+		from_2 = shuffled_cache_2[so_far:so_far + batch_size]
+		
+		batches.append( (from_1, from_2) )
+		
+		batch_i += 1
+		so_far += batch_size
+	return batches
 
-		so_far = 0
-		size = len(data_cache)
-
-		batch_size = int(math.ceil(1.0 * size / N_BATCHES));
-
-		batches = []
-
-		print "Creating",N_BATCHES,"batches of",batch_size,"items, total of",size
-		batch_i = 0
-		while so_far < size:
-			data = data_cache[so_far:so_far + batch_size]
-			labels = label_cache[so_far:so_far + batch_size]
-
-			batch = (data,labels)
-			BATCH_CACHE.append( batch )
-			
-			batch_i += 1
-			so_far += batch_size
-
+TEST_DATA = None
+TRAINING_DATA = None
+def data_label_batcher(data_cache, label_cache):
+	global TEST_DATA, TRAINING_DATA
+	
+	if not TEST_DATA:
+		
+		batches = _get_shuffled_batches(N_BATCHES, data_cache, label_cache)
+		
 		if RUN_TYPE == RUN_RNN:
 			# prune out bad data based on how many permutations we expect
-			for i,batch in enumerate(BATCH_CACHE):
+			for i,batch in enumerate(batches):
 				invalid_indexes = set([index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS])
 				if len(invalid_indexes) > 0:
 					new_data = [record for index,record in enumerate(batch[0]) if not index in invalid_indexes]
 					new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
 			
-					BATCH_CACHE[i] = [new_data, new_labels]
+					batches[i] = [new_data, new_labels]
 		
-		print "Done creating batches"
-	for batch in BATCH_CACHE:
+		# separate out batches, only happens once
+		TEST_DATA = batches[0]
+		TRAINING_DATA = batches[1:]
+	else:
+		# shuffle the training data each round
+		training_data = _flatten([first for first,_ in TRAINING_DATA])
+		training_labels = _flatten([second for _,second in TRAINING_DATA])
+		TRAINING_DATA = _get_shuffled_batches(N_BATCHES-1, training_data, training_labels)
+
+	yield TEST_DATA
+	for batch in TRAINING_DATA:
 		yield batch
-	
 
 def load_data_cache():
 	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
