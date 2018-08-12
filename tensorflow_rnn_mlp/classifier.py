@@ -557,6 +557,9 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	elif RUN_TYPE == RUN_RNN:
 		type_string = "RNN_"
 		model_save_folder += "RNN_"
+	elif RUN_TYPE == RUN_RNN_ONE_HOT:
+		type_string = "RNN_ONE_HOT_"
+		model_save_folder += "RNN_ONE_HOT_"
 	model_save_folder += str(int(overall_start)) + "_"
 	model_save_folder += str(hidden_layers) + "_" + str(nodes_per_layer)
 	
