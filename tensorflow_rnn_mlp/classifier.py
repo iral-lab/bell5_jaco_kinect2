@@ -444,9 +444,9 @@ def get_rnn_cost(pred, y):
 
 
 def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch):
-	with open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a+") as predicted_file, \
-		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a+") as loss_file, \
-		open(PREDICTIONS_SAVE_FOLDER + "ground_truth.csv", "w+") as actual_file:
+	with open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a") as predicted_file, \
+		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a") as loss_file, \
+		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/ground_truth.csv", "a") as actual_file:
         
 		if epoch is 1:
 			actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
@@ -717,6 +717,7 @@ if '__main__' == __name__:
 		exit()
 
 	save_prediction_folder = str(sys.argv[sys.argv.index(opt_save_prediction_to)+1]) if opt_save_prediction_to in sys.argv else None
+	assert not save_prediction_folder or not os.path.exists(PREDICTIONS_SAVE_FOLDER + save_prediction_folder), "prediction folder already exists"
 	if save_prediction_folder and not os.path.exists(PREDICTIONS_SAVE_FOLDER + save_prediction_folder):
 		os.makedirs(PREDICTIONS_SAVE_FOLDER + save_prediction_folder)
 
