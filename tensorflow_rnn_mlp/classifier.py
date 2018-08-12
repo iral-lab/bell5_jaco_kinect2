@@ -397,22 +397,22 @@ def get_rnn_cost(pred, y):
 
 
 def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch):
-	predicted_file = open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a+")
-    loss_file = open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a+")
+	with open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a+") as predicted_file, \
+		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a+") as loss_file, \
+		open(PREDICTIONS_SAVE_FOLDER + "ground_truth.csv", "w+") as actual_file:
         
-    if epoch is 1:
-        actual_file = open(PREDICTIONS_SAVE_FOLDER + "ground_truth.csv", "w+")
-        actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
-        predicted_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
-        loss_file.write("epoch, total loss\n")
-    for instance in range(0, len(prediction)):
-        predicted_links = ','.join(map(str, prediction[instance]))
-        predicted_file.write("arm_" + str(instance) + "," + str(epoch) + "," + predicted_links + "\n")
+		if epoch is 1:
+			actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
+			predicted_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
+			loss_file.write("epoch, total loss\n")
+		for instance in range(0, len(prediction)):
+			predicted_links = ','.join(map(str, prediction[instance]))
+			predicted_file.write("arm_" + str(instance) + "," + str(epoch) + "," + predicted_links + "\n")
 
-        if epoch is 1:
-            links = ','.join(map(str, ground_truth[instance]))
-            actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
-    loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
+			if epoch is 1:
+				links = ','.join(map(str, ground_truth[instance]))
+				actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
+		loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
 
 
 def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder, optimizer = None):
