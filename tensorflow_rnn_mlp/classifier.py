@@ -99,7 +99,7 @@ def data_label_batcher(data_cache, label_cache):
 		if RUN_TYPE == RUN_RNN:
 			# prune out bad data based on how many permutations we expect
 			for i,batch in enumerate(BATCH_CACHE):
-				invalid_indexes = [index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS]
+				invalid_indexes = set([index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS])
 				if len(invalid_indexes) > 0:
 					new_data = [record for index,record in enumerate(batch[0]) if not index in invalid_indexes]
 					new_labels = [record for index,record in enumerate(batch[1]) if not index in invalid_indexes]
