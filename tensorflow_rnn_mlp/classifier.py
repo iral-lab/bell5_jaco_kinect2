@@ -7,11 +7,16 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 
 #code.interact(local=dict(globals(), **locals())) 
 
-RUN_MLP, RUN_RNN = range(2)
-RUN_TYPE = RUN_RNN if len(sys.argv) > 1 and 'RNN' == sys.argv[1] else RUN_MLP
+RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT = range(3)
+RUN_TYPES = [RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT]
 
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
+RNN_ONE_HOT_TAG = "RNN_ONE_HOT"
+
+RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG]
+
+RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if len(sys.argv) > 1 else -1
 
 SAVE_EVERY_N = 30
 
@@ -604,9 +609,11 @@ if '__main__' == __name__:
 	opt_load_saved_model = '-m'
 	opt_save_prediction_to = '-p'
 	
+	example = "|".join(RUN_TAGS)
+	
 	if '-h' in sys.argv or '--help' in sys.argv or len(sys.argv) < 4:
-		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer"
-		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer <"+opt_load_saved_model +" saved_model_file> <"+opt_save_prediction_to+" prediction_folder>"
+		print "Usage: python", sys.argv[0], example,"num_hidden_layers num_nodes_per_layer"
+		print "Usage: python", sys.argv[0], example,"num_hidden_layers num_nodes_per_layer <"+opt_load_saved_model +" saved_model_file> <"+opt_save_prediction_to+" prediction_folder>"
 		print "Default: python", sys.argv[0], "RNN",DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 	
