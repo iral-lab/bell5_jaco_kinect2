@@ -447,10 +447,16 @@ def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, ep
 	with open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a") as predicted_file, \
 		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a") as loss_file, \
 		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/ground_truth.csv", "a") as actual_file:
-        
+
+		header = ["instance", "epoch",]
+		if RUN_TYPE in [RUN_RNN, RUN_MLP]:
+			header.append("link count")
+		for i in xrange(MAX_LINKS):
+			header.append("link"+str(i+1))
+
 		if epoch is 1:
-			actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
-			predicted_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
+			actual_file.write(",".join(header)+"\n")
+			predicted_file.write(",".join(header)+"\n")
 			loss_file.write("epoch, total loss\n")
 		for instance in range(0, len(prediction)):
 			predicted_links = ','.join(map(str, prediction[instance]))
