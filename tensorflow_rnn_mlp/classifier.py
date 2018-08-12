@@ -26,6 +26,7 @@ SPECIFIC_HYPER = None #[ (1, 120,30), (2,120,30), (3,120,30), (3,140,30), (3,180
 MAX_FILES_TESTING = None #100
 
 MODEL_SAVE_FOLDER = "models/"
+PREDICTIONS_SAVE_FOLDER = "predictions/"
 
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
@@ -395,12 +396,12 @@ def get_rnn_cost(pred, y):
 	return penalty_sum
 
 
-def savePredictions(prediction, ground_truth, batch_cost, run, epoch):
-    predicted_file = open("predictions/" + str(run) + "/predicted.csv", "a+")
-    loss_file = open("predictions/" + str(run) + "/loss.csv", "a+")
+def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch):
+	predicted_file = open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/predicted.csv", "a+")
+    loss_file = open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/loss.csv", "a+")
         
     if epoch is 1:
-        actual_file = open("predictions/ground_truth.csv", "w+")
+        actual_file = open(PREDICTIONS_SAVE_FOLDER + "ground_truth.csv", "w+")
         actual_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
         predicted_file.write("instance,epoch,link count,link1,link2,link3,link4,link5,link6,link7,link8\n")
         loss_file.write("epoch, total loss\n")
@@ -414,7 +415,7 @@ def savePredictions(prediction, ground_truth, batch_cost, run, epoch):
     loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
 
 
-def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, run, optimizer = None):
+def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder, optimizer = None):
 	batch_cost = 0
 	
 	to_run = [cost]
@@ -444,10 +445,10 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, run, optimizer = No
 					ground_truth.append(epoch_y[0])
                         
 		if predict is True:
-			savePredictions(prediction, ground_truth, batch_cost, run, epoch)
+			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
 	return batch_cost
 
-def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, run):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, predictions_folder):
 	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS + 1
@@ -529,12 +530,12 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 						test_batch = batch
 						continue
 				
-					epoch_cost += run_batch(X, Y, sess, batch, cost, pred, False, i+1, run, optimizer)
+					epoch_cost += run_batch(X, Y, sess, batch, cost, pred, False, i+1, predictions_folder, optimizer)
 					num_batches += 1
 				
 				avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
-				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, run)
+				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, predictions_folder)
 			
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, 1/test_cost]])
@@ -600,9 +601,12 @@ def run_hyper(data_cache, label_cache):
 
 if '__main__' == __name__:
 	
+	opt_load_saved_model = '-m'
+	opt_save_prediction_to = '-p'
+	
 	if '-h' in sys.argv or '--help' in sys.argv or len(sys.argv) < 4:
 		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer"
-		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer saved_model_file"
+		print "Usage: python", sys.argv[0],"RNN|MLP num_hidden_layers num_nodes_per_layer <"+opt_load_saved_model +" saved_model_file> <"+opt_save_prediction_to+" prediction_folder>"
 		print "Default: python", sys.argv[0], "RNN",DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 	
@@ -648,16 +652,18 @@ if '__main__' == __name__:
 		hidden_layers = int(sys.argv[2])
 		nodes_per_layer = int(sys.argv[3])
 	
-	load_model_file = None
-	if len(sys.argv) == 6:
-		load_model_file = sys.argv[5]
-		if not os.path.exists(load_model_file):
-			print "Model load file does not exist:", load_model_file
-			exit()
-	
+	load_model_file = str(sys.argv[sys.argv.index(opt_load_saved_model)+1]) if opt_load_saved_model in sys.argv else None
+	if load_model_file and not os.path.exists(load_model_file):
+		print "Model load file does not exist:", load_model_file
+		exit()
+
+	save_prediction_folder = str(sys.argv[sys.argv.index(opt_save_prediction_to)+1]) if opt_save_prediction_to in sys.argv else None
+	if save_prediction_folder and not os.path.exists(PREDICTIONS_SAVE_FOLDER + save_prediction_folder):
+		os.makedirs(PREDICTIONS_SAVE_FOLDER + save_prediction_folder)
+
 	print "Running",("MLP" if RUN_TYPE == RUN_MLP else "RNN"),"with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-	os.mkdir("predictions/" + str(sys.argv[4]))
-	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True, sys.argv[4])
+
+	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True, save_prediction_folder)
 	
 
 
