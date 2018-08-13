@@ -741,15 +741,6 @@ if '__main__' == __name__:
 
 	specific_link_count = int(sys.argv[sys.argv.index(opt_specific_link_count)+1]) if opt_specific_link_count in sys.argv else None
 
-	data_cache, label_cache = load_data_cache(specific_link_count)
-	assert len(data_cache) > 0, "No data loaded"
-	assert len(label_cache) > 0, "No labels loaded"
-
-	# code.interact(local=dict(globals(), **locals()))
-	if '--hyper' in sys.argv:
-		run_hyper(data_cache, label_cache)
-		sys.exit()
-	
 	if len(sys.argv) >= 4:
 		hidden_layers = int(sys.argv[2])
 		nodes_per_layer = int(sys.argv[3])
@@ -764,8 +755,17 @@ if '__main__' == __name__:
 	if save_prediction_folder and not os.path.exists(PREDICTIONS_SAVE_FOLDER + save_prediction_folder):
 		os.makedirs(PREDICTIONS_SAVE_FOLDER + save_prediction_folder)
 
+	data_cache, label_cache = load_data_cache(specific_link_count)
+	assert len(data_cache) > 0, "No data loaded"
+	assert len(label_cache) > 0, "No labels loaded"
+	
+	# code.interact(local=dict(globals(), **locals()))
+	if '--hyper' in sys.argv:
+		run_hyper(data_cache, label_cache)
+		sys.exit()
+	
 	print "Running",("MLP" if RUN_TYPE == RUN_MLP else "RNN"),"with", hidden_layers, "layers, each with", nodes_per_layer, "nodes"
-
+	
 	run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, N_EPOCHS, load_model_file, True, save_prediction_folder)
 	
 
