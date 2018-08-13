@@ -515,7 +515,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: training_epoch_y})
 			batch_cost += results[0]
 			if predict is True:
-				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][99])
+				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: training_epoch_y})[0][99])
 				if epoch is 1:
 					ground_truth.append(epoch_y[0])
                         
