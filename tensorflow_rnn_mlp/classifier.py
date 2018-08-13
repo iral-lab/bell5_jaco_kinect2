@@ -112,7 +112,7 @@ def data_label_batcher(data_cache, label_cache):
 		
 		batches = _get_shuffled_batches(N_BATCHES, data_cache, label_cache)
 		
-		if RUN_TYPE == RUN_RNN:
+		if RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 			# prune out bad data based on how many permutations we expect
 			for i,batch in enumerate(batches):
 				invalid_indexes = set([index for index,records in enumerate(batch[0]) if len(records) <> PERMUTATIONS])
