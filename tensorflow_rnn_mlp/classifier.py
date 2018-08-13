@@ -588,6 +588,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
+	saved = True
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
 		handle.write("\t".join(['Epoch', 'Epoch Train cost', 'Epoch Test cost', '1/Epoch Test cost'])+"\n")
 		
@@ -618,6 +619,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				
 					epoch_cost += run_batch(X, Y, sess, batch, cost, pred, False, i+1, predictions_folder, optimizer)
 					num_batches += 1
+					saved = False
 				
 				avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
@@ -628,24 +630,30 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				handle.write(cost_line + "\n")
 				handle.flush()
 		
-				if save_model and i > 0 and i % SAVE_EVERY_N == 0:
-					this_round_save_folder = model_save_folder + "_" + str(i) + "/"
-					model_save_file = this_round_save_folder + "model.tf"
-					print "Saving model as", model_save_file
-					os.makedirs(this_round_save_folder)
-					save_path = saver.save(sess, model_save_file)
-					print "... Saved"
-					if RUNNING_ON_AWS:
-						cmd = "aws s3 --region us-east-1 cp --recursive " + this_round_save_folder + " " + S3_DESTINATION + this_round_save_folder
-						print cmd
-						run_cmd(cmd)
-				
+				if not saved and save_model and i > 0 and (i-1) % SAVE_EVERY_N == 0:
+					save_current_state(saver, sess, model_save_folder + "_" + str(i) + "/")
+					saved = True
+
+			if not saved:
+				save_current_state(saver, sess, model_save_folder + "_" + str(i) + "_final/")
+
 	
 	if RUNNING_ON_AWS:
 		cmd = "aws s3 --region us-east-1 cp " + stats_folder + "* " + S3_DESTINATION + stats_folder
 		print cmd
 		run_cmd(cmd)
 		run_cmd("rm -rf "+stats_folder)
+
+def save_current_state(saver, sess, this_round_save_folder):
+	model_save_file = this_round_save_folder + "model.tf"
+	print "Saving model as", model_save_file
+	os.makedirs(this_round_save_folder)
+	save_path = saver.save(sess, model_save_file)
+	print "... Saved"
+	if RUNNING_ON_AWS:
+		cmd = "aws s3 --region us-east-1 cp --recursive " + this_round_save_folder + " " + S3_DESTINATION + this_round_save_folder
+		print cmd
+		run_cmd(cmd)
 
 def hyper_params():
 	# num_layer_range, nodes_per_layer
