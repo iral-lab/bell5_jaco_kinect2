@@ -135,7 +135,7 @@ def data_label_batcher(data_cache, label_cache):
 	for batch in TRAINING_DATA:
 		yield batch
 
-def load_data_cache():
+def load_data_cache(specific_link_count = None):
 	if not os.path.exists(DATA_CACHE) and not os.path.exists(COMPRESSED_DATA_CACHE):
 		print "No data cache, please generate first"
 		exit()
@@ -160,6 +160,24 @@ def load_data_cache():
 	#code.interact(local=dict(globals(), **locals()))
 	handle.close()
 	print "loaded", len(data_cache), "pairs in", int(time.time() - start), "seconds"
+
+	if specific_link_count:
+		filtered_data_cache = []
+		filtered_label_cache = []
+		for i,label in enumerate(label_cache):
+			num_links = 0
+			if RUN_TYPE == RUN_RNN_ONE_HOT:
+				num_links = label.index(1)
+			elif RUN_TYPE in [RUN_RNN, RUN_MLP]:
+				num_links = label[0]
+
+			if num_links <> specific_link_count:
+				continue
+
+			filtered_label_cache.append(label)
+			filtered_data_cache.append(data_cache[i])
+		print "filtered to", len(filtered_data_cache), "pairs with",specific_link_count,"links in", int(time.time() - start), "seconds"
+		return (filtered_data_cache, filtered_label_cache)
 
 	return (data_cache, label_cache)
 
@@ -669,12 +687,13 @@ if '__main__' == __name__:
 	
 	opt_load_saved_model = '-m'
 	opt_save_prediction_to = '-p'
+	opt_specific_link_count = '-l'
 	
 	example = "|".join(RUN_TAGS)
 	
 	if '-h' in sys.argv or '--help' in sys.argv or len(sys.argv) < 4:
 		print "Usage: python", sys.argv[0], example,"num_hidden_layers num_nodes_per_layer"
-		print "Usage: python", sys.argv[0], example,"num_hidden_layers num_nodes_per_layer <"+opt_load_saved_model +" saved_model_file> <"+opt_save_prediction_to+" prediction_folder>"
+		print "Usage: python", sys.argv[0], example,"num_hidden_layers num_nodes_per_layer <"+opt_load_saved_model +" saved_model_file> <"+opt_save_prediction_to+" prediction_folder> <"+opt_specific_link_count +" link-count>"
 		print "Default: python", sys.argv[0], "RNN",DEFAULT_HIDDEN_LAYERS, DEFAULT_NODES_PER_LAYER
 		exit()
 	
@@ -710,7 +729,12 @@ if '__main__' == __name__:
 	hidden_layers = DEFAULT_HIDDEN_LAYERS
 	nodes_per_layer = DEFAULT_NODES_PER_LAYER
 
-	data_cache, label_cache = load_data_cache()
+	specific_link_count = int(sys.argv[sys.argv.index(opt_specific_link_count)+1]) if opt_specific_link_count in sys.argv else None
+
+	data_cache, label_cache = load_data_cache(specific_link_count)
+	assert len(data_cache) > 0, "No data loaded"
+	assert len(label_cache) > 0, "No labels loaded"
+
 	# code.interact(local=dict(globals(), **locals()))
 	if '--hyper' in sys.argv:
 		run_hyper(data_cache, label_cache)
