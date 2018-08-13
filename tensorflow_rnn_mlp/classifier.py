@@ -519,8 +519,10 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 				if epoch is 1:
 					ground_truth.append(epoch_y[0])
                         
-		if predict is True:
+		if predict and predictions_folder:
 			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
+		elif predict:
+			print "WARNING: No predictions folder set."
 	return batch_cost
 
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, predictions_folder):
