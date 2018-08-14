@@ -400,53 +400,13 @@ def get_rnn_one_hot_cost(logits_series, y):
 	
 	
 
-LINK_COUNT_WEIGHTING = 100
-def get_mlp_cost(prediction, y, class_length, reduced = True):
-
-
-	correct_noop = tf.transpose(tf.transpose(y))
-	prediction_noop = tf.transpose(tf.transpose(prediction))
-
-	correct_transpose = tf.transpose(y)
-	prediction_transpose = tf.transpose(prediction)
-
-	correct_link_counts = tf.cast(tf.gather(correct_transpose, 0), tf.int32)
-	predicted_link_counts = tf.cast(tf.gather(prediction_transpose, 0), tf.int32)
-
-
-	#correct_length_mask = tf.sequence_mask(correct_link_counts, class_length - 1, tf.int32)
-	# This mask below doesn't mask away the extra values, only will zero out the link-counts.
-	correct_length_mask = tf.cast(tf.ones([tf.shape(correct_transpose)[1], tf.shape(correct_transpose)[0]-1]), tf.int32)
-
-	shift_mask = tf.cast(tf.zeros([tf.shape(correct_transpose)[1],1]), tf.int32)
-
-	shifted_correct_length_mask = tf.cast(tf.concat([shift_mask, correct_length_mask], 1), tf.float32)
-	reshaped_shifted_correct_length_mask = tf.reshape(shifted_correct_length_mask, [-1])
-
-	reshaped_correct = tf.reshape(y, [-1])
-	reshaped_prediction = tf.reshape(prediction, [-1])
-
-	correct_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_correct, tf.shape(y))
-	predicted_link_lengths = tf.reshape(reshaped_shifted_correct_length_mask * reshaped_prediction, tf.shape(y))
-
-	adjusted_correct_link_lengths = correct_link_lengths / 10000
-	adjusted_predicted_link_lengths = predicted_link_lengths / 10000
-
-	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(adjusted_correct_link_lengths, adjusted_predicted_link_lengths)), reduction_indices=1))
-	
-	abs_diff_counts = tf.abs(correct_link_counts - predicted_link_counts)
-	
-	# remove the link-count penalty
-	# wrong_link_counts = tf.cast(LINK_COUNT_WEIGHTING, tf.float32) * tf.cast(abs_diff_counts, tf.float32)
-	penalty = l2_distance #+ wrong_link_counts
-	
-	penalty_sum = tf.reduce_sum(penalty)
-
-	return penalty_sum if reduced else penalty
-
-
-
-
+# LINK_COUNT_WEIGHTING = 100
+def get_mlp_cost(pred, y, class_length):
+	print "pred:",pred
+	print "Y:",y
+	l2_distance = tf.sqrt( tf.reduce_sum(tf.square(tf.subtract(pred, y)), reduction_indices=1))
+	penalty_sum = tf.reduce_sum(l2_distance)
+	return penalty_sum
 
 
 def get_rnn_cost(pred, y):
@@ -524,7 +484,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, predictions_folder):
 	tf.reset_default_graph()
 	
-	class_length = MAX_LINKS + 1
+	class_length = MAX_LINKS
 	n_input = MAX_CENTROIDS * 3
 
 	learning_rate = 0.001
