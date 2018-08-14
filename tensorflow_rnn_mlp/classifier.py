@@ -166,9 +166,9 @@ def load_data_cache(specific_link_count = None):
 		for i,label in enumerate(label_cache):
 			num_links = 0
 			if RUN_TYPE == RUN_RNN_ONE_HOT:
-				num_links = label.index(1)
+				num_links = label.index(1) + MIN_LINKS
 			elif RUN_TYPE in [RUN_RNN, RUN_MLP]:
-				num_links = label[0]
+				num_links = len(label) - label.count(0.0)
 
 			if num_links <> specific_link_count:
 				continue
