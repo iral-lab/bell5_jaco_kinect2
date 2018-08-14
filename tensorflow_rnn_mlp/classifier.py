@@ -19,7 +19,7 @@ RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG]
 RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if len(sys.argv) > 1 else -1
 RUN_TAG = sys.argv[1] if len(sys.argv) > 0 else None
 
-SAVE_EVERY_N = 30
+SAVE_EVERY_N = 10
 
 N_EPOCHS = 999999999
 N_BATCHES = 10
@@ -586,7 +586,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				handle.write(cost_line + "\n")
 				handle.flush()
 		
-				if not saved and save_model and i > 0 and (i-1) % SAVE_EVERY_N == 0:
+				if not saved and save_model and i > 0 and i % SAVE_EVERY_N == 0:
 					save_current_state(saver, sess, model_save_folder + "_" + str(i) + "/")
 					saved = True
 
