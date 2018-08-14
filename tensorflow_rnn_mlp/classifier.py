@@ -211,18 +211,21 @@ def _prep_files(files, from_AWS):
 		if file in [".DS_Store", ""]:
 			continue
 		
-		if from_AWS:
-			cmd = "aws s3 --region us-east-1 cp " + S3_DESTINATION + "clouds/"+file+" " + INPUT_FOLDER + file
+		downloaded = False
+		local_file = INPUT_FOLDER + file
+		if from_AWS and not os.path.exists(local_file):
+			cmd = "aws s3 --region us-east-1 cp " + S3_DESTINATION + "clouds/"+file+" " + local_file
 			print num_files,i,">",cmd
 			run_cmd(cmd)
+			downloaded = True
 		
 		if i % 1000 == 0:
 			print round(time.time() - start,2), i, round(100.0 * i / len(files),2),"%",file
 		yield file
 		
 		
-		if from_AWS:
-			run_cmd("rm " + INPUT_FOLDER + file)
+		if from_AWS and downloaded:
+			run_cmd("rm " + local_file)
 		
 		if MAX_FILES_TESTING and i >= MAX_FILES_TESTING:
 			break
