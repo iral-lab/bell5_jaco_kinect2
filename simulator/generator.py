@@ -23,8 +23,11 @@ NUM_THREADS = int(sys.argv[sys.argv.index('-n') + 1]) if '-n' in sys.argv else 7
 
 WRITE_OUT_CLOUD = False
 
-LINK_COUNTS = [2,3,4,5,6]
-MAX_LINKS = 8
+MIN_LINKS = 2
+MAX_LINKS = 6
+LINK_COUNTS = range(MIN_LINKS, MAX_LINKS + 1) # (2,3,4,5,6)
+LABEL_SIZE = len(LINK_COUNTS)
+
 PERMUTATIONS = 100
 ROBOTS_PER_COUNT = 50
 
