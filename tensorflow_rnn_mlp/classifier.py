@@ -3,7 +3,7 @@ sys.path.append('../simulator/')
 import tensorflow as tf
 from tensorflow.contrib import rnn
 from tensorflow.python import debug as tf_debug
-from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, PERMUTATIONS, get_skeleton_points
+from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, MIN_LINKS, LABEL_SIZE, PERMUTATIONS, get_skeleton_points
 
 #code.interact(local=dict(globals(), **locals())) 
 
@@ -51,12 +51,17 @@ def run_cmd(cmd):
 	return o.read()
 
 
-def get_label(lengths_line):
+def get_label(lengths_line, one_hot = False):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
-	num_lengths = len(lengths)
+	if one_hot:
+		label = [0] * LABEL_SIZE
+		index = len(lengths) - MIN_LINKS
+		label[index] = 1
+		return label
+	
 	while len(lengths) < MAX_LINKS:
 		lengths.append(0.0)
-	return _pad_label([num_lengths] + lengths)
+	return lengths
 
 def _flatten(lst):
 	return [item for sublist in lst for item in sublist]
@@ -69,12 +74,6 @@ def _flatten_and_pad_points(skeleton_frame):
 
 def prepare_skeleton(line):
 	return _flatten_and_pad_points(get_skeleton_points(line))
-
-def _pad_label(lengths):
-	new = list(lengths)[:]
-	while len(new) < MAX_LINKS+1:
-		new.append(0.0)
-	return new
 
 def _shuffle_caches(cache_1, cache_2):
 	combined = list(zip(cache_1, cache_2))
@@ -270,24 +269,18 @@ def frame_reader(file):
 			
 			if SKELETON_MARKER in line:
 				skeleton_frame = prepare_skeleton(line)
-				if RUN_TYPE == RUN_RNN:
+				if RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 					skeleton_frames.append(skeleton_frame)
 				continue
 			
 			if LENGTHS_HEADER in line:
-				label = get_label(line)
+				label = get_label(line, RUN_TYPE == RUN_RNN_ONE_HOT)
 				continue
-
+			
 		if RUN_TYPE == RUN_MLP and skeleton_frame and label:
 			yield (skeleton_frame, label)
-		elif RUN_TYPE == RUN_RNN:
+		elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 			yield (skeleton_frames, label)
-
-
-
-
-
-
 
 def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	if hidden_layers < 1:
@@ -554,7 +547,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_cost(pred, Y)
 	elif RUN_TYPE == RUN_RNN_ONE_HOT:
-		class_length = MAX_LINKS # because it's one-hot, of course
+		class_length = LABEL_SIZE # because it's one-hot, of course
 		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
 		Y = tf.placeholder('int32', [None, class_length])
 		logits_series, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
