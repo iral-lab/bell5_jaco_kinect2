@@ -439,10 +439,9 @@ def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, ep
 		for instance in range(0, len(prediction)):
 			predicted_links = ','.join(map(str, prediction[instance]))
 			predicted_file.write("arm_" + str(instance) + "," + str(epoch) + "," + predicted_links + "\n")
-
-			if epoch is 1 or RUN_TYPE == RUN_MLP:
-				links = ','.join(map(str, ground_truth[instance]))
-				actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
+			
+			links = ','.join(map(str, ground_truth[instance]))
+			actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
 		loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
 
 
@@ -454,6 +453,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 		to_run.append(optimizer)
 	
 	can_predict = predict and predictions_folder
+
 	prediction = []
 	ground_truth = []
 
@@ -487,8 +487,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 
 			if can_predict:
 				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: training_epoch_y})[0][-1])
-				if epoch is 1:
-					ground_truth.append(epoch_y[0])
+				ground_truth.append(epoch_y[0])
 
 		if can_predict:
 			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
