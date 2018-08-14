@@ -380,17 +380,19 @@ def rnn_one_hot_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	print "states:",states
 
 	logits_series = tf.add(tf.matmul(outputs[-1], weights['out']), biases['out'])
-	pred = tf.nn.softmax(logits_series)
+
+	soft = tf.nn.softmax(logits_series)
+	argmax_col = tf.argmax(soft, 1)
+	pred = tf.one_hot(argmax_col, class_length, dtype = tf.int32)
 	print "logits:", logits_series
 	print "pred",pred
+	print "argmax:",argmax_col
 	print
 	print
 	
 	return (logits_series, pred)
 
 def get_rnn_one_hot_cost(logits_series, y):
-	print "logits_series:",logits_series
-	print "Y:",y
 	losses = tf.nn.softmax_cross_entropy_with_logits(logits = logits_series, labels = y)
 	print "losses:",losses
 	total_loss = tf.reduce_mean(losses)
@@ -427,7 +429,7 @@ def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, ep
 			for i in xrange(MAX_LINKS):
 				header.append("link"+str(i))
 		elif RUN_TYPE in [RUN_RNN_ONE_HOT]:
-			for i in xrange(LINK_COUNTS):
+			for i in LINK_COUNTS:
 				header.append(str(i)+"-link")
 
 		if epoch is 1:
@@ -465,6 +467,11 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 			prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][-1])
 			ground_truth.append(epoch_y[0])
 
+		if can_predict:
+			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
+		elif predict:
+			print "WARNING: No predictions folder set."
+
 	elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 		data, labels = batch
 		
@@ -483,10 +490,10 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 				if epoch is 1:
 					ground_truth.append(epoch_y[0])
 
-	if predict and predictions_folder:
-		savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
-	elif predict:
-		print "WARNING: No predictions folder set."
+		if can_predict:
+			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
+		elif predict:
+			print "WARNING: No predictions folder set."
 
 	return batch_cost
 
@@ -521,7 +528,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	elif RUN_TYPE == RUN_RNN_ONE_HOT:
 		class_length = LABEL_SIZE # because it's one-hot, of course
 		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
-		Y = tf.placeholder('int32', [None, class_length])
+		Y = tf.placeholder('float', [None, class_length])
 		logits_series, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_one_hot_cost(logits_series, Y)
 	
@@ -581,7 +588,6 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 					if j == 0:
 						test_batch = batch
 						continue
-				
 					epoch_cost += run_batch(X, Y, sess, batch, cost, pred, False, i+1, predictions_folder, optimizer)
 					num_batches += 1
 					saved = False
