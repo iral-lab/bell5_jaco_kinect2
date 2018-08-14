@@ -279,8 +279,11 @@ def frame_reader(file):
 			
 		if RUN_TYPE == RUN_MLP and skeleton_frame and label:
 			yield (skeleton_frame, label)
-		elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
-			yield (skeleton_frames, label)
+		elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT] and label:
+			if len(skeleton_frames) == PERMUTATIONS:
+				yield (skeleton_frames, label)
+			else:
+				print "invalid length seq:",file, len(skeleton_frames),"frames"
 
 def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	if hidden_layers < 1:
