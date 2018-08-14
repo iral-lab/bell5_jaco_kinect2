@@ -3,7 +3,7 @@ sys.path.append('../simulator/')
 import tensorflow as tf
 from tensorflow.contrib import rnn
 from tensorflow.python import debug as tf_debug
-from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, MIN_LINKS, LABEL_SIZE, PERMUTATIONS, get_skeleton_points
+from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTROIDS, MAX_LINKS, MIN_LINKS, LINK_COUNTS, LABEL_SIZE, PERMUTATIONS, get_skeleton_points
 
 #code.interact(local=dict(globals(), **locals())) 
 
@@ -423,10 +423,12 @@ def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, ep
 		open(PREDICTIONS_SAVE_FOLDER + predictions_folder + "/ground_truth.csv", "a") as actual_file:
 
 		header = ["instance", "epoch",]
-		if RUN_TYPE in [RUN_RNN, RUN_MLP]:
-			header.append("link count")
-		for i in xrange(MAX_LINKS):
-			header.append("link"+str(i+1))
+		if RUN_TYPE in [RUN_MLP, RUN_RNN]:
+			for i in xrange(MAX_LINKS):
+				header.append("link"+str(i))
+		elif RUN_TYPE in [RUN_RNN_ONE_HOT]:
+			for i in xrange(LINK_COUNTS):
+				header.append(str(i)+"-link")
 
 		if epoch is 1:
 			actual_file.write(",".join(header)+"\n")
@@ -436,7 +438,7 @@ def savePredictions(prediction, ground_truth, batch_cost, predictions_folder, ep
 			predicted_links = ','.join(map(str, prediction[instance]))
 			predicted_file.write("arm_" + str(instance) + "," + str(epoch) + "," + predicted_links + "\n")
 
-			if epoch is 1:
+			if epoch is 1 or RUN_TYPE == RUN_MLP:
 				links = ','.join(map(str, ground_truth[instance]))
 				actual_file.write("arm_" + str(instance) + "," + str(epoch) + "," + links + "\n")
 		loss_file.write(str(epoch) + "," + str(batch_cost) + "\n")
@@ -449,18 +451,23 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 	if optimizer:
 		to_run.append(optimizer)
 	
+	can_predict = predict and predictions_folder
+	prediction = []
+	ground_truth = []
+
 	if RUN_TYPE == RUN_MLP:
 		epoch_x,epoch_y = batch
 		results = sess.run(to_run, feed_dict = {X: epoch_x, Y: epoch_y})
 		
 		batch_cost = results[0]
-	
+
+		if can_predict:
+			prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][-1])
+			ground_truth.append(epoch_y[0])
+
 	elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
 		data, labels = batch
-    
-		prediction = []
-		ground_truth = []
-	
+		
 		for i in xrange(len(data)):
 			epoch_x = [data[i]]
 			epoch_y = [labels[i]]
@@ -470,15 +477,17 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 			
 			results = sess.run(to_run, feed_dict = {X: epoch_x, Y: training_epoch_y})
 			batch_cost += results[0]
-			if predict is True:
-				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: training_epoch_y})[0][99])
+
+			if can_predict:
+				prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: training_epoch_y})[0][-1])
 				if epoch is 1:
 					ground_truth.append(epoch_y[0])
-                        
-		if predict and predictions_folder:
-			savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
-		elif predict:
-			print "WARNING: No predictions folder set."
+
+	if predict and predictions_folder:
+		savePredictions(prediction, ground_truth, batch_cost, predictions_folder, epoch)
+	elif predict:
+		print "WARNING: No predictions folder set."
+
 	return batch_cost
 
 def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, predictions_folder):
