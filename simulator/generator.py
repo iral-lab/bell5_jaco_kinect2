@@ -54,7 +54,7 @@ DECREASING_STEP = -1 * ROTATION_THETA
 INCREASING_STEP = ROTATION_THETA
 
 EXTENSION, ROTATION  = range(2)
-JOINT_TYPES = {EXTENSION : 'extension', }#ROTATION : 'rotation', }
+JOINT_TYPES = {ROTATION : 'rotation', } #EXTENSION : 'extension', }
 
 def run_cmd(cmd):
 	o,i = popen2.popen2(cmd)
@@ -485,16 +485,11 @@ def compute_cloud(input):
 				axis_of_rotation = None
 				this_joint_type = joint_types[angle_i]
 				step = 0
-				if EXTENSION == this_joint_type:
+				if ROTATION == this_joint_type:
 					this_angle.value = angle_between_points(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
 					step = this_angle.step()
 					this_angle.take_step()
 					axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
-				elif ROTATION == this_joint_type:
-					# semi-fictional steps, since no set starting angle. Results in it reversing periodically
-					step = this_angle.step()
-					this_angle.take_step()
-					axis_of_rotation = vector_between(vertices[vertex_i-1], this_vertex)
 				else:
 					print "Unknown joint type"
 					exit()
