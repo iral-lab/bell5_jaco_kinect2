@@ -580,7 +580,7 @@ def compute_cloud(input):
 			handle.write("".join(this_permutation_out))
 	
 		if RUNNING_ON_AWS:
-			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+DESTINATION_FOLDER+"/"
+			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+S3_DESTINATION_FOLDER+"/"
 			print cmd
 			run_cmd(cmd)
 			run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
