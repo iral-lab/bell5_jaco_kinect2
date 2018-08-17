@@ -17,6 +17,8 @@ LENGTHS_HEADER = "#Lengths#"
 
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
+S3_DESTINATION_FOLDER = "clouds"
+
 MAX_CENTROIDS = 40
 
 NUM_THREADS = int(sys.argv[sys.argv.index('-n') + 1]) if '-n' in sys.argv else 7
@@ -578,7 +580,7 @@ def compute_cloud(input):
 			handle.write("".join(this_permutation_out))
 	
 		if RUNNING_ON_AWS:
-			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
+			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+DESTINATION_FOLDER+"/"
 			print cmd
 			run_cmd(cmd)
 			run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
