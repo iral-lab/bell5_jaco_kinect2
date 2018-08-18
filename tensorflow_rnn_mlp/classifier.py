@@ -37,9 +37,15 @@ PREDICTIONS_SAVE_FOLDER = "predictions/"
 RUNNING_ON_MAC = os.path.exists('./.on_mac')
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
+RUN_NON_OCCLUDED = False
+
 INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
+if RUN_NON_OCCLUDED:
+	INPUT_FOLDER = "non_occluded_"+INPUT_FOLDER
 
 DATA_CACHE = '_classifier_input_' + RUN_TAG + '.pickle'
+if RUN_NON_OCCLUDED:
+	DATA_CACHE = "_non_occluded_"+DATA_CACHE
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 
@@ -214,7 +220,7 @@ def _prep_files(files, from_AWS):
 		downloaded = False
 		local_file = INPUT_FOLDER + file
 		if from_AWS and not os.path.exists(local_file):
-			cmd = "aws s3 --region us-east-1 cp " + S3_DESTINATION + "clouds/"+file+" " + local_file
+			cmd = "aws s3 --region us-east-1 cp " + S3_DESTINATION + INPUT_FOLDER + file + " " + local_file
 			print num_files,i,">",cmd
 			run_cmd(cmd)
 			downloaded = True
@@ -701,7 +707,7 @@ if '__main__' == __name__:
 		
 		if should_generate and RUNNING_ON_AWS:
 			print "Generating data cache from AWS"
-			input_files = run_cmd("aws s3 ls " + S3_DESTINATION + "clouds/ | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
+			input_files = run_cmd("aws s3 ls " + S3_DESTINATION + INPUT_FOLDER + " | ruby -e \"STDIN.readlines.each{|x| puts x.split.join(' ')}\" | cut -d' ' -f4").split("\n")
 			gen_datacache(input_files, True)
 		elif should_generate:
 			print "Generating data cache from", INPUT_FOLDER
