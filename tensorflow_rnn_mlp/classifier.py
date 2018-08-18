@@ -45,7 +45,7 @@ if RUN_NON_OCCLUDED:
 
 DATA_CACHE = '_classifier_input_' + RUN_TAG + '.pickle'
 if RUN_NON_OCCLUDED:
-	DATA_CACHE = "_non_occluded_"+DATA_CACHE
+	DATA_CACHE = "_non_occluded" + DATA_CACHE
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
 
