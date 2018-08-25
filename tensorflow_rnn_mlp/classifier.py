@@ -51,6 +51,8 @@ if RUN_NON_OCCLUDED:
 	DATA_CACHE = "_non_occluded" + DATA_CACHE
 COMPRESSED_DATA_CACHE = DATA_CACHE+".gz"
 
+BREAK_IF_TEST_COST_IS_THRASHING = False
+
 
 S3_FOLDER = "umbc.research/robot_learn_classifier/"
 S3_DESTINATION = "s3://" + S3_FOLDER
@@ -582,6 +584,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	stats_folder = "run_stats/run_" + type_string + str(int(time.time()))+"_"+str(hidden_layers)+"_"+str(nodes_per_layer)+"/"
 	os.makedirs(stats_folder)
 	saved = True
+	prior_test_cost = None
 	with open(stats_folder+'tf_results.csv', 'w') as handle:
 		handle.write("\t".join(['Epoch', 'Epoch Train cost', 'Epoch Test cost', '1/Epoch Test cost'])+"\n")
 		
@@ -616,16 +619,20 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				avg_train_cost = round(1.0 * epoch_cost / num_batches, 2) if num_batches > 0 else 0.0
 			
 				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, predictions_folder)
-			
+				
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
 				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, (1/test_cost if test_cost > 0 else 0)]])
 				handle.write(cost_line + "\n")
 				handle.flush()
-		
+				
 				if not saved and save_model and i > 0 and SAVE_EVERY_N and i % SAVE_EVERY_N == 0:
 					save_current_state(saver, sess, model_save_folder + "_" + str(i) + "/")
 					saved = True
-
+				
+				if BREAK_IF_TEST_COST_IS_THRASHING and prior_test_cost and prior_test_cost < test_cost:
+					break
+				prior_test_cost = test_cost
+				
 			if not saved:
 				save_current_state(saver, sess, model_save_folder + "_" + str(i) + "_final/")
 
