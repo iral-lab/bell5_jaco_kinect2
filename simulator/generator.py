@@ -17,14 +17,19 @@ LENGTHS_HEADER = "#Lengths#"
 
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
 
+S3_DESTINATION_FOLDER = "clouds"
+
 MAX_CENTROIDS = 40
 
 NUM_THREADS = int(sys.argv[sys.argv.index('-n') + 1]) if '-n' in sys.argv else 7
 
 WRITE_OUT_CLOUD = False
 
-LINK_COUNTS = [2,3,4,5,6]
-MAX_LINKS = 8
+MIN_LINKS = 2
+MAX_LINKS = 6
+LINK_COUNTS = range(MIN_LINKS, MAX_LINKS + 1) # (2,3,4,5,6)
+LABEL_SIZE = len(LINK_COUNTS)
+
 PERMUTATIONS = 100
 ROBOTS_PER_COUNT = 50
 
@@ -51,7 +56,7 @@ DECREASING_STEP = -1 * ROTATION_THETA
 INCREASING_STEP = ROTATION_THETA
 
 EXTENSION, ROTATION  = range(2)
-JOINT_TYPES = {EXTENSION : 'extension', }#ROTATION : 'rotation', }
+JOINT_TYPES = {ROTATION : 'rotation', } #EXTENSION : 'extension', }
 
 def run_cmd(cmd):
 	o,i = popen2.popen2(cmd)
@@ -482,16 +487,11 @@ def compute_cloud(input):
 				axis_of_rotation = None
 				this_joint_type = joint_types[angle_i]
 				step = 0
-				if EXTENSION == this_joint_type:
+				if ROTATION == this_joint_type:
 					this_angle.value = angle_between_points(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
 					step = this_angle.step()
 					this_angle.take_step()
 					axis_of_rotation = get_axis_of_rotation_for(vertices[vertex_i-1], this_vertex, vertices[vertex_i+1])
-				elif ROTATION == this_joint_type:
-					# semi-fictional steps, since no set starting angle. Results in it reversing periodically
-					step = this_angle.step()
-					this_angle.take_step()
-					axis_of_rotation = vector_between(vertices[vertex_i-1], this_vertex)
 				else:
 					print "Unknown joint type"
 					exit()
@@ -580,7 +580,7 @@ def compute_cloud(input):
 			handle.write("".join(this_permutation_out))
 	
 		if RUNNING_ON_AWS:
-			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/clouds/"
+			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+DESTINATION_FOLDER+"/"
 			print cmd
 			run_cmd(cmd)
 			run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
