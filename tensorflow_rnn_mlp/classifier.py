@@ -333,8 +333,6 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 
 
 
-
-
 def rnn_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	# RNN output node weights and biases
 	weights = {
@@ -487,7 +485,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 		elif predict:
 			print "WARNING: No predictions folder set."
 
-	elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
+	elif RUN_TYPE in RNN_VARIATIONS:
 		data, labels = batch
 		
 		for i in xrange(len(data)):
@@ -572,6 +570,9 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 	elif RUN_TYPE == RUN_RNN_ONE_HOT:
 		type_string = "RNN_ONE_HOT_"
 		model_save_folder += "RNN_ONE_HOT_"
+	elif RUN_TYPE == RUN_RNN_ONE_HOT_INT:
+		type_string = "RNN_ONE_HOT_INT_"
+		model_save_folder += "RNN_ONE_HOT_INT_"
 	model_save_folder += str(int(overall_start)) + "_"
 	model_save_folder += str(hidden_layers) + "_" + str(nodes_per_layer)
 	
