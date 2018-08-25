@@ -654,6 +654,8 @@ def hyper_params():
 		return [xrange(1,4), xrange(20, 200, 40)]
 	elif RUN_TYPE == RUN_RNN_ONE_HOT:
 		return [xrange(1,4), xrange(20, 200, 40)]
+	elif RUN_TYPE == RUN_RNN_ONE_HOT_INT:
+		return [xrange(1,4), xrange(20, 200, 40)]
 	
 	print "unknown hyper params"
 	exit()
