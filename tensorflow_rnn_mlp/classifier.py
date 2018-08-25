@@ -545,6 +545,12 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		Y = tf.placeholder('float', [None, class_length])
 		logits_series, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 		cost = get_rnn_one_hot_cost(logits_series, Y)
+	elif RUN_TYPE == RUN_RNN_ONE_HOT_INT:
+		class_length = 1 # because it's a single integer vector
+		X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+		Y = tf.placeholder('float', [None, class_length])
+		pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+		cost = get_rnn_cost(pred, Y)
 	
 	optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
