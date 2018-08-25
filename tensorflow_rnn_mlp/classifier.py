@@ -7,14 +7,17 @@ from generator import HEADER_DIVIDER, SKELETON_MARKER, LENGTHS_HEADER, MAX_CENTR
 
 #code.interact(local=dict(globals(), **locals())) 
 
-RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT = range(3)
-RUN_TYPES = [RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT]
+RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT, RUN_RNN_ONE_HOT_INT = range(4)
+RUN_TYPES = [RUN_MLP, RUN_RNN, RUN_RNN_ONE_HOT, RUN_RNN_ONE_HOT_INT]
+
+RNN_VARIATIONS = [RUN_RNN, RUN_RNN_ONE_HOT, RUN_RNN_ONE_HOT_INT]
 
 MLP_TAG = "MLP"
 RNN_TAG = "RNN"
 RNN_ONE_HOT_TAG = "RNN_ONE_HOT"
+RNN_ONE_HOT_INT_TAG = "RNN_ONE_HOT_INT"
 
-RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG]
+RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG, RNN_ONE_HOT_INT_TAG]
 
 RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if len(sys.argv) > 1 else -1
 RUN_TAG = sys.argv[1] if len(sys.argv) > 0 else None
@@ -57,12 +60,15 @@ def run_cmd(cmd):
 	return o.read()
 
 
-def get_label(lengths_line, one_hot = False):
+def get_label(lengths_line, run_type):
 	lengths = [int(x) for x in lengths_line[len(LENGTHS_HEADER):].split("\t")]
-	if one_hot:
+	if run_type == RUN_RNN_ONE_HOT:
 		label = [0] * LABEL_SIZE
 		index = len(lengths) - MIN_LINKS
 		label[index] = 1
+		return label
+	elif run_type == RUN_RNN_ONE_HOT_INT:
+		label = [len(lengths)]
 		return label
 	
 	while len(lengths) < MAX_LINKS:
@@ -278,17 +284,17 @@ def frame_reader(file):
 			
 			if SKELETON_MARKER in line:
 				skeleton_frame = prepare_skeleton(line)
-				if RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT]:
+				if RUN_TYPE in RNN_VARIATIONS:
 					skeleton_frames.append(skeleton_frame)
 				continue
 			
 			if LENGTHS_HEADER in line:
-				label = get_label(line, RUN_TYPE == RUN_RNN_ONE_HOT)
+				label = get_label(line, RUN_TYPE)
 				continue
 			
 		if RUN_TYPE == RUN_MLP and skeleton_frame and label:
 			yield (skeleton_frame, label)
-		elif RUN_TYPE in [RUN_RNN, RUN_RNN_ONE_HOT] and label:
+		elif RUN_TYPE in RNN_VARIATIONS and label:
 			if len(skeleton_frames) == PERMUTATIONS:
 				yield (skeleton_frames, label)
 			else:
