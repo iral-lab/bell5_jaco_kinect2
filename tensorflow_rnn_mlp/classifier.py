@@ -505,7 +505,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 
 	return batch_cost
 
-def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file, save_model, predictions_folder):
+def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs, load_model_file = False, save_model = False, predictions_folder = False):
 	tf.reset_default_graph()
 	
 	class_length = MAX_LINKS
@@ -639,6 +639,8 @@ def hyper_params():
 	if RUN_TYPE == RUN_MLP:
 		return [xrange(1,10), xrange(20, 200, 10)]
 	elif RUN_TYPE == RUN_RNN:
+		return [xrange(1,4), xrange(20, 200, 40)]
+	elif RUN_TYPE == RUN_RNN_ONE_HOT:
 		return [xrange(1,4), xrange(20, 200, 40)]
 	
 	print "unknown hyper params"
