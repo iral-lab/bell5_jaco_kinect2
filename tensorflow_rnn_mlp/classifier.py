@@ -621,7 +621,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				handle.write(cost_line + "\n")
 				handle.flush()
 		
-				if not saved and save_model and i > 0 and i % SAVE_EVERY_N == 0:
+				if not saved and save_model and i > 0 and SAVE_EVERY_N and i % SAVE_EVERY_N == 0:
 					save_current_state(saver, sess, model_save_folder + "_" + str(i) + "/")
 					saved = True
 
