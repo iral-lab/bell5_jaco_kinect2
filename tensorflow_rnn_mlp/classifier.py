@@ -311,7 +311,7 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 	weights = {}
 	biases = {}
 	
-	for i in xrange(hidden_layers + 1):
+	for i in xrange(hidden_layers):
 		if i == 0:
 			# first layer
 			weights[i] = tf.Variable(tf.random_normal([ n_input, nodes_per_layer ]))			
@@ -326,7 +326,7 @@ def mlp_model(x, n_input, class_length, hidden_layers, nodes_per_layer):
 			biases[i] = tf.Variable(tf.random_normal([class_length])),
 	
 	network = tf.nn.relu(tf.add(tf.matmul(x, weights[0]), biases[0]))
-	for i in xrange(1, hidden_layers + 1):
+	for i in xrange(1, hidden_layers):
 		network = tf.nn.relu(tf.add(tf.matmul(network, weights[i]), biases[i]))
 	return network
 
@@ -479,7 +479,7 @@ def run_batch(X, Y, sess, batch, cost, pred, predict, epoch, predictions_folder,
 		batch_cost = results[0]
 
 		if can_predict:
-			prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][-1])
+			prediction.append(sess.run([pred], feed_dict = {X: epoch_x, Y: epoch_y})[0][0])
 			ground_truth.append(epoch_y[0])
 
 		if can_predict:
@@ -621,6 +621,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 				test_cost = run_batch(X, Y, sess, test_batch, cost, pred, True, i+1, predictions_folder)
 				
 				print ">", round(time.time() - overall_start,2), round(time.time() - epoch_start,2), i, j, "Avg epoch train cost:", avg_train_cost , "Test cost:", test_cost
+				sys.stdout.flush()
 				cost_line = "\t".join([str(x) for x in [i, avg_train_cost, test_cost, (1/test_cost if test_cost > 0 else 0)]])
 				handle.write(cost_line + "\n")
 				handle.flush()
