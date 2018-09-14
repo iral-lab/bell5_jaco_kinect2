@@ -19,8 +19,13 @@ RNN_ONE_HOT_INT_TAG = "RNN_ONE_HOT_INT"
 
 RUN_TAGS = [MLP_TAG, RNN_TAG, RNN_ONE_HOT_TAG, RNN_ONE_HOT_INT_TAG]
 
-RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if len(sys.argv) > 1 else -1
-RUN_TAG = sys.argv[1] if len(sys.argv) > 0 else None
+PIPELINE_1, PIPELINE_2 = ['--pipeline-stage-1','--pipeline-stage-2']
+SPECIAL_TAGS = [PIPELINE_1, PIPELINE_2]
+SPECIAL_TAG_PRESENT = len([tag for tag in SPECIAL_TAGS if tag in sys.argv]) > 0
+
+
+RUN_TYPE = RUN_TAGS.index(sys.argv[1]) if not SPECIAL_TAG_PRESENT and len(sys.argv) > 1 else RNN_TAG
+RUN_TAG = sys.argv[1] if not SPECIAL_TAG_PRESENT and len(sys.argv) > 0 else RNN_TAG
 
 SAVE_EVERY_N = 10
 
@@ -594,8 +599,7 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 			tf.global_variables_initializer().run()
 		
 			if load_model_file:
-				print "Restoring model from", load_model_file
-				saver.restore(sess, load_model_file)
+				load_current_state(saver, sess, load_model_file)
 		
 			# correct_prediction = tf.equal(tf.argmax(pred, 1), tf.argmax(Y, 1))
 			# accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -644,16 +648,26 @@ def run_test(data_cache, label_cache, hidden_layers, nodes_per_layer, num_epochs
 		run_cmd(cmd)
 		run_cmd("rm -rf "+stats_folder)
 
-def save_current_state(saver, sess, this_round_save_folder):
-	model_save_file = this_round_save_folder + "model.tf"
+def save_current_state(saver, sess, save_folder):
+	if "/" <> save_folder[-1]:
+		save_folder += "/"
+	model_save_file = save_folder + "model.tf"
 	print "Saving model as", model_save_file
-	os.makedirs(this_round_save_folder)
+	os.makedirs(save_folder)
 	save_path = saver.save(sess, model_save_file)
 	print "... Saved"
 	if RUNNING_ON_AWS:
-		cmd = "aws s3 --region us-east-1 cp --recursive " + this_round_save_folder + " " + S3_DESTINATION + this_round_save_folder
+		cmd = "aws s3 --region us-east-1 cp --recursive " + save_folder + " " + S3_DESTINATION + save_folder
 		print cmd
 		run_cmd(cmd)
+
+def load_current_state(saver, sess, load_folder):
+	if "/" <> load_folder[-1]:
+		load_folder += "/"
+	model_save_file = load_folder + "model.tf"
+	print "Loading model from", model_save_file
+	saver.restore(sess, model_save_file)
+
 
 def hyper_params():
 	# num_layer_range, nodes_per_layer
@@ -697,7 +711,57 @@ def run_hyper(data_cache, label_cache):
 				pass
 
 
+def run_pipeline_stage_1():
+	load_folder = "./models/RNN_ONE_HOT_1536967057_3_140_10"
+	data,labels = cPickle.load(open('_classifier_input_RNN_ONE_HOT.pickle','r'))
+	tf.reset_default_graph()
+	
+	class_length = MAX_LINKS
+	n_input = MAX_CENTROIDS * 3
+	
+	class_length = LABEL_SIZE # because it's one-hot, of course
+	X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+	Y = tf.placeholder('float', [None, class_length])
+	hidden_layers = 3
+	nodes_per_layer = 140
+	_, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+	saver = tf.train.Saver()
+	with tf.Session() as sess:
+		tf.global_variables_initializer()
+		
+		load_current_state(saver, sess, load_folder)
+		
+		save_file = "pipeline1_results_"+str(int(time.time()))+".pickle"
+		
+		results = []
+		num_links_offset = 2
+		
+		for i in xrange(len(data)):
+			prediction_vector = list(sess.run([pred], feed_dict = {X: [data[i]], Y: [labels[i]]})[0][-1])
+			was_correct = prediction_vector == labels[i]
+			
+			predicted_links_int = prediction_vector.index(1) + num_links_offset
+			results.append([predicted_links_int, was_correct, prediction_vector, labels[i], data[i]])
+		
+		cPickle.dump(results, open(save_file,'w'))
+		print "Results saved to", save_file
+		#code.interact(local=dict(globals(), **locals()))
+
+
+def run_pipeline_stage_2():
+	pass
+		
+	
+
 if '__main__' == __name__:
+	
+	if '--pipeline-stage-1' in sys.argv:
+		run_pipeline_stage_1()
+		exit()
+	
+	if '--pipeline-stage-2' in sys.argv:
+		run_pipeline_stage_2()
+		exit()
 	
 	opt_load_saved_model = '-m'
 	opt_save_prediction_to = '-p'
