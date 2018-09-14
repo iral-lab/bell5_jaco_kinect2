@@ -2,8 +2,9 @@ import sys, random, math, code, os, multiprocessing, copy, time, gzip, popen2
 import numpy as np
 from sklearn.cluster import KMeans
 
+CLOUD_TYPE = 'clouds'
 
-OUTPUT_FOLDER = './clouds/'
+OUTPUT_FOLDER = './'+CLOUD_TYPE+'/'
 if not os.path.exists(OUTPUT_FOLDER):
 	os.mkdir(OUTPUT_FOLDER)
 
@@ -16,8 +17,6 @@ SKELETON_MARKER = "#Skeleton#"
 LENGTHS_HEADER = "#Lengths#"
 
 RUNNING_ON_AWS = os.path.exists('./.on_aws')
-
-S3_DESTINATION_FOLDER = "clouds"
 
 MAX_CENTROIDS = 40
 
@@ -580,7 +579,7 @@ def compute_cloud(input):
 			handle.write("".join(this_permutation_out))
 	
 		if RUNNING_ON_AWS:
-			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+S3_DESTINATION_FOLDER+"/"
+			cmd = "aws s3 --region us-east-1 cp "+OUTPUT_FOLDER+outfile+".gz s3://umbc.research/robot_learn_classifier/"+CLOUD_TYPE+"/"
 			print cmd
 			run_cmd(cmd)
 			run_cmd("rm "+OUTPUT_FOLDER+outfile+".gz")
