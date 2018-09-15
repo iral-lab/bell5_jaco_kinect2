@@ -756,6 +756,8 @@ def run_pipeline_stage_1():
 		num_links_offset = 2
 		
 		for i in xrange(len(data)):
+			print i,len(data)
+			sys.stdout.flush()
 			predicted_label = list(sess.run([pred], feed_dict = {X: [data[i]]})[0][-1])
 			one_hot_is_correct = predicted_label == one_hot_labels[i]
 			
@@ -805,11 +807,15 @@ def run_pipeline_stage_2(specific_model):
 		
 		results = []
 		
-		for row in all_results:
+		for i,row in enumerate(all_results):
+			
 			true_one_hot_label, true_length_label, observation, predicted_links_int, one_hot_is_correct, predicted_one_hot_label = row
 			
 			if predicted_links_int <> specific_model:
 				continue
+			
+			print i,len(all_results)
+			sys.stdout.flush()
 			
 			prediction_length_vector = list(sess.run([pred], feed_dict = {X: [observation]})[0][-1])
 			
