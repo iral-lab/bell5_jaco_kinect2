@@ -723,7 +723,7 @@ def run_hyper(data_cache, label_cache):
 
 
 def run_pipeline_stage_1():
-	load_folder = "./models/RNN_ONE_HOT_1536967057_3_140_10"
+	load_folder = "./models/RNN_ONE_HOT_1534450882_3_140_50"
 	load_data = "_classifier_untouched_data.pickle"
 	
 	if not os.path.exists(load_data):
