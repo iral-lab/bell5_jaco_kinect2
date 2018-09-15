@@ -48,6 +48,8 @@ RUNNING_ON_AWS = os.path.exists('./.on_aws')
 RUN_NON_OCCLUDED = False
 
 INPUT_FOLDER = 'committed_clouds/' if RUNNING_ON_MAC else 'clouds/'
+if SPECIAL_TAG_PRESENT:
+	INPUT_FOLDER = "totally_separate_clouds/"
 if RUN_NON_OCCLUDED:
 	INPUT_FOLDER = "non_occluded_"+INPUT_FOLDER
 
@@ -253,6 +255,7 @@ def get_data_labels(files, from_AWS = False):
 	files = sorted(files)
 	data = []
 	labels = []
+	other_labels = []
 	all_pairs = []
 	# files = random.shuffle(files)
 	
@@ -265,12 +268,16 @@ def get_data_labels(files, from_AWS = False):
 	data += [pair[0] for pair in all_pairs]
 	labels += [pair[1] for pair in all_pairs]
 	
-	return [data, labels]	
+	if SPECIAL_TAG_PRESENT:
+		other_labels += [pair[2] for pair in all_pairs]
+	
+	return [data, labels, other_labels] if SPECIAL_TAG_PRESENT else [data, labels]
 
 def frame_reader(file):
 	with gzip.GzipFile(INPUT_FOLDER+file, 'r') as handle:
 		skeleton_frame = None
 		label = None
+		other_label = None
 		skeleton_frames = []
 		input = handle.readline()
 		while input:
@@ -291,19 +298,23 @@ def frame_reader(file):
 			
 			if SKELETON_MARKER in line:
 				skeleton_frame = prepare_skeleton(line)
-				if RUN_TYPE in RNN_VARIATIONS:
+				if RUN_TYPE in RNN_VARIATIONS or SPECIAL_TAG_PRESENT:
 					skeleton_frames.append(skeleton_frame)
 				continue
 			
-			if LENGTHS_HEADER in line:
+			if LENGTHS_HEADER in line and not SPECIAL_TAG_PRESENT:
 				label = get_label(line, RUN_TYPE)
+				continue
+			elif LENGTHS_HEADER in line and SPECIAL_TAG_PRESENT:
+				label = get_label(line, RUN_RNN_ONE_HOT)
+				other_label = get_label(line, RUN_RNN)
 				continue
 			
 		if RUN_TYPE == RUN_MLP and skeleton_frame and label:
 			yield (skeleton_frame, label)
-		elif RUN_TYPE in RNN_VARIATIONS and label:
+		elif (SPECIAL_TAG_PRESENT or RUN_TYPE in RNN_VARIATIONS) and label:
 			if len(skeleton_frames) == PERMUTATIONS:
-				yield (skeleton_frames, label)
+				yield (skeleton_frames, label, other_label) if SPECIAL_TAG_PRESENT else (skeleton_frames, label)
 			else:
 				print "invalid length seq:",file, len(skeleton_frames),"frames"
 
@@ -713,17 +724,25 @@ def run_hyper(data_cache, label_cache):
 
 def run_pipeline_stage_1():
 	load_folder = "./models/RNN_ONE_HOT_1536967057_3_140_10"
-	data,labels = cPickle.load(open('_classifier_input_RNN_ONE_HOT.pickle','r'))
+	load_data = "_classifier_untouched_data.pickle"
+	
+	if not os.path.exists(load_data):
+		files = os.listdir(INPUT_FOLDER)
+		all_records = get_data_labels(files, False)
+		cPickle.dump(all_records, open(load_data,'w'))
+		exit()
+	
+	data,one_hot_labels,length_labels = cPickle.load(open(load_data,'r'))
 	tf.reset_default_graph()
 	
-	class_length = MAX_LINKS
 	n_input = MAX_CENTROIDS * 3
+	
+	hidden_layers = 3
+	nodes_per_layer = 140
 	
 	class_length = LABEL_SIZE # because it's one-hot, of course
 	X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
 	Y = tf.placeholder('float', [None, class_length])
-	hidden_layers = 3
-	nodes_per_layer = 140
 	_, pred = rnn_one_hot_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
 	saver = tf.train.Saver()
 	with tf.Session() as sess:
@@ -737,30 +756,91 @@ def run_pipeline_stage_1():
 		num_links_offset = 2
 		
 		for i in xrange(len(data)):
-			prediction_vector = list(sess.run([pred], feed_dict = {X: [data[i]], Y: [labels[i]]})[0][-1])
-			was_correct = prediction_vector == labels[i]
+			predicted_label = list(sess.run([pred], feed_dict = {X: [data[i]]})[0][-1])
+			one_hot_is_correct = predicted_label == one_hot_labels[i]
 			
-			predicted_links_int = prediction_vector.index(1) + num_links_offset
-			results.append([predicted_links_int, was_correct, prediction_vector, labels[i], data[i]])
+			predicted_links_int = predicted_label.index(1) + num_links_offset
+			results.append([one_hot_labels[i], length_labels[i], data[i], predicted_links_int, one_hot_is_correct, predicted_label])
+		
+		cPickle.dump(results, open(save_file,'w'))
+		print "Results saved to", save_file
+		# code.interact(local=dict(globals(), **locals()))
+
+
+def run_pipeline_stage_2(specific_model):
+	models = {
+		2 : "RNN_1534556276_3_140_99_final",
+		3 : "RNN_1534586834_3_140_99_final",
+		4 : "RNN_1534617307_3_140_99_final",
+		5 : "RNN_1534648081_3_140_99_final",
+		6 : "RNN_1534678961_3_140_99_final",
+	}
+	print "Running model with",specific_model,"links"
+	
+	load_folder = "./models/"+models[specific_model]
+	
+	phase_1_results = "pipeline1_results_1536973579.pickle" # to update
+	all_results = cPickle.load(open(phase_1_results,'r'))
+	
+	tf.reset_default_graph()
+	
+	class_length = MAX_LINKS
+	n_input = MAX_CENTROIDS * 3
+	
+	hidden_layers = 3
+	nodes_per_layer = 140
+	
+	X = tf.placeholder('float', [None, PERMUTATIONS, n_input])
+	Y = tf.placeholder('float', [None, class_length])
+	pred = rnn_model(X, n_input, class_length, hidden_layers, nodes_per_layer)
+	cost = get_rnn_cost(pred, Y)
+	
+	saver = tf.train.Saver()
+	with tf.Session() as sess:
+		tf.global_variables_initializer()
+		
+		load_current_state(saver, sess, load_folder)
+		
+		save_file = "pipeline2_results_"+str(int(time.time()))+"_"+str(specific_model)+".pickle"
+		
+		results = []
+		
+		for row in all_results:
+			true_one_hot_label, true_length_label, observation, predicted_links_int, one_hot_is_correct, predicted_one_hot_label = row
+			
+			if predicted_links_int <> specific_model:
+				continue
+			
+			prediction_length_vector = list(sess.run([pred], feed_dict = {X: [observation]})[0][-1])
+			
+			new_row = [true_one_hot_label, true_length_label, observation, predicted_links_int, one_hot_is_correct, predicted_one_hot_label, prediction_length_vector]
+			
+			#code.interact(local=dict(globals(), **locals()))
+			results.append(new_row)
 		
 		cPickle.dump(results, open(save_file,'w'))
 		print "Results saved to", save_file
 		#code.interact(local=dict(globals(), **locals()))
-
-
-def run_pipeline_stage_2():
+	
+	
 	pass
 		
 	
 
 if '__main__' == __name__:
 	
-	if '--pipeline-stage-1' in sys.argv:
+	phase_1 = '--pipeline-stage-1'
+	if phase_1 in sys.argv:
 		run_pipeline_stage_1()
 		exit()
 	
-	if '--pipeline-stage-2' in sys.argv:
-		run_pipeline_stage_2()
+	phase_2 = '--pipeline-stage-2'
+	if phase_2 in sys.argv:
+		specific_model = int(sys.argv[sys.argv.index(phase_2) + 1]) if len(sys.argv) > 2 and phase_2 in sys.argv else None
+		if not specific_model:
+			print "python",sys.argv[0],sys.argv[1],"<2,3,4,5,6>"
+			exit()
+		run_pipeline_stage_2(specific_model)
 		exit()
 	
 	opt_load_saved_model = '-m'
